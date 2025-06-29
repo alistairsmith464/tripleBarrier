@@ -39,3 +39,19 @@
 
 # debug information files
 *.dwo
+
+# Build directories
+build/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Qt auto-generated files
+*_autogen/
+
+# Exclude uploads except README.md
+uploads/*
+!uploads/README.md

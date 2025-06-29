@@ -1,1 +1,11 @@
-# tripleBarrier
+This project aims to implement and explore the triple barrier labeling method, as detailed in Prado’s Advances in Financial Machine Learning, within a C++ environment, accompanied by a simple frontend interface to facilitate interaction and visualization. The project will begin with a thorough review of the triple barrier theory and relevant machine learning concepts, alongside setting up the development environment and necessary libraries for C++ development.
+
+The data handling module will be responsible for loading historical price data and performing initial preprocessing steps, including volatility calculations and other relevant metrics. Event sampling logic will then be defined to establish discrete timestamps at which the triple barrier method will be applied; initially, this will be implemented using fixed interval sampling for simplicity.
+
+The core component, the triple barrier labeling module, will be developed to implement the three barriers: profit-taking, stop-loss, and vertical time limit. Labels will be assigned based on which barrier is hit first, or if the vertical barrier expires without hitting the others, a neutral label will be given. The project will address reentries by adopting a straightforward approach: sampling events at fixed intervals and labeling each independently, allowing overlapping trades for initial implementation simplicity, with potential future refinement to exclude overlapping trades by considering trade exit times.
+
+Feature engineering will extract basic features such as returns, volatility, and momentum for each event timestamp to serve as inputs for the machine learning model. Integration of a simple ML model, such as logistic regression or decision trees, will be performed using either a lightweight C++ ML library or via external scripting, to train on the labeled dataset.
+
+Model evaluation will include calculating accuracy and confusion matrices to validate performance. The project will also develop a minimal frontend interface using a lightweight GUI package to enable users to load data, run the labeling process, and view results in a user-friendly manner.
+
+Finally, the project will undergo comprehensive testing and refinement to ensure robustness, usability, and efficiency, followed by documentation that includes a detailed report and instructions for demonstration and usage.
