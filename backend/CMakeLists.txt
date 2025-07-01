@@ -10,8 +10,12 @@ add_library(backend
     data/DataSource.h
 )
 
-target_link_libraries(backend Qt6::Core)
 target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Only link Qt6::Core if building frontend (and Qt6 is available)
+if(BUILD_FRONTEND)
+    target_link_libraries(backend Qt6::Core)
+endif()
 
 # GoogleTest
 add_subdirectory(${CMAKE_SOURCE_DIR}/external/googletest ${CMAKE_BINARY_DIR}/googletest)
