@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 
 # Backend library
 add_library(backend
-    FileHandler.cpp
-    FileHandler.h
     data/CSVDataSource.cpp
     data/CSVDataSource.h
     data/DataRow.h
@@ -14,7 +12,7 @@ target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Only link Qt6::Core if building frontend (and Qt6 is available)
 if(BUILD_FRONTEND)
-    target_link_libraries(backend Qt6::Core)
+    # No Qt6 linkage needed for backend
 endif()
 
 # GoogleTest

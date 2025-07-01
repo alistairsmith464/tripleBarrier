@@ -12,7 +12,7 @@
 #include <QMenu>
 #include <QAction>
 #include <vector>
-#include "../backend/FileHandler.h"
+#include "../frontend/FileHandler.h"
 #include "../backend/data/CSVDataSource.h"
 
 QT_BEGIN_NAMESPACE
