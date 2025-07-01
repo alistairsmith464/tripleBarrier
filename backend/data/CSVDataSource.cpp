@@ -43,8 +43,13 @@ std::vector<DataRow> CSVDataSource::loadData(const std::string& filename) {
         ++rowNum;
         std::vector<std::string> fields = parseFields(line);
         for (auto& f : fields) f = trim(f);
-        if (fields.size() < requiredFields) {
-            throw std::runtime_error("Malformed row (too few fields) at row " + std::to_string(rowNum));
+        
+        if (fields.size() < headers.size()) {
+            fields.resize(headers.size());
+        }
+        
+        if (fields[headerIndex.at("timestamp")].empty() || fields[headerIndex.at("price")].empty()) {
+            throw std::runtime_error("Missing required field(s) at row " + std::to_string(rowNum));
         }
         data.push_back(parseDataRow(fields, headerIndex, optionalSetters, rowNum));
     }
@@ -74,7 +79,7 @@ namespace {
         std::istringstream ss(line);
         std::string col;
         while (std::getline(ss, col, ',')) {
-            headers.push_back(col); // trimming is done in loadData
+            headers.push_back(col);
         }
         if (headers.empty()) {
             throw std::runtime_error("CSV file has no header row");
@@ -103,7 +108,7 @@ namespace {
         std::istringstream ss(line);
         std::string field;
         while (std::getline(ss, field, ',')) {
-            fields.push_back(field); // trimming is done in loadData
+            fields.push_back(field);
         }
         return fields;
     }
