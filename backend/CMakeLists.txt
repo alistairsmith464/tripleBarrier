@@ -24,4 +24,4 @@ target_link_libraries(TestCSVDataSource backend gtest gtest_main)
 target_include_directories(TestCSVDataSource PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 enable_testing()
-add_test(NAME CSVDataSourceTest COMMAND TestCSVDataSource)
+add_test(NAME CSVDataSourceTest COMMAND TestCSVDataSource WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
