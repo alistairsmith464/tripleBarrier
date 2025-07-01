@@ -13,6 +13,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Update submodules
+        run: git submodule update --init --recursive
+
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake g++ ninja-build
 
