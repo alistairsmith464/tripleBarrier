@@ -9,7 +9,11 @@
 #include <QProgressBar>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QMenu>
+#include <QAction>
+#include <vector>
 #include "../backend/FileHandler.h"
+#include "../backend/data/CSVDataSource.h"
 
 QT_BEGIN_NAMESPACE
 QT_END_NAMESPACE
@@ -23,21 +27,26 @@ public:
     ~MainWindow();
 
 private slots:
-    void onUploadButtonClicked();
     void onClearButtonClicked();
+    void onUploadDataButtonClicked();
+    void onSelectCSVFile();
 
 private:
     void setupUI();
     void showUploadSuccess(const QString& filePath);
+    void showUploadSuccess(const QString& filePath, const std::vector<DataRow>& rows);
     void showUploadError(const QString& error);
+    void showDataSummary(const std::vector<DataRow>& rows);
 
     // UI components
-    QPushButton *m_uploadButton;
+    QPushButton *m_uploadDataButton;
     QPushButton *m_clearButton;
     QLabel *m_titleLabel;
     QLabel *m_statusLabel;
     QTextEdit *m_fileInfoDisplay;
     QProgressBar *m_progressBar;
+    QMenu *m_uploadMenu;
+    QAction *m_csvAction;
     
     // Backend
     FileHandler *m_fileHandler;

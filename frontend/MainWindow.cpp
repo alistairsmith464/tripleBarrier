@@ -30,40 +30,49 @@ void MainWindow::setupUI()
 
     // Create main layout
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
-    mainLayout->setSpacing(20);
-    mainLayout->setContentsMargins(30, 30, 30, 30);
+    mainLayout->setSpacing(24);
+    mainLayout->setContentsMargins(40, 36, 40, 36);
+    centralWidget->setStyleSheet("background: #f4f8fb;");
 
     // Title
-    m_titleLabel = new QLabel("Triple Barrier File Upload", this);
+    m_titleLabel = new QLabel("Triple Barrier Data Uploader", this);
     QFont titleFont = m_titleLabel->font();
-    titleFont.setPointSize(18);
+    titleFont.setPointSize(22);
     titleFont.setBold(true);
     m_titleLabel->setFont(titleFont);
     m_titleLabel->setAlignment(Qt::AlignCenter);
-    m_titleLabel->setStyleSheet("color: #2c3e50; margin-bottom: 10px;");
+    m_titleLabel->setStyleSheet("color: #22313f; margin-bottom: 8px; letter-spacing: 1px;");
 
     // Status label
-    m_statusLabel = new QLabel("Select a file to upload", this);
+    m_statusLabel = new QLabel("Click 'Upload Data' to begin", this);
     m_statusLabel->setAlignment(Qt::AlignCenter);
-    m_statusLabel->setStyleSheet("color: #7f8c8d; font-size: 12px;");
+    m_statusLabel->setStyleSheet("color: #e74c3c; font-size: 15px; font-weight: bold; margin-bottom: 8px;");
 
     // Progress bar (initially hidden)
     m_progressBar = new QProgressBar(this);
     m_progressBar->setVisible(false);
+    m_progressBar->setStyleSheet(
+        "QProgressBar { border: 1px solid #b2bec3; border-radius: 5px; background: #eaf0f6; height: 18px; }"
+        "QProgressBar::chunk { background: #3498db; border-radius: 5px; }"
+    );
 
     // Buttons layout
     QHBoxLayout *buttonLayout = new QHBoxLayout();
-    
-    m_uploadButton = new QPushButton("Upload File", this);
-    m_uploadButton->setMinimumHeight(40);
-    m_uploadButton->setStyleSheet(
+    buttonLayout->setSpacing(24);
+
+    m_uploadDataButton = new QPushButton("Upload Data", this);
+    m_uploadDataButton->setMinimumHeight(44);
+    m_uploadDataButton->setMinimumWidth(220);
+    m_uploadDataButton->setStyleSheet(
         "QPushButton {"
         "    background-color: #3498db;"
         "    color: white;"
         "    border: none;"
-        "    border-radius: 5px;"
-        "    font-size: 14px;"
+        "    border-radius: 8px;"
+        "    font-size: 17px;"
         "    font-weight: bold;"
+        "    letter-spacing: 1px;"
+        "    box-shadow: 0 2px 8px #b2bec3;"
         "}"
         "QPushButton:hover {"
         "    background-color: #2980b9;"
@@ -73,35 +82,46 @@ void MainWindow::setupUI()
         "}"
     );
 
+    m_uploadMenu = new QMenu(this);
+    m_csvAction = new QAction("Upload CSV", this);
+    m_uploadMenu->addAction(m_csvAction);
+    m_uploadDataButton->setMenu(m_uploadMenu);
+
     m_clearButton = new QPushButton("Clear", this);
-    m_clearButton->setMinimumHeight(40);
+    m_clearButton->setMinimumHeight(44);
+    m_clearButton->setMinimumWidth(220);
     m_clearButton->setStyleSheet(
         "QPushButton {"
-        "    background-color: #95a5a6;"
+        "    background-color: #b2bec3;"
         "    color: white;"
         "    border: none;"
-        "    border-radius: 5px;"
-        "    font-size: 14px;"
+        "    border-radius: 8px;"
+        "    font-size: 17px;"
+        "    font-weight: bold;"
+        "    letter-spacing: 1px;"
+        "    box-shadow: 0 2px 8px #dfe6e9;"
         "}"
         "QPushButton:hover {"
-        "    background-color: #7f8c8d;"
+        "    background-color: #636e72;"
         "}"
     );
 
-    buttonLayout->addWidget(m_uploadButton);
+    buttonLayout->addWidget(m_uploadDataButton);
     buttonLayout->addWidget(m_clearButton);
 
     // File info display
     m_fileInfoDisplay = new QTextEdit(this);
     m_fileInfoDisplay->setReadOnly(true);
-    m_fileInfoDisplay->setPlaceholderText("File information will appear here after upload...");
+    m_fileInfoDisplay->setPlaceholderText("Data summary will appear here after upload...");
     m_fileInfoDisplay->setStyleSheet(
         "QTextEdit {"
         "    border: 2px solid #bdc3c7;"
-        "    border-radius: 5px;"
-        "    padding: 10px;"
+        "    border-radius: 8px;"
+        "    padding: 16px;"
         "    background-color: #f8f9fa;"
-        "    font-family: 'Courier New', monospace;"
+        "    font-family: 'Fira Mono', 'Consolas', 'Courier New', monospace;"
+        "    font-size: 15px;"
+        "    color: #22313f;"
         "}"
     );
 
@@ -110,45 +130,42 @@ void MainWindow::setupUI()
     mainLayout->addWidget(m_statusLabel);
     mainLayout->addWidget(m_progressBar);
     mainLayout->addLayout(buttonLayout);
-    mainLayout->addWidget(m_fileInfoDisplay, 1); // Give it more space
+    mainLayout->addWidget(m_fileInfoDisplay, 1);
 
     // Connect signals
-    connect(m_uploadButton, &QPushButton::clicked, this, &MainWindow::onUploadButtonClicked);
+    connect(m_csvAction, &QAction::triggered, this, &MainWindow::onSelectCSVFile);
     connect(m_clearButton, &QPushButton::clicked, this, &MainWindow::onClearButtonClicked);
 }
 
-void MainWindow::onUploadButtonClicked()
-{
+void MainWindow::onUploadDataButtonClicked() {
+    // Not used, menu is attached directly to button
+}
+
+void MainWindow::onSelectCSVFile() {
     QString fileName = QFileDialog::getOpenFileName(
         this,
-        "Select File to Upload",
+        "Select CSV File",
         "",
-        "All Files (*.*)"
+        "CSV Files (*.csv);;All Files (*.*)"
     );
-
     if (fileName.isEmpty()) {
-        return; // User cancelled
+        return;
     }
-
-    // Show progress
     m_progressBar->setVisible(true);
-    m_progressBar->setRange(0, 0); // Indeterminate progress
-    m_statusLabel->setText("Uploading file...");
-    m_uploadButton->setEnabled(false);
-
-    // Simulate some processing time (in real app, this might be in a separate thread)
+    m_progressBar->setRange(0, 0);
+    m_statusLabel->setText("Loading CSV data...");
+    m_uploadDataButton->setEnabled(false);
     QApplication::processEvents();
-
-    // Attempt to upload the file
-    if (m_fileHandler->uploadFile(fileName)) {
-        showUploadSuccess(m_fileHandler->getLastUploadedFile());
-    } else {
-        showUploadError("Failed to upload file. Please check file permissions and try again.");
+    try {
+        CSVDataSource src;
+        std::vector<DataRow> rows = src.loadData(fileName.toStdString());
+        showUploadSuccess(fileName, rows);
+        showDataSummary(rows);
+    } catch (const std::exception& ex) {
+        showUploadError(QString("Failed to load CSV: %1").arg(ex.what()));
     }
-
-    // Hide progress and re-enable button
     m_progressBar->setVisible(false);
-    m_uploadButton->setEnabled(true);
+    m_uploadDataButton->setEnabled(true);
 }
 
 void MainWindow::onClearButtonClicked()
@@ -158,27 +175,40 @@ void MainWindow::onClearButtonClicked()
     m_statusLabel->setStyleSheet("color: #7f8c8d; font-size: 12px;");
 }
 
-void MainWindow::showUploadSuccess(const QString& filePath)
-{
-    m_statusLabel->setText("✓ File uploaded successfully!");
+void MainWindow::showUploadSuccess(const QString& filePath, const std::vector<DataRow>& rows) {
+    m_statusLabel->setText("✓ Data loaded successfully!");
     m_statusLabel->setStyleSheet("color: #27ae60; font-size: 12px; font-weight: bold;");
-
-    // Display file information
-    QString fileInfo = m_fileHandler->getFileInfo(filePath);
-    m_fileInfoDisplay->setText(fileInfo);
-
-    // Show success message
-    QMessageBox::information(this, "Upload Successful", 
-                           QString("File has been successfully uploaded!\n\nLocation: %1").arg(filePath));
+    QMessageBox::information(this, "Upload Successful", QString("Loaded %1 rows from %2").arg(rows.size()).arg(filePath));
 }
 
-void MainWindow::showUploadError(const QString& error)
-{
-    m_statusLabel->setText("✗ Upload failed");
+void MainWindow::showUploadError(const QString& error) {
+    m_statusLabel->setText("✗ Data load failed");
     m_statusLabel->setStyleSheet("color: #e74c3c; font-size: 12px; font-weight: bold;");
+    QMessageBox::critical(this, "Load Failed", error);
+}
 
-    // Show error message
-    QMessageBox::critical(this, "Upload Failed", error);
+void MainWindow::showDataSummary(const std::vector<DataRow>& rows) {
+    if (rows.empty()) {
+        m_fileInfoDisplay->setText("No data loaded.");
+        return;
+    }
+    QStringList lines;
+    lines << QString("Rows loaded: %1").arg(rows.size());
+    lines << "Columns: timestamp, price, open, high, low, close, volume";
+    int preview = std::min<int>(rows.size(), 5);
+    lines << "\nSample rows:";
+    for (int i = 0; i < preview; ++i) {
+        const DataRow& r = rows[i];
+        lines << QString("%1 | %2 | %3 | %4 | %5 | %6 | %7")
+            .arg(QString::fromStdString(r.timestamp))
+            .arg(r.price)
+            .arg(r.open ? QString::number(*r.open) : "")
+            .arg(r.high ? QString::number(*r.high) : "")
+            .arg(r.low ? QString::number(*r.low) : "")
+            .arg(r.close ? QString::number(*r.close) : "")
+            .arg(r.volume ? QString::number(*r.volume) : "");
+    }
+    m_fileInfoDisplay->setText(lines.join("\n"));
 }
 
 #include "MainWindow.moc"
