@@ -5,6 +5,7 @@
 #include <QSpacerItem>
 #include <QSizePolicy>
 #include <QFont>
+#include <QApplication>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)

@@ -1,0 +1,26 @@
+name: CMake & GoogleTest CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake g++ ninja-build
+
+      - name: Configure CMake
+        run: cmake -S . -B build -G Ninja
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Run tests
+        run: cd build && ctest --output-on-failure
