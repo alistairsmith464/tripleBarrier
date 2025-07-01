@@ -6,13 +6,15 @@ option(BUILD_FRONTEND "Build the Qt6 frontend" ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find Qt6 components
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+if(BUILD_FRONTEND)
+    # Find Qt6 components
+    find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
-# Enable automatic MOC, UIC, and RCC
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC ON)
+    # Enable automatic MOC, UIC, and RCC
+    set(CMAKE_AUTOMOC ON)
+    set(CMAKE_AUTOUIC ON)
+    set(CMAKE_AUTORCC ON)
+endif()
 
 # Add subdirectories
 add_subdirectory(backend)
