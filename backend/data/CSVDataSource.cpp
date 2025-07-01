@@ -18,6 +18,7 @@ namespace {
     using OptionalFieldSetter = std::function<void(DataRow&, const std::string&, size_t)>;
     std::vector<std::pair<size_t, OptionalFieldSetter>> buildOptionalFieldSetters(const std::unordered_map<std::string, size_t>& headerIndex);
     DataRow parseDataRow(const std::vector<std::string>& fields, const std::unordered_map<std::string, size_t>& headerIndex, const std::vector<std::pair<size_t, OptionalFieldSetter>>& optionalSetters, size_t rowNum);
+    std::string trim(const std::string& s);
 }
 
 std::vector<DataRow> CSVDataSource::loadData(const std::string& filename) {
@@ -30,23 +31,26 @@ std::vector<DataRow> CSVDataSource::loadData(const std::string& filename) {
     }
 
     std::vector<std::string> headers = parseHeaderRow(line);
+    for (auto& h : headers) h = trim(h);
     auto headerIndex = buildHeaderIndex(headers);
     validateRequiredHeaders(headerIndex);
     auto optionalSetters = buildOptionalFieldSetters(headerIndex);
     std::vector<DataRow> data;
     size_t rowNum = 1;
+    size_t requiredFields = headers.size();
 
     while (std::getline(file, line)) {
         ++rowNum;
         std::vector<std::string> fields = parseFields(line);
-
-        if (fields.size() < headers.size()) {
-            continue;
+        for (auto& f : fields) f = trim(f);
+        if (fields.size() < requiredFields) {
+            throw std::runtime_error("Malformed row (too few fields) at row " + std::to_string(rowNum));
         }
-
         data.push_back(parseDataRow(fields, headerIndex, optionalSetters, rowNum));
     }
-
+    if (data.empty()) {
+        throw std::runtime_error("CSV file has no data rows: " + filename);
+    }
     return data;
 }
 
@@ -70,7 +74,7 @@ namespace {
         std::istringstream ss(line);
         std::string col;
         while (std::getline(ss, col, ',')) {
-            headers.push_back(col);
+            headers.push_back(col); // trimming is done in loadData
         }
         if (headers.empty()) {
             throw std::runtime_error("CSV file has no header row");
@@ -99,7 +103,7 @@ namespace {
         std::istringstream ss(line);
         std::string field;
         while (std::getline(ss, field, ',')) {
-            fields.push_back(field);
+            fields.push_back(field); // trimming is done in loadData
         }
         return fields;
     }
@@ -135,5 +139,11 @@ namespace {
             setter(row, fields[idx], rowNum);
         }
         return row;
+    }
+
+    std::string trim(const std::string& s) {
+        size_t start = s.find_first_not_of(" \t\r\n");
+        size_t end = s.find_last_not_of(" \t\r\n");
+        return (start == std::string::npos) ? "" : s.substr(start, end - start + 1);
     }
 }
