@@ -25,5 +25,12 @@ jobs:
       - name: Build
         run: cmake --build build
 
-      - name: Run tests
+      - name: Run all backend test executables (show all test cases)
+        run: |
+          for exe in build/backend/Test*; do
+            echo "Running $exe"
+            $exe --gtest_color=yes
+          done
+
+      - name: Run tests (CTest summary)
         run: cd build/backend && ctest --output-on-failure
