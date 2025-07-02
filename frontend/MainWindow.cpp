@@ -9,6 +9,8 @@
 #include "../backend/data/DataPreprocessor.h"
 #include "BarrierConfigDialog.h"
 #include <QInputDialog>
+#include "TripleBarrierLabeler.h"
+#include "LabeledEvent.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -129,6 +131,11 @@ void MainWindow::setupUI()
     mainLayout->addLayout(buttonLayout);
     mainLayout->addWidget(m_fileInfoDisplay, 1);
 
+    // Chart for graphical display
+    m_chartView = new QtCharts::QChartView(this);
+    m_chartView->setMinimumHeight(300);
+    mainLayout->addWidget(m_chartView);
+
     // Connect signals
     connect(m_csvAction, &QAction::triggered, this, &MainWindow::onSelectCSVFile);
     connect(m_clearButton, &QPushButton::clicked, this, &MainWindow::onClearButtonClicked);
@@ -170,7 +177,40 @@ void MainWindow::onSelectCSVFile() {
                 params.barrier_multiple = cfg.profit_multiple;
                 params.vertical_barrier = cfg.vertical_window;
                 auto processed = DataPreprocessor::preprocess(rows, params);
-                showPreprocessedSummary(processed);
+                // Find event indices
+                std::vector<size_t> event_indices;
+                for (size_t i = 0; i < processed.size(); ++i) {
+                    if (processed[i].is_event) event_indices.push_back(i);
+                }
+                auto labeled = TripleBarrierLabeler::label(
+                    processed,
+                    event_indices,
+                    cfg.profit_multiple,
+                    cfg.stop_multiple,
+                    cfg.vertical_window
+                );
+                // Show summary in text
+                if (!labeled.empty()) {
+                    QStringList lines;
+                    lines << QString("Labeled events: %1").arg(labeled.size());
+                    lines << "Columns: entry_time, exit_time, label, entry_price, exit_price";
+                    int preview = std::min<int>(labeled.size(), 5);
+                    lines << "\nSample events:";
+                    for (int i = 0; i < preview; ++i) {
+                        const LabeledEvent& e = labeled[i];
+                        lines << QString("%1 | %2 | %3 | %4 | %5")
+                            .arg(QString::fromStdString(e.entry_time))
+                            .arg(QString::fromStdString(e.exit_time))
+                            .arg(e.label)
+                            .arg(e.entry_price)
+                            .arg(e.exit_price);
+                    }
+                    m_fileInfoDisplay->setText(lines.join("\n"));
+                } else {
+                    m_fileInfoDisplay->setText("No labeled events.");
+                }
+                // Show plot
+                plotLabeledEvents(processed, labeled);
             } catch (const std::exception& ex) {
                 showUploadError(QString("Barrier config error: %1").arg(ex.what()));
             }
@@ -245,4 +285,107 @@ void MainWindow::showPreprocessedSummary(const std::vector<PreprocessedRow>& row
             .arg(r.is_event ? "event" : "");
     }
     m_fileInfoDisplay->setText(lines.join("\n"));
+}
+
+void MainWindow::plotLabeledEvents(const std::vector<ProcessedRow>& processed, const std::vector<LabeledEvent>& labeled) {
+    // Clear previous chart data
+    m_chartView->chart()->removeAllSeries();
+    m_chartView->chart()->axes(Qt::Horizontal).first()->setVisible(false);
+    m_chartView->chart()->axes(Qt::Vertical).first()->setVisible(false);
+
+    if (labeled.empty()) {
+        return;
+    }
+
+    // Prepare data for plotting
+    QVector<QPointF> points;
+    for (const auto& row : processed) {
+        points.append(QPointF(row.timestamp.toMSecsSinceEpoch(), row.close));
+    }
+
+    // Create line series for price data
+    QtCharts::QLineSeries* priceSeries = new QtCharts::QLineSeries();
+    priceSeries->setName("Price");
+    priceSeries->setPen(QPen(QColor(52, 152, 219), 2));
+    priceSeries->append(points);
+
+    // Add series to chart
+    m_chartView->chart()->addSeries(priceSeries);
+
+    // Create scatter series for labeled events
+    QtCharts::QScatterSeries* eventSeries = new QtCharts::QScatterSeries();
+    eventSeries->setName("Labeled Events");
+    eventSeries->setMarkerSize(10);
+    eventSeries->setColor(QColor(231, 76, 60));
+
+    // Add points to scatter series
+    for (const auto& event : labeled) {
+        qint64 x = QDateTime::fromString(QString::fromStdString(event.entry_time), "yyyy-MM-dd hh:mm:ss").toMSecsSinceEpoch();
+        qint64 y = event.entry_price;
+        eventSeries->append(x, y);
+    }
+
+    // Add scatter series to chart
+    m_chartView->chart()->addSeries(eventSeries);
+
+    // Configure axes
+    auto* xAxis = new QtCharts::QValueAxis;
+    xAxis->setLabelFormat("%.0f");
+    xAxis->setTitleText("Time");
+    m_chartView->chart()->addAxis(xAxis, Qt::AlignBottom);
+    priceSeries->attachAxis(xAxis);
+    eventSeries->attachAxis(xAxis);
+
+    auto* yAxis = new QtCharts::QValueAxis;
+    yAxis->setLabelFormat("%.2f");
+    yAxis->setTitleText("Price");
+    m_chartView->chart()->addAxis(yAxis, Qt::AlignLeft);
+    priceSeries->attachAxis(yAxis);
+    eventSeries->attachAxis(yAxis);
+
+    // Set chart title
+    m_chartView->chart()->setTitle("Labeled Events on Price Chart");
+    m_chartView->chart()->setAnimationOptions(QtCharts::QChart::SeriesAnimations);
+    m_chartView->setRenderHint(QPainter::Antialiasing);
+}
+
+void MainWindow::plotLabeledEvents(const std::vector<PreprocessedRow>& rows, const std::vector<LabeledEvent>& labeledEvents) {
+    using namespace QtCharts;
+    QChart *chart = new QChart();
+    chart->setTitle("Price Series with Triple Barrier Labels");
+    // Price line
+    QLineSeries *priceSeries = new QLineSeries();
+    priceSeries->setName("Price");
+    for (size_t i = 0; i < rows.size(); ++i) {
+        priceSeries->append(i, rows[i].price);
+    }
+    chart->addSeries(priceSeries);
+    // Markers for labeled events
+    QScatterSeries *profitSeries = new QScatterSeries();
+    profitSeries->setName("Profit Hit (+1)");
+    profitSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+    profitSeries->setColor(Qt::green);
+    QScatterSeries *stopSeries = new QScatterSeries();
+    stopSeries->setName("Stop Hit (-1)");
+    stopSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+    stopSeries->setColor(Qt::red);
+    QScatterSeries *vertSeries = new QScatterSeries();
+    vertSeries->setName("Vertical Barrier (0)");
+    vertSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
+    vertSeries->setColor(Qt::blue);
+    for (const auto& e : labeledEvents) {
+        // Find entry index
+        auto it = std::find_if(rows.begin(), rows.end(), [&](const PreprocessedRow& r) { return r.timestamp == e.entry_time; });
+        if (it == rows.end()) continue;
+        int idx = int(std::distance(rows.begin(), it));
+        if (e.label == +1) profitSeries->append(idx, e.entry_price);
+        else if (e.label == -1) stopSeries->append(idx, e.entry_price);
+        else vertSeries->append(idx, e.entry_price);
+    }
+    chart->addSeries(profitSeries);
+    chart->addSeries(stopSeries);
+    chart->addSeries(vertSeries);
+    // Axes
+    chart->createDefaultAxes();
+    m_chartView->setChart(chart);
 }

@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
+find_package(Qt6 COMPONENTS Charts REQUIRED)
+
 # Frontend executable
 add_executable(TripleBarrierApp
     main.cpp
@@ -15,5 +17,6 @@ add_executable(TripleBarrierApp
 target_link_libraries(TripleBarrierApp 
     Qt6::Core 
     Qt6::Widgets 
+    Qt6::Charts
     backend
 )
