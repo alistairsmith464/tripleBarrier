@@ -84,13 +84,15 @@ TEST(TripleBarrierLabelerTest, ProfitAndStopSameBar) {
         data[i].price = 100.0;
         data[i].volatility = 1.0;
     }
-    // Both barriers hit on the same bar, profit checked first
-    data[2].price = 102.1; // profit
-    data[2].price = 98.9;  // stop (simulate both, but profit checked first in code)
-    std::vector<size_t> events = {0};
-    auto result = TripleBarrierLabeler::label(data, events, 2.0, 1.0, 4);
+    // Both barriers hit on the same bar: price >= pt and <= sl
+    // pt = 100 + 2*1 = 102, sl = 100 - 1*1 = 99
+    // Set price to 102 (profit) and 99 (stop) on the same bar is not possible for a single price,
+    // but we can set price to 102 (profit) and test that profit takes precedence if both are hit on the same bar.
+    data[2].price = 102.0; // hits profit barrier
+    data[2].volatility = 1.0;
+    // To simulate both, we can set stop_multiple so that sl = 102, so price == pt == sl
+    auto result = TripleBarrierLabeler::label(data, {0}, 2.0, -2.0, 4); // sl = 100 - (-2)*1 = 102
     ASSERT_EQ(result.size(), 1);
-    // The implementation checks profit first, so label should be +1 if both are hit
     EXPECT_EQ(result[0].label, +1);
     EXPECT_EQ(result[0].exit_time, "2");
 }
