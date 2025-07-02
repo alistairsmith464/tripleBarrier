@@ -15,6 +15,8 @@
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QScatterSeries>
+#include <QtCharts/QDateTimeAxis>
+#include <QDateTime>
 #include "FileHandler.h"
 #include "../backend/data/CSVDataSource.h"
 #include "../backend/data/PreprocessedRow.h"
@@ -48,7 +50,6 @@ private:
     QPushButton *m_clearButton;
     QLabel *m_titleLabel;
     QLabel *m_statusLabel;
-    QTextEdit *m_fileInfoDisplay;
     QProgressBar *m_progressBar;
     QMenu *m_uploadMenu;
     QAction *m_csvAction;

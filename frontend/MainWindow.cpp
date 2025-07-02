@@ -11,6 +11,7 @@
 #include <QInputDialog>
 #include "../backend/data/TripleBarrierLabeler.h"
 #include "../backend/data/LabeledEvent.h"
+#include <QtCharts/QValueAxis>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -108,28 +109,11 @@ void MainWindow::setupUI()
     buttonLayout->addWidget(m_uploadDataButton);
     buttonLayout->addWidget(m_clearButton);
 
-    // File info display
-    m_fileInfoDisplay = new QTextEdit(this);
-    m_fileInfoDisplay->setReadOnly(true);
-    m_fileInfoDisplay->setPlaceholderText("Data summary will appear here after upload...");
-    m_fileInfoDisplay->setStyleSheet(
-        "QTextEdit {"
-        "    border: 2px solid #bdc3c7;"
-        "    border-radius: 8px;"
-        "    padding: 16px;"
-        "    background-color: #f8f9fa;"
-        "    font-family: 'Fira Mono', 'Consolas', 'Courier New', monospace;"
-        "    font-size: 15px;"
-        "    color: #22313f;"
-        "}"
-    );
-
     // Add all components to main layout
     mainLayout->addWidget(m_titleLabel);
     mainLayout->addWidget(m_statusLabel);
     mainLayout->addWidget(m_progressBar);
     mainLayout->addLayout(buttonLayout);
-    mainLayout->addWidget(m_fileInfoDisplay, 1);
 
     // Chart for graphical display
     m_chartView = new QChartView(this);
@@ -203,7 +187,6 @@ void MainWindow::onSelectCSVFile() {
 
 void MainWindow::onClearButtonClicked()
 {
-    m_fileInfoDisplay->clear();
     m_statusLabel->setText("Select a file to upload");
     m_statusLabel->setStyleSheet("color: #7f8c8d; font-size: 12px;");
 }
@@ -223,14 +206,26 @@ void MainWindow::showUploadError(const QString& error) {
 void MainWindow::plotLabeledEvents(const std::vector<PreprocessedRow>& rows, const std::vector<LabeledEvent>& labeledEvents) {
     QChart *chart = new QChart();
     chart->setTitle("Price Series with Triple Barrier Labels");
-    // Price line
     QLineSeries *priceSeries = new QLineSeries();
     priceSeries->setName("Price");
+    QVector<QDateTime> xDates;
+    bool anyValid = false;
     for (size_t i = 0; i < rows.size(); ++i) {
-        priceSeries->append(i, rows[i].price);
+        QString ts = QString::fromStdString(rows[i].timestamp);
+        QDateTime dt = QDateTime::fromString(ts, Qt::ISODate);
+        if (!dt.isValid()) dt = QDateTime::fromString(ts, "yyyy-MM-dd HH:mm:ss");
+        if (!dt.isValid()) dt = QDateTime::fromString(ts, "yyyy/MM/dd HH:mm:ss");
+        if (!dt.isValid()) dt = QDateTime::fromString(ts, "dd/MM/yyyy HH:mm:ss");
+        if (!dt.isValid()) dt = QDateTime::fromString(ts, "MM/dd/yyyy HH:mm:ss");
+        if (!dt.isValid()) dt = QDateTime::fromString(ts, "M/d/yyyy H:mm:ss"); // Add this for single-digit months/days
+        if (dt.isValid()) {
+            xDates.append(dt);
+            priceSeries->append(dt.toMSecsSinceEpoch(), rows[i].price);
+            anyValid = true;
+        }
     }
+    qDebug() << "Price series count:" << priceSeries->count();
     chart->addSeries(priceSeries);
-    // Markers for labeled events
     QScatterSeries *profitSeries = new QScatterSeries();
     profitSeries->setName("Profit Hit (+1)");
     profitSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
@@ -244,18 +239,39 @@ void MainWindow::plotLabeledEvents(const std::vector<PreprocessedRow>& rows, con
     vertSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
     vertSeries->setColor(Qt::blue);
     for (const auto& e : labeledEvents) {
-        // Find entry index
         auto it = std::find_if(rows.begin(), rows.end(), [&](const PreprocessedRow& r) { return r.timestamp == e.entry_time; });
         if (it == rows.end()) continue;
         int idx = int(std::distance(rows.begin(), it));
-        if (e.label == +1) profitSeries->append(idx, e.entry_price);
-        else if (e.label == -1) stopSeries->append(idx, e.entry_price);
-        else vertSeries->append(idx, e.entry_price);
+        if (idx >= xDates.size()) continue;
+        QDateTime dt = xDates[idx];
+        if (!dt.isValid()) continue;
+        if (e.label == +1) profitSeries->append(dt.toMSecsSinceEpoch(), e.entry_price);
+        else if (e.label == -1) stopSeries->append(dt.toMSecsSinceEpoch(), e.entry_price);
+        else vertSeries->append(dt.toMSecsSinceEpoch(), e.entry_price);
     }
+    qDebug() << "Profit series count:" << profitSeries->count();
+    qDebug() << "Stop series count:" << stopSeries->count();
+    qDebug() << "Vert series count:" << vertSeries->count();
     chart->addSeries(profitSeries);
     chart->addSeries(stopSeries);
     chart->addSeries(vertSeries);
-    // Axes
-    chart->createDefaultAxes();
+    auto *axisX = new QDateTimeAxis;
+    axisX->setFormat("yyyy-MM-dd HH:mm");
+    axisX->setTitleText("Timestamp");
+    chart->addAxis(axisX, Qt::AlignBottom);
+    priceSeries->attachAxis(axisX);
+    profitSeries->attachAxis(axisX);
+    stopSeries->attachAxis(axisX);
+    vertSeries->attachAxis(axisX);
+    QValueAxis *axisY = new QValueAxis;
+    axisY->setTitleText("Price");
+    chart->addAxis(axisY, Qt::AlignLeft);
+    priceSeries->attachAxis(axisY);
+    profitSeries->attachAxis(axisY);
+    stopSeries->attachAxis(axisY);
+    vertSeries->attachAxis(axisY);
     m_chartView->setChart(chart);
+    if (!anyValid) {
+        QMessageBox::warning(this, "Chart Error", "No valid timestamps found in data. Check your CSV timestamp format.");
+    }
 }
