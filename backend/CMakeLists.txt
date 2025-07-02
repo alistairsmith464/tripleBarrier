@@ -6,6 +6,8 @@ add_library(backend
     data/CSVDataSource.h
     data/DataRow.h
     data/DataSource.h
+    data/DataPreprocessor.cpp
+    data/DataPreprocessor.h
 )
 
 target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -25,3 +27,24 @@ target_include_directories(TestCSVDataSource PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 
 enable_testing()
 add_test(NAME CSVDataSourceTest COMMAND TestCSVDataSource WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+# Test executables for all backend files
+add_executable(TestBarrierConfig tests/TestBarrierConfig.cpp)
+target_link_libraries(TestBarrierConfig backend gtest gtest_main)
+add_test(NAME BarrierConfigTest COMMAND TestBarrierConfig)
+
+add_executable(TestPreprocessedRow tests/TestPreprocessedRow.cpp)
+target_link_libraries(TestPreprocessedRow backend gtest gtest_main)
+add_test(NAME PreprocessedRowTest COMMAND TestPreprocessedRow)
+
+add_executable(TestVolatilityCalculator tests/TestVolatilityCalculator.cpp)
+target_link_libraries(TestVolatilityCalculator backend gtest gtest_main)
+add_test(NAME VolatilityCalculatorTest COMMAND TestVolatilityCalculator)
+
+add_executable(TestEventSelector tests/TestEventSelector.cpp)
+target_link_libraries(TestEventSelector backend gtest gtest_main)
+add_test(NAME EventSelectorTest COMMAND TestEventSelector)
+
+add_executable(TestDataPreprocessor tests/TestDataPreprocessor.cpp)
+target_link_libraries(TestDataPreprocessor backend gtest gtest_main)
+add_test(NAME DataPreprocessorTest COMMAND TestDataPreprocessor)

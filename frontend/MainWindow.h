@@ -12,8 +12,9 @@
 #include <QMenu>
 #include <QAction>
 #include <vector>
-#include "../frontend/FileHandler.h"
+#include "FileHandler.h"
 #include "../backend/data/CSVDataSource.h"
+#include "../backend/data/PreprocessedRow.h"
 
 QT_BEGIN_NAMESPACE
 QT_END_NAMESPACE
@@ -37,6 +38,7 @@ private:
     void showUploadSuccess(const QString& filePath, const std::vector<DataRow>& rows);
     void showUploadError(const QString& error);
     void showDataSummary(const std::vector<DataRow>& rows);
+    void showPreprocessedSummary(const std::vector<PreprocessedRow>& rows);
 
     // UI components
     QPushButton *m_uploadDataButton;
@@ -47,7 +49,7 @@ private:
     QProgressBar *m_progressBar;
     QMenu *m_uploadMenu;
     QAction *m_csvAction;
-    
-    // Backend
-    FileHandler *m_fileHandler;
+
+    // File handler (stack-allocated, not a pointer)
+    FileHandler m_fileHandler;
 };

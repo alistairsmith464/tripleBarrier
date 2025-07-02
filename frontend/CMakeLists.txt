@@ -6,6 +6,10 @@ add_executable(TripleBarrierApp
     MainWindow.cpp
     MainWindow.h
     MainWindow.ui
+    FileHandler.cpp
+    FileHandler.h
+    BarrierConfigDialog.cpp
+    BarrierConfigDialog.h
 )
 
 target_link_libraries(TripleBarrierApp 

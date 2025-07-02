@@ -6,10 +6,12 @@
 #include <QSizePolicy>
 #include <QFont>
 #include <QApplication>
+#include "../backend/data/DataPreprocessor.h"
+#include "BarrierConfigDialog.h"
+#include <QInputDialog>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , m_fileHandler(new FileHandler())
 {
     setupUI();
     setWindowTitle("Triple Barrier - File Upload");
@@ -17,10 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
     resize(800, 500);
 }
 
-MainWindow::~MainWindow()
-{
-    delete m_fileHandler;
-}
+MainWindow::~MainWindow() {}
 
 void MainWindow::setupUI()
 {
@@ -72,7 +71,6 @@ void MainWindow::setupUI()
         "    font-size: 17px;"
         "    font-weight: bold;"
         "    letter-spacing: 1px;"
-        "    box-shadow: 0 2px 8px #b2bec3;"
         "}"
         "QPushButton:hover {"
         "    background-color: #2980b9;"
@@ -99,7 +97,6 @@ void MainWindow::setupUI()
         "    font-size: 17px;"
         "    font-weight: bold;"
         "    letter-spacing: 1px;"
-        "    box-shadow: 0 2px 8px #dfe6e9;"
         "}"
         "QPushButton:hover {"
         "    background-color: #636e72;"
@@ -161,6 +158,23 @@ void MainWindow::onSelectCSVFile() {
         std::vector<DataRow> rows = src.loadData(fileName.toStdString());
         showUploadSuccess(fileName, rows);
         showDataSummary(rows);
+        // Prompt for barrier config
+        BarrierConfigDialog dialog(this);
+        if (dialog.exec() == QDialog::Accepted) {
+            BarrierConfig cfg = dialog.getConfig();
+            try {
+                cfg.validate();
+                DataPreprocessor::Params params;
+                params.volatility_window = 20;
+                params.event_interval = 10;
+                params.barrier_multiple = cfg.profit_multiple;
+                params.vertical_barrier = cfg.vertical_window;
+                auto processed = DataPreprocessor::preprocess(rows, params);
+                showPreprocessedSummary(processed);
+            } catch (const std::exception& ex) {
+                showUploadError(QString("Barrier config error: %1").arg(ex.what()));
+            }
+        }
     } catch (const std::exception& ex) {
         showUploadError(QString("Failed to load CSV: %1").arg(ex.what()));
     }
@@ -211,4 +225,24 @@ void MainWindow::showDataSummary(const std::vector<DataRow>& rows) {
     m_fileInfoDisplay->setText(lines.join("\n"));
 }
 
-#include "MainWindow.moc"
+void MainWindow::showPreprocessedSummary(const std::vector<PreprocessedRow>& rows) {
+    if (rows.empty()) {
+        m_fileInfoDisplay->setText("No preprocessed data.");
+        return;
+    }
+    QStringList lines;
+    lines << QString("Preprocessed rows: %1").arg(rows.size());
+    lines << "Columns: timestamp, price, log_return, volatility, is_event";
+    int preview = std::min<int>(rows.size(), 5);
+    lines << "\nSample rows:";
+    for (int i = 0; i < preview; ++i) {
+        const PreprocessedRow& r = rows[i];
+        lines << QString("%1 | %2 | %3 | %4 | %5")
+            .arg(QString::fromStdString(r.timestamp))
+            .arg(r.price)
+            .arg(r.log_return)
+            .arg(r.volatility)
+            .arg(r.is_event ? "event" : "");
+    }
+    m_fileInfoDisplay->setText(lines.join("\n"));
+}
