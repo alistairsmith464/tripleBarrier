@@ -18,16 +18,29 @@ std::vector<LabeledEvent> TripleBarrierLabeler::label(
         size_t end_idx = std::min(event_idx + size_t(vertical_barrier), data.size() - 1);
         int label = 0;
         size_t exit_idx = end_idx;
+        size_t profit_hit = data.size();
+        size_t stop_hit = data.size();
         for (size_t i = event_idx + 1; i <= end_idx; ++i) {
-            if (data[i].price >= pt) {
-                label = +1;
-                exit_idx = i;
-                break;
-            } else if (data[i].price <= sl) {
-                label = -1;
-                exit_idx = i;
-                break;
+            if (profit_hit == data.size() && data[i].price >= pt) {
+                profit_hit = i;
             }
+            if (stop_hit == data.size() && data[i].price <= sl) {
+                stop_hit = i;
+            }
+        }
+        if (profit_hit < stop_hit) {
+            label = +1;
+            exit_idx = profit_hit;
+        } else if (stop_hit < profit_hit) {
+            label = -1;
+            exit_idx = stop_hit;
+        } else if (profit_hit == stop_hit && profit_hit != data.size()) {
+            // Both hit on same bar, profit takes precedence
+            label = +1;
+            exit_idx = profit_hit;
+        } else {
+            label = 0;
+            exit_idx = end_idx;
         }
         results.push_back(LabeledEvent{
             entry.timestamp,
