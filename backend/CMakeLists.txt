@@ -8,6 +8,9 @@ add_library(backend
     data/DataSource.h
     data/DataPreprocessor.cpp
     data/DataPreprocessor.h
+    data/TripleBarrierLabeler.cpp
+    data/TripleBarrierLabeler.h
+    data/LabeledEvent.h
 )
 
 target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -48,3 +51,7 @@ add_test(NAME EventSelectorTest COMMAND TestEventSelector)
 add_executable(TestDataPreprocessor tests/TestDataPreprocessor.cpp)
 target_link_libraries(TestDataPreprocessor backend gtest gtest_main)
 add_test(NAME DataPreprocessorTest COMMAND TestDataPreprocessor)
+
+add_executable(TestTripleBarrierLabeler tests/TestTripleBarrierLabeler.cpp)
+target_link_libraries(TestTripleBarrierLabeler backend gtest gtest_main)
+add_test(NAME TripleBarrierLabelerTest COMMAND TestTripleBarrierLabeler)
