@@ -133,7 +133,9 @@ TEST(TripleBarrierLabelerTest, LargeDataSet) {
         data[i].volatility = 1.0;
     }
     std::vector<size_t> events = {0, 100, 5000};
-    auto result = TripleBarrierLabeler::label(data, events, 2.0, 1.0, 100);
+    // Use profit_multiple = 1.0 so pt = 101.0 for event 0, which is reached at i = 100
+    // Window is 100, so profit will be hit at the last bar in the window
+    auto result = TripleBarrierLabeler::label(data, events, 1.0, 1.0, 100);
     ASSERT_EQ(result.size(), 3);
     for (const auto& r : result) {
         EXPECT_EQ(r.label, +1);
