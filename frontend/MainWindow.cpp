@@ -164,7 +164,6 @@ void MainWindow::onSelectCSVFile() {
         CSVDataSource src;
         std::vector<DataRow> rows = src.loadData(fileName.toStdString());
         showUploadSuccess(fileName, rows);
-        showDataSummary(rows);
         // Prompt for barrier config
         BarrierConfigDialog dialog(this);
         if (dialog.exec() == QDialog::Accepted) {
@@ -189,26 +188,6 @@ void MainWindow::onSelectCSVFile() {
                     cfg.stop_multiple,
                     cfg.vertical_window
                 );
-                // Show summary in text
-                if (!labeled.empty()) {
-                    QStringList lines;
-                    lines << QString("Labeled events: %1").arg(labeled.size());
-                    lines << "Columns: entry_time, exit_time, label, entry_price, exit_price";
-                    int preview = std::min<int>(labeled.size(), 5);
-                    lines << "\nSample events:";
-                    for (int i = 0; i < preview; ++i) {
-                        const LabeledEvent& e = labeled[i];
-                        lines << QString("%1 | %2 | %3 | %4 | %5")
-                            .arg(QString::fromStdString(e.entry_time))
-                            .arg(QString::fromStdString(e.exit_time))
-                            .arg(e.label)
-                            .arg(e.entry_price)
-                            .arg(e.exit_price);
-                    }
-                    m_fileInfoDisplay->setText(lines.join("\n"));
-                } else {
-                    m_fileInfoDisplay->setText("No labeled events.");
-                }
                 // Show plot
                 plotLabeledEvents(processed, labeled);
             } catch (const std::exception& ex) {
@@ -239,52 +218,6 @@ void MainWindow::showUploadError(const QString& error) {
     m_statusLabel->setText("✗ Data load failed");
     m_statusLabel->setStyleSheet("color: #e74c3c; font-size: 12px; font-weight: bold;");
     QMessageBox::critical(this, "Load Failed", error);
-}
-
-void MainWindow::showDataSummary(const std::vector<DataRow>& rows) {
-    if (rows.empty()) {
-        m_fileInfoDisplay->setText("No data loaded.");
-        return;
-    }
-    QStringList lines;
-    lines << QString("Rows loaded: %1").arg(rows.size());
-    lines << "Columns: timestamp, price, open, high, low, close, volume";
-    int preview = std::min<int>(rows.size(), 5);
-    lines << "\nSample rows:";
-    for (int i = 0; i < preview; ++i) {
-        const DataRow& r = rows[i];
-        lines << QString("%1 | %2 | %3 | %4 | %5 | %6 | %7")
-            .arg(QString::fromStdString(r.timestamp))
-            .arg(r.price)
-            .arg(r.open ? QString::number(*r.open) : "")
-            .arg(r.high ? QString::number(*r.high) : "")
-            .arg(r.low ? QString::number(*r.low) : "")
-            .arg(r.close ? QString::number(*r.close) : "")
-            .arg(r.volume ? QString::number(*r.volume) : "");
-    }
-    m_fileInfoDisplay->setText(lines.join("\n"));
-}
-
-void MainWindow::showPreprocessedSummary(const std::vector<PreprocessedRow>& rows) {
-    if (rows.empty()) {
-        m_fileInfoDisplay->setText("No preprocessed data.");
-        return;
-    }
-    QStringList lines;
-    lines << QString("Preprocessed rows: %1").arg(rows.size());
-    lines << "Columns: timestamp, price, log_return, volatility, is_event";
-    int preview = std::min<int>(rows.size(), 5);
-    lines << "\nSample rows:";
-    for (int i = 0; i < preview; ++i) {
-        const PreprocessedRow& r = rows[i];
-        lines << QString("%1 | %2 | %3 | %4 | %5")
-            .arg(QString::fromStdString(r.timestamp))
-            .arg(r.price)
-            .arg(r.log_return)
-            .arg(r.volatility)
-            .arg(r.is_event ? "event" : "");
-    }
-    m_fileInfoDisplay->setText(lines.join("\n"));
 }
 
 void MainWindow::plotLabeledEvents(const std::vector<ProcessedRow>& processed, const std::vector<LabeledEvent>& labeled) {

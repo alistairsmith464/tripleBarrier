@@ -40,10 +40,7 @@ private slots:
 private:
     void setupUI();
     void showUploadSuccess(const QString& filePath);
-    void showUploadSuccess(const QString& filePath, const std::vector<DataRow>& rows);
     void showUploadError(const QString& error);
-    void showDataSummary(const std::vector<DataRow>& rows);
-    void showPreprocessedSummary(const std::vector<PreprocessedRow>& rows);
     void plotLabeledEvents(const std::vector<PreprocessedRow>& rows, const std::vector<LabeledEvent>& labeledEvents);
 
     // UI components
