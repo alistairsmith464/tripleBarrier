@@ -9,8 +9,8 @@
 #include "../backend/data/DataPreprocessor.h"
 #include "BarrierConfigDialog.h"
 #include <QInputDialog>
-#include "TripleBarrierLabeler.h"
-#include "LabeledEvent.h"
+#include "../backend/data/TripleBarrierLabeler.h"
+#include "../backend/data/LabeledEvent.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -132,7 +132,7 @@ void MainWindow::setupUI()
     mainLayout->addWidget(m_fileInfoDisplay, 1);
 
     // Chart for graphical display
-    m_chartView = new QtCharts::QChartView(this);
+    m_chartView = new QChartView(this);
     m_chartView->setMinimumHeight(300);
     mainLayout->addWidget(m_chartView);
 
@@ -163,7 +163,7 @@ void MainWindow::onSelectCSVFile() {
     try {
         CSVDataSource src;
         std::vector<DataRow> rows = src.loadData(fileName.toStdString());
-        showUploadSuccess(fileName, rows);
+        showUploadSuccess(fileName);
         // Prompt for barrier config
         BarrierConfigDialog dialog(this);
         if (dialog.exec() == QDialog::Accepted) {
@@ -208,10 +208,10 @@ void MainWindow::onClearButtonClicked()
     m_statusLabel->setStyleSheet("color: #7f8c8d; font-size: 12px;");
 }
 
-void MainWindow::showUploadSuccess(const QString& filePath, const std::vector<DataRow>& rows) {
+void MainWindow::showUploadSuccess(const QString& filePath) {
     m_statusLabel->setText("✓ Data loaded successfully!");
     m_statusLabel->setStyleSheet("color: #27ae60; font-size: 12px; font-weight: bold;");
-    QMessageBox::information(this, "Upload Successful", QString("Loaded %1 rows from %2").arg(rows.size()).arg(filePath));
+    QMessageBox::information(this, "Upload Successful", QString("Loaded from %1").arg(filePath));
 }
 
 void MainWindow::showUploadError(const QString& error) {
@@ -220,70 +220,7 @@ void MainWindow::showUploadError(const QString& error) {
     QMessageBox::critical(this, "Load Failed", error);
 }
 
-void MainWindow::plotLabeledEvents(const std::vector<ProcessedRow>& processed, const std::vector<LabeledEvent>& labeled) {
-    // Clear previous chart data
-    m_chartView->chart()->removeAllSeries();
-    m_chartView->chart()->axes(Qt::Horizontal).first()->setVisible(false);
-    m_chartView->chart()->axes(Qt::Vertical).first()->setVisible(false);
-
-    if (labeled.empty()) {
-        return;
-    }
-
-    // Prepare data for plotting
-    QVector<QPointF> points;
-    for (const auto& row : processed) {
-        points.append(QPointF(row.timestamp.toMSecsSinceEpoch(), row.close));
-    }
-
-    // Create line series for price data
-    QtCharts::QLineSeries* priceSeries = new QtCharts::QLineSeries();
-    priceSeries->setName("Price");
-    priceSeries->setPen(QPen(QColor(52, 152, 219), 2));
-    priceSeries->append(points);
-
-    // Add series to chart
-    m_chartView->chart()->addSeries(priceSeries);
-
-    // Create scatter series for labeled events
-    QtCharts::QScatterSeries* eventSeries = new QtCharts::QScatterSeries();
-    eventSeries->setName("Labeled Events");
-    eventSeries->setMarkerSize(10);
-    eventSeries->setColor(QColor(231, 76, 60));
-
-    // Add points to scatter series
-    for (const auto& event : labeled) {
-        qint64 x = QDateTime::fromString(QString::fromStdString(event.entry_time), "yyyy-MM-dd hh:mm:ss").toMSecsSinceEpoch();
-        qint64 y = event.entry_price;
-        eventSeries->append(x, y);
-    }
-
-    // Add scatter series to chart
-    m_chartView->chart()->addSeries(eventSeries);
-
-    // Configure axes
-    auto* xAxis = new QtCharts::QValueAxis;
-    xAxis->setLabelFormat("%.0f");
-    xAxis->setTitleText("Time");
-    m_chartView->chart()->addAxis(xAxis, Qt::AlignBottom);
-    priceSeries->attachAxis(xAxis);
-    eventSeries->attachAxis(xAxis);
-
-    auto* yAxis = new QtCharts::QValueAxis;
-    yAxis->setLabelFormat("%.2f");
-    yAxis->setTitleText("Price");
-    m_chartView->chart()->addAxis(yAxis, Qt::AlignLeft);
-    priceSeries->attachAxis(yAxis);
-    eventSeries->attachAxis(yAxis);
-
-    // Set chart title
-    m_chartView->chart()->setTitle("Labeled Events on Price Chart");
-    m_chartView->chart()->setAnimationOptions(QtCharts::QChart::SeriesAnimations);
-    m_chartView->setRenderHint(QPainter::Antialiasing);
-}
-
 void MainWindow::plotLabeledEvents(const std::vector<PreprocessedRow>& rows, const std::vector<LabeledEvent>& labeledEvents) {
-    using namespace QtCharts;
     QChart *chart = new QChart();
     chart->setTitle("Price Series with Triple Barrier Labels");
     // Price line
