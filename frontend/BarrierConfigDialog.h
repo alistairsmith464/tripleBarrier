@@ -6,6 +6,7 @@
 #include <QFormLayout>
 #include <QLabel>
 #include <QCheckBox>
+#include <QComboBox>
 #include "../backend/data/BarrierConfig.h"
 
 class BarrierConfigDialog : public QDialog {
@@ -41,6 +42,12 @@ public:
         connect(buttons, &QDialogButtonBox::accepted, this, &BarrierConfigDialog::onAccept);
         connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
         connect(cusumCheck, &QCheckBox::toggled, cusumThresholdBox, &QDoubleSpinBox::setEnabled);
+
+        QComboBox* labelingTypeBox = new QComboBox(this);
+        labelingTypeBox->addItem("Hard Barrier");
+        labelingTypeBox->addItem("Probabilistic Barrier");
+        layout->insertRow(0, "Labeling Type:", labelingTypeBox);
+        this->labelingTypeBox = labelingTypeBox;
     }
     BarrierConfig getConfig() const {
         BarrierConfig cfg;
@@ -49,6 +56,11 @@ public:
         cfg.vertical_window = vertBox->value();
         cfg.use_cusum = cusumCheck->isChecked();
         cfg.cusum_threshold = cusumThresholdBox->value();
+        if (labelingTypeBox->currentIndex() == 0) {
+            cfg.labeling_type = BarrierConfig::Hard;
+        } else {
+            cfg.labeling_type = BarrierConfig::Probabilistic;
+        }
         return cfg;
     }
 private slots:
@@ -67,4 +79,5 @@ private:
     QCheckBox *cusumCheck;
     QDoubleSpinBox *cusumThresholdBox;
     QLabel *errorLabel;
+    QComboBox* labelingTypeBox;
 };

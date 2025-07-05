@@ -20,7 +20,6 @@
 #include "FileHandler.h"
 #include "../backend/data/CSVDataSource.h"
 #include "../backend/data/PreprocessedRow.h"
-#include "../backend/data/TripleBarrierLabeler.h"
 #include "../backend/data/LabeledEvent.h"
 #include "FeatureSelectionDialog.h"
 

@@ -9,7 +9,6 @@
 #include "../backend/data/DataPreprocessor.h"
 #include "BarrierConfigDialog.h"
 #include <QInputDialog>
-#include "../backend/data/TripleBarrierLabeler.h"
 #include "../backend/data/LabeledEvent.h"
 #include <QtCharts/QValueAxis>
 #include "FeatureSelectionDialog.h"
@@ -19,6 +18,8 @@
 #include "../backend/data/PreprocessedRow.h"
 #include "../backend/data/LabeledEvent.h"
 #include <vector>
+#include "../backend/data/HardBarrierLabeler.h"
+#include "../backend/data/ProbabilisticBarrierLabeler.h"
 
 // For ML feature calculation preview
 std::vector<PreprocessedRow> g_lastRows;
@@ -201,13 +202,26 @@ void MainWindow::onSelectCSVFile() {
                 for (size_t i = 0; i < processed.size(); ++i) {
                     if (processed[i].is_event) event_indices.push_back(i);
                 }
-                auto labeled = TripleBarrierLabeler::label(
-                    processed,
-                    event_indices,
-                    cfg.profit_multiple,
-                    cfg.stop_multiple,
-                    cfg.vertical_window
-                );
+                std::vector<LabeledEvent> labeled;
+                if (cfg.labeling_type == BarrierConfig::Hard) {
+                    HardBarrierLabeler labeler;
+                    labeled = labeler.label(
+                        processed,
+                        event_indices,
+                        cfg.profit_multiple,
+                        cfg.stop_multiple,
+                        cfg.vertical_window
+                    );
+                } else {
+                    ProbabilisticBarrierLabeler labeler;
+                    labeled = labeler.label(
+                        processed,
+                        event_indices,
+                        cfg.profit_multiple,
+                        cfg.stop_multiple,
+                        cfg.vertical_window
+                    );
+                }
                 // Show plot
                 plotLabeledEvents(processed, labeled);
             } catch (const std::exception& ex) {

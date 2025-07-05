@@ -8,6 +8,8 @@ struct BarrierConfig {
     // CUSUM options
     bool use_cusum = false;
     double cusum_threshold = 5.0;
+    // Labeling type
+    enum LabelingType { Hard, Probabilistic } labeling_type = Hard;
     void validate() const {
         if (stop_multiple > 1.0) {
             throw std::invalid_argument("BarrierConfig: stop_multiple cannot be greater than 1.0");

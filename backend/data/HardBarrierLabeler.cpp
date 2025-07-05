@@ -1,14 +1,14 @@
-#include "TripleBarrierLabeler.h"
+#include "HardBarrierLabeler.h"
 #include <algorithm>
 #include <cmath>
 
-std::vector<LabeledEvent> TripleBarrierLabeler::label(
+std::vector<LabeledEvent> HardBarrierLabeler::label(
     const std::vector<PreprocessedRow>& data,
     const std::vector<size_t>& event_indices,
     double profit_multiple,
     double stop_multiple,
     int vertical_barrier
-) {
+) const {
     std::vector<LabeledEvent> results;
     for (size_t event_idx : event_indices) {
         if (event_idx >= data.size()) continue;
@@ -24,7 +24,6 @@ std::vector<LabeledEvent> TripleBarrierLabeler::label(
             bool profit = data[i].price >= pt;
             bool stop = data[i].price <= sl;
             if (profit && stop) {
-                // Both hit on same bar, profit takes precedence
                 profit_hit = i;
                 stop_hit = i;
                 break;
@@ -40,7 +39,6 @@ std::vector<LabeledEvent> TripleBarrierLabeler::label(
             label = -1;
             exit_idx = stop_hit;
         } else if (profit_hit == stop_hit && profit_hit != data.size()) {
-            // Both hit on same bar, profit takes precedence
             label = +1;
             exit_idx = profit_hit;
         } else {

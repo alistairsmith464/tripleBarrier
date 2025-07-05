@@ -7,4 +7,5 @@ struct LabeledEvent {
     int label; // +1, -1, 0
     double entry_price;
     double exit_price;
+    double soft_label = 0.0; // For probabilistic labeling
 };
