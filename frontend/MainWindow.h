@@ -22,6 +22,7 @@
 #include "../backend/data/PreprocessedRow.h"
 #include "../backend/data/LabeledEvent.h"
 #include "FeatureSelectionDialog.h"
+#include "ui/MainWindowUI.h"
 
 QT_BEGIN_NAMESPACE
 QT_END_NAMESPACE
@@ -63,4 +64,7 @@ private:
 
     // File handler (stack-allocated, not a pointer)
     FileHandler m_fileHandler;
+
+    // UI
+    MainWindowUI m_ui;
 };
