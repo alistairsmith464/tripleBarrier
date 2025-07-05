@@ -10,13 +10,7 @@ bool UserInputUtils::getBarrierConfig(QWidget* parent, BarrierConfig& cfg) {
     return false;
 }
 
-bool UserInputUtils::getPreprocessingParams(QWidget* parent, DataPreprocessor::Params& params, const BarrierConfig& cfg) {
-    bool ok = false;
-    int volWin = QInputDialog::getInt(parent, "Volatility Window", "Enter volatility window:", 20, 1, 1000, 1, &ok);
-    if (!ok) return false;
-    int evtInt = QInputDialog::getInt(parent, "Event Interval", "Enter event interval:", 10, 1, 1000, 1, &ok);
-    if (!ok) return false;
-    // Use values from BarrierConfig for the rest
+bool UserInputUtils::getPreprocessingParams(QWidget* parent, DataPreprocessor::Params& params, const BarrierConfig& cfg, int volWin, int evtInt) {
     params.volatility_window = volWin;
     params.event_interval = evtInt;
     params.barrier_multiple = cfg.profit_multiple;
@@ -27,7 +21,8 @@ bool UserInputUtils::getPreprocessingParams(QWidget* parent, DataPreprocessor::P
 }
 
 bool UserInputUtils::getLabelingConfig(QWidget* parent, BarrierConfig& cfg, DataPreprocessor::Params& params) {
-    if (!getBarrierConfig(parent, cfg)) return false;
-    if (!getPreprocessingParams(parent, params, cfg)) return false;
-    return true;
+    BarrierConfigDialog dialog(parent);
+    if (dialog.exec() != QDialog::Accepted) return false;
+    cfg = dialog.getConfig();
+    return getPreprocessingParams(parent, params, cfg, dialog.volatilityWindow(), dialog.eventInterval());
 }

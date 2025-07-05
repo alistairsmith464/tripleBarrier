@@ -21,7 +21,8 @@ MetricsResult compute_classification_metrics(const std::vector<int>& y_true, con
     double precision = tp + fp == 0 ? 0 : tp / static_cast<double>(tp + fp);
     double recall = tp + fn == 0 ? 0 : tp / static_cast<double>(tp + fn);
     double f1 = precision + recall == 0 ? 0 : 2 * precision * recall / (precision + recall);
-    return {accuracy, precision, recall, f1, 0, 0, 0};
+    MetricsResult result{accuracy, precision, recall, f1, 0, 0, 0, tp, tn, fp, fn, static_cast<int>(y_true.size())};
+    return result;
 }
 
 // Helper: compute financial metrics

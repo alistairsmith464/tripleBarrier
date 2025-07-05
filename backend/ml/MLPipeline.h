@@ -13,6 +13,11 @@ namespace MLPipeline {
         double avg_return;
         double sharpe_ratio;
         double hit_ratio;
+        int true_positives = 0;
+        int true_negatives = 0;
+        int false_positives = 0;
+        int false_negatives = 0;
+        int total = 0;
     };
 
     struct PipelineResult {

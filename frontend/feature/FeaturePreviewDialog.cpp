@@ -207,11 +207,18 @@ void FeaturePreviewDialog::onRunMLClicked() {
 }
 
 void FeaturePreviewDialog::showMLResults(const MLPipeline::PipelineResult& result) {
-    QString metrics = QString("<b>Classification Metrics:</b><br>Accuracy: %1<br>Precision: %2<br>Recall: %3<br>F1: %4<br><br><b>Financial Metrics:</b><br>Avg Return: %5<br>Sharpe Ratio: %6<br>Hit Ratio: %7")
+    QString metrics = QString("<b>Classification Metrics:</b><br>Accuracy: %1<br>Precision: %2<br>Recall: %3<br>F1: %4<br>"
+        "<br><b>Counts:</b> TP: %5, TN: %6, FP: %7, FN: %8, Total: %9"
+        "<br><br><b>Financial Metrics:</b><br>Avg Return: %10<br>Sharpe Ratio: %11<br>Hit Ratio: %12")
         .arg(result.metrics.accuracy, 0, 'f', 3)
         .arg(result.metrics.precision, 0, 'f', 3)
         .arg(result.metrics.recall, 0, 'f', 3)
         .arg(result.metrics.f1, 0, 'f', 3)
+        .arg(result.metrics.true_positives)
+        .arg(result.metrics.true_negatives)
+        .arg(result.metrics.false_positives)
+        .arg(result.metrics.false_negatives)
+        .arg(result.metrics.total)
         .arg(result.metrics.avg_return, 0, 'f', 3)
         .arg(result.metrics.sharpe_ratio, 0, 'f', 3)
         .arg(result.metrics.hit_ratio, 0, 'f', 3);

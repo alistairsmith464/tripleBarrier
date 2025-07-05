@@ -29,11 +29,26 @@ public:
         cusumThresholdBox->setRange(0.1, 20.0);
         cusumThresholdBox->setValue(5.0);
         cusumThresholdBox->setEnabled(false);
+        volWinBox = new QSpinBox(this);
+        volWinBox->setRange(1, 1000);
+        volWinBox->setValue(20);
+        evtIntBox = new QSpinBox(this);
+        evtIntBox->setRange(1, 1000);
+        evtIntBox->setValue(10);
         layout->addRow("Profit Multiple:", profitBox);
+        layout->addRow(new QLabel("\u2022 Multiplier for the profit-taking barrier (e.g., 2.0 = 2x volatility above entry).", this));
         layout->addRow("Stop Multiple:", stopBox);
+        layout->addRow(new QLabel("\u2022 Multiplier for the stop-loss barrier (e.g., 1.0 = 1x volatility below entry).", this));
         layout->addRow("Vertical Window:", vertBox);
+        layout->addRow(new QLabel("\u2022 Maximum holding period in bars (time steps) before exit.", this));
         layout->addRow(cusumCheck);
+        layout->addRow(new QLabel("\u2022 Enable CUSUM event detection for volatility-based event filtering.", this));
         layout->addRow("CUSUM Threshold:", cusumThresholdBox);
+        layout->addRow(new QLabel("\u2022 Sensitivity for CUSUM filter (higher = fewer events).", this));
+        layout->addRow("Volatility Window:", volWinBox);
+        layout->addRow(new QLabel("\u2022 Window size for volatility calculation (e.g., 20 = 20 bars).", this));
+        layout->addRow("Event Interval:", evtIntBox);
+        layout->addRow(new QLabel("\u2022 Minimum interval between detected events (in bars).", this));
         errorLabel = new QLabel(this);
         errorLabel->setStyleSheet("color: #e74c3c; font-size: 12px;");
         layout->addRow(errorLabel);
@@ -80,4 +95,9 @@ private:
     QDoubleSpinBox *cusumThresholdBox;
     QLabel *errorLabel;
     QComboBox* labelingTypeBox;
+    QSpinBox* volWinBox;
+    QSpinBox* evtIntBox;
+public:
+    int volatilityWindow() const { return volWinBox->value(); }
+    int eventInterval() const { return evtIntBox->value(); }
 };
