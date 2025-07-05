@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstring>
 #include <sstream>
+#include <iostream>
 
 XGBoostModel::XGBoostModel() {}
 
@@ -17,6 +18,12 @@ void XGBoostModel::free_booster() {
 }
 
 void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vector<float>& y, int n_rounds, int max_depth, int nthread, const std::string& objective) {
+    std::cout << "[XGBoostModel::fit] Training with " << X.size() << " samples, " << (X.empty() ? 0 : X[0].size()) << " features, " << n_rounds << " rounds, max_depth=" << max_depth << ", nthread=" << nthread << ", objective=" << objective << std::endl;
+    if (!y.empty()) {
+        std::cout << "[XGBoostModel::fit] First 5 labels: ";
+        for (size_t i = 0; i < std::min<size_t>(5, y.size()); ++i) std::cout << y[i] << " ";
+        std::cout << std::endl;
+    }
     clear();
     int n_samples = (int)X.size();
     if (n_samples == 0) return;
@@ -37,14 +44,26 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
 }
 
 std::vector<int> XGBoostModel::predict(const std::vector<std::vector<float>>& X) const {
+    std::cout << "[XGBoostModel::predict] Predicting " << X.size() << " samples..." << std::endl;
     std::vector<float> probas = predict_proba(X);
     std::vector<int> preds(probas.size());
     for (size_t i = 0; i < probas.size(); ++i)
         preds[i] = (probas[i] > 0.5f) ? 1 : 0;
+    if (!probas.empty()) {
+        std::cout << "[XGBoostModel::predict] First 5 probabilities: ";
+        for (size_t i = 0; i < std::min<size_t>(5, probas.size()); ++i) std::cout << probas[i] << " ";
+        std::cout << std::endl;
+    }
+    if (!preds.empty()) {
+        std::cout << "[XGBoostModel::predict] First 5 predictions: ";
+        for (size_t i = 0; i < std::min<size_t>(5, preds.size()); ++i) std::cout << preds[i] << " ";
+        std::cout << std::endl;
+    }
     return preds;
 }
 
 std::vector<float> XGBoostModel::predict_proba(const std::vector<std::vector<float>>& X) const {
+    std::cout << "[XGBoostModel::predict_proba] Predicting probabilities for " << X.size() << " samples..." << std::endl;
     int n_samples = (int)X.size();
     if (!booster_ || n_samples == 0) return {};
     int n_features = n_features_;
@@ -57,6 +76,11 @@ std::vector<float> XGBoostModel::predict_proba(const std::vector<std::vector<flo
     const float* out_result;
     XGBoosterPredict(booster_, dtest, 0, 0, 0, &out_len, &out_result);
     std::vector<float> probas(out_result, out_result + out_len);
+    if (!probas.empty()) {
+        std::cout << "[XGBoostModel::predict_proba] First 5 probabilities: ";
+        for (size_t i = 0; i < std::min<size_t>(5, probas.size()); ++i) std::cout << probas[i] << " ";
+        std::cout << std::endl;
+    }
     XGDMatrixFree(dtest);
     return probas;
 }
