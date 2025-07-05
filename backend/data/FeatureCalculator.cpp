@@ -6,7 +6,7 @@
 #include <ctime>
 
 // Feature name constants
-template<typename T> const std::string FeatureCalculator::CLOSE_TO_CLOSE_RETURN_1D = "close_to_close_return_1d";
+const std::string FeatureCalculator::CLOSE_TO_CLOSE_RETURN_1D = "close_to_close_return_1d";
 const std::string FeatureCalculator::RETURN_5D = "return_5d";
 const std::string FeatureCalculator::RETURN_10D = "return_10d";
 const std::string FeatureCalculator::ROLLING_STD_5D = "rolling_std_5d";

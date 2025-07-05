@@ -58,7 +58,11 @@ TEST(DataPreprocessorTest, CustomParams) {
         rows[i].timestamp = std::to_string(i);
         rows[i].price = 100 + i;
     }
-    DataPreprocessor::Params params(5, 2, 3.0, 7);
+    DataPreprocessor::Params params;
+    params.volatility_window = 5;
+    params.event_interval = 2;
+    params.barrier_multiple = 3.0;
+    params.vertical_barrier = 7;
     auto result = DataPreprocessor::preprocess(rows, params);
     EXPECT_EQ(result.size(), rows.size());
     // Check volatility window effect

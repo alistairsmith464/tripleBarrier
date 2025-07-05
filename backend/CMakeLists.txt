@@ -11,6 +11,10 @@ add_library(backend
     data/TripleBarrierLabeler.cpp
     data/TripleBarrierLabeler.h
     data/LabeledEvent.h
+    data/CUSUMFilter.cpp
+    data/CUSUMFilter.h
+    data/FeatureCalculator.cpp
+    data/FeatureCalculator.h
 )
 
 target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
