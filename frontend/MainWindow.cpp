@@ -98,6 +98,12 @@ void MainWindow::setupUI()
     m_uploadMenu = new QMenu(this);
     m_csvAction = new QAction("Upload CSV", this);
     m_uploadMenu->addAction(m_csvAction);
+
+    // Add Export CSV action/button
+    m_exportCSVAction = new QAction("Export Features/Labels to CSV", this);
+    m_uploadMenu->addAction(m_exportCSVAction);
+    connect(m_exportCSVAction, &QAction::triggered, this, &MainWindow::onExportCSVClicked);
+
     m_uploadDataButton->setMenu(m_uploadMenu);
 
     m_clearButton = new QPushButton("Clear", this);
@@ -405,4 +411,38 @@ void MainWindow::onMLButtonClicked() {
         vbox->addWidget(box);
         previewDlg.exec();
     }
+}
+
+void MainWindow::onExportCSVClicked() {
+    if (g_lastRows.empty() || g_lastLabeledEvents.empty()) {
+        QMessageBox::warning(this, "Export Error", "No labeled data to export. Please process and label data first.");
+        return;
+    }
+    QString fileName = QFileDialog::getSaveFileName(this, "Export Labeled Data to CSV", "labeled_output.csv", "CSV Files (*.csv);;All Files (*.*)");
+    if (fileName.isEmpty()) return;
+    QFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::critical(this, "Export Error", "Could not open file for writing.");
+        return;
+    }
+    QTextStream out(&file);
+    // Write header
+    out << "timestamp,price,volatility,label,soft_label,exit_time,entry_price,exit_price\n";
+    // Write data (one row per labeled event)
+    for (const auto& e : g_lastLabeledEvents) {
+        // Find the corresponding PreprocessedRow for entry_time
+        auto it = std::find_if(g_lastRows.begin(), g_lastRows.end(), [&](const PreprocessedRow& r) { return r.timestamp == e.entry_time; });
+        double price = (it != g_lastRows.end()) ? it->price : e.entry_price;
+        double vol = (it != g_lastRows.end()) ? it->volatility : 0.0;
+        out << QString::fromStdString(e.entry_time) << ","
+            << price << ","
+            << vol << ","
+            << e.label << ","
+            << e.soft_label << ","
+            << QString::fromStdString(e.exit_time) << ","
+            << e.entry_price << ","
+            << e.exit_price << "\n";
+    }
+    file.close();
+    QMessageBox::information(this, "Export Complete", "Labeled data exported to " + fileName);
 }
