@@ -22,9 +22,13 @@
 #include "../backend/data/PreprocessedRow.h"
 #include "../backend/data/TripleBarrierLabeler.h"
 #include "../backend/data/LabeledEvent.h"
+#include "FeatureSelectionDialog.h"
 
 QT_BEGIN_NAMESPACE
 QT_END_NAMESPACE
+
+extern std::vector<PreprocessedRow> g_lastRows;
+extern std::vector<LabeledEvent> g_lastLabeledEvents;
 
 class MainWindow : public QMainWindow
 {
@@ -38,6 +42,7 @@ private slots:
     void onClearButtonClicked();
     void onUploadDataButtonClicked();
     void onSelectCSVFile();
+    void onMLButtonClicked(); // Slot for ML button
 
 private:
     void setupUI();

@@ -12,6 +12,8 @@ add_executable(TripleBarrierApp
     FileHandler.h
     BarrierConfigDialog.cpp
     BarrierConfigDialog.h
+    FeatureSelectionDialog.cpp
+    FeatureSelectionDialog.h
 )
 
 target_link_libraries(TripleBarrierApp 

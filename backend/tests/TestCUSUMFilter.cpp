@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "../data/CUSUMFilter.h"
+#include "FeatureCalculator.h"
 #include <vector>
 
 TEST(CUSUMFilterTest, DetectsEventsSimple) {
