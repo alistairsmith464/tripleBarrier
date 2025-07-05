@@ -14,6 +14,16 @@ add_executable(TripleBarrierApp
     BarrierConfigDialog.h
     FeatureSelectionDialog.cpp
     FeatureSelectionDialog.h
+    utils/CSVExportUtils.cpp
+    utils/DialogUtils.cpp
+    utils/FileDialogUtils.cpp
+    utils/UserInputUtils.cpp
+    utils/LabelingUtils.cpp
+    plot/LabeledEventPlotter.cpp
+    feature/FeaturePreviewDialog.cpp
+    ui/MainWindowUI.cpp
+    ../backend/data/HardBarrierLabeler.cpp
+    ../backend/data/ProbabilisticBarrierLabeler.cpp
 )
 
 target_link_libraries(TripleBarrierApp 

@@ -12,11 +12,11 @@ bool exportLabeledEventsToCSV(const QString& fileName,
 {
     QFile file(fileName);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        if (errorMsg) *errorMsg = file.errorString();
+        if (errorMsg) *errorMsg = "Could not open file for writing.";
         return false;
     }
     QTextStream out(&file);
-    out.setCodec("UTF-8");
+    // out.setCodec("UTF-8"); // Not needed in Qt6
     // Write header
     out << "timestamp,price,volatility,label,soft_label,exit_time,entry_price,exit_price\n";
     for (const auto& e : labeledEvents) {

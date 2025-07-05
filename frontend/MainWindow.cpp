@@ -58,7 +58,6 @@ void MainWindow::setupUI()
     m_chartView = m_ui.chartView;
     connect(m_csvAction, &QAction::triggered, this, &MainWindow::onSelectCSVFile);
     connect(m_clearButton, &QPushButton::clicked, this, &MainWindow::onClearButtonClicked);
-    connect(m_exportCSVAction, &QAction::triggered, this, &MainWindow::onExportCSVClicked);
     connect(m_ui.mlButton, &QPushButton::clicked, this, &MainWindow::onMLButtonClicked);
 }
 
@@ -67,7 +66,7 @@ void MainWindow::onUploadDataButtonClicked() {
 }
 
 void MainWindow::onSelectCSVFile() {
-    QString fileName = FileDialogUtils::getOpenCSVFileName(this);
+    QString fileName = FileDialogUtils::getOpenCSVFile(this);
     if (fileName.isEmpty()) {
         return;
     }
@@ -146,16 +145,5 @@ void MainWindow::onMLButtonClicked() {
 }
 
 void MainWindow::onExportCSVClicked() {
-    if (g_lastRows.empty() || g_lastLabeledEvents.empty()) {
-        DialogUtils::showWarning(this, "Export Error", "No labeled data to export. Please process and label data first.");
-        return;
-    }
-    QString fileName = FileDialogUtils::getSaveCSVFileName(this, "labeled_output.csv");
-    if (fileName.isEmpty()) return;
-    QString errorMsg;
-    if (!CSVExportUtils::exportLabeledEventsToCSV(fileName, g_lastRows, g_lastLabeledEvents, &errorMsg)) {
-        DialogUtils::showError(this, "Export Error", "Could not export CSV: " + errorMsg);
-        return;
-    }
-    DialogUtils::showInfo(this, "Export Complete", "Labeled data exported to " + fileName);
+    // Export to CSV is now handled in FeaturePreviewDialog only
 }

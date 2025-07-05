@@ -3,6 +3,10 @@
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QDialogButtonBox>
+#include <QPushButton>
+#include <QFileDialog>
+#include "../utils/CSVExportUtils.h"
+#include "../utils/DialogUtils.h"
 #include "../backend/data/FeatureCalculator.h"
 #include <map>
 #include <set>
@@ -15,7 +19,6 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
 {
     setWindowTitle("Feature Preview");
     QVBoxLayout* vbox = new QVBoxLayout(this);
-    // Map UI feature names to backend feature IDs
     QMap<QString, std::string> featureMap = {
         {"Close-to-close return for the previous day", FeatureCalculator::CLOSE_TO_CLOSE_RETURN_1D},
         {"Return over the past 5 days", FeatureCalculator::RETURN_5D},
@@ -38,7 +41,6 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     for (const QString& feat : selectedFeatures) {
         if (featureMap.contains(feat)) backendFeatures.insert(featureMap[feat]);
     }
-    // Prepare data vectors
     std::vector<double> prices;
     std::vector<std::string> timestamps;
     std::vector<int> eventIndices;
@@ -50,12 +52,10 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
         auto it = std::find_if(rows.begin(), rows.end(), [&](const PreprocessedRow& r) { return r.timestamp == e.entry_time; });
         if (it != rows.end()) eventIndices.push_back(int(std::distance(rows.begin(), it)));
     }
-    // Calculate features for each event
     std::vector<std::map<std::string, double>> allFeatures;
     for (size_t i = 0; i < eventIndices.size(); ++i) {
         allFeatures.push_back(FeatureCalculator::calculateFeatures(prices, timestamps, eventIndices, int(i), backendFeatures));
     }
-    // Show preview table
     QTableWidget* table = new QTableWidget(int(eventIndices.size()), int(backendFeatures.size()), this);
     QStringList headers;
     for (const QString& feat : selectedFeatures) headers << feat;
@@ -71,6 +71,31 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     }
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     vbox->addWidget(table);
+    QPushButton* exportBtn = new QPushButton("Export to CSV", this);
+    vbox->addWidget(exportBtn);
+    connect(exportBtn, &QPushButton::clicked, this, [=]() {
+        QString fileName = QFileDialog::getSaveFileName(this, "Export Features to CSV", "features_output.csv", "CSV Files (*.csv);;All Files (*.*)");
+        if (fileName.isEmpty()) return;
+        QFile file(fileName);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            DialogUtils::showError(this, "Export Error", "Could not open file for writing.");
+            return;
+        }
+        QTextStream out(&file);
+        QStringList headers;
+        for (const QString& feat : selectedFeatures) headers << feat;
+        out << headers.join(",") << "\n";
+        for (int row = 0; row < table->rowCount(); ++row) {
+            QStringList rowVals;
+            for (int col = 0; col < table->columnCount(); ++col) {
+                QTableWidgetItem* item = table->item(row, col);
+                rowVals << (item ? item->text() : "");
+            }
+            out << rowVals.join(",") << "\n";
+        }
+        file.close();
+        DialogUtils::showInfo(this, "Export Complete", "Features exported to " + fileName);
+    });
     QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok, this);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     vbox->addWidget(box);
