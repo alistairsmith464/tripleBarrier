@@ -8,8 +8,10 @@
 #include "../utils/CSVExportUtils.h"
 #include "../utils/DialogUtils.h"
 #include "../backend/data/FeatureCalculator.h"
+#include "../backend/data/DataCleaningUtils.h"
 #include <map>
 #include <set>
+#include <cmath>
 
 FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures,
                                            const std::vector<PreprocessedRow>& rows,
@@ -56,14 +58,15 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     for (size_t i = 0; i < eventIndices.size(); ++i) {
         allFeatures.push_back(FeatureCalculator::calculateFeatures(prices, timestamps, eventIndices, int(i), backendFeatures));
     }
-    QTableWidget* table = new QTableWidget(int(eventIndices.size()), int(backendFeatures.size()), this);
+    DataCleaningUtils::cleanFeatureRows(allFeatures);
+    QTableWidget* table = new QTableWidget(int(allFeatures.size()), int(backendFeatures.size()), this);
     QStringList headers;
     for (const QString& feat : selectedFeatures) headers << feat;
     table->setHorizontalHeaderLabels(headers);
     int col = 0;
     for (const QString& feat : selectedFeatures) {
         std::string backendId = featureMap[feat];
-        for (int row = 0; row < int(eventIndices.size()); ++row) {
+        for (int row = 0; row < int(allFeatures.size()); ++row) {
             double val = allFeatures[row].count(backendId) ? allFeatures[row][backendId] : NAN;
             table->setItem(row, col, new QTableWidgetItem(QString::number(val)));
         }
@@ -74,6 +77,7 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     QPushButton* exportBtn = new QPushButton("Export to CSV", this);
     vbox->addWidget(exportBtn);
     connect(exportBtn, &QPushButton::clicked, this, [=]() {
+        cleanFeatureTable(table);
         QString fileName = QFileDialog::getSaveFileName(this, "Export Features to CSV", "features_output.csv", "CSV Files (*.csv);;All Files (*.*)");
         if (fileName.isEmpty()) return;
         QFile file(fileName);
@@ -99,4 +103,21 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok, this);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     vbox->addWidget(box);
+}
+
+static void cleanFeatureTable(QTableWidget* table) {
+    for (int row = table->rowCount() - 1; row >= 0; --row) {
+        bool valid = true;
+        for (int col = 0; col < table->columnCount(); ++col) {
+            QTableWidgetItem* item = table->item(row, col);
+            if (!item) { valid = false; break; }
+            bool ok = false;
+            double val = item->text().toDouble(&ok);
+            if (!ok || std::isnan(val) || std::isinf(val)) {
+                valid = false;
+                break;
+            }
+        }
+        if (!valid) table->removeRow(row);
+    }
 }
