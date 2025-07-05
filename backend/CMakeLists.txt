@@ -13,9 +13,15 @@ add_library(backend
     data/CUSUMFilter.h
     data/FeatureCalculator.cpp
     data/FeatureCalculator.h
+    ml/MLPipeline.cpp
+    ml/MLSplits.h
+    ml/XGBoostModel.cpp
+    ml/XGBoostModel.h
+    data/DataCleaningUtils.h
 )
 
-target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "${CMAKE_SOURCE_DIR}/xgboost/include")
+target_link_libraries(backend PUBLIC "${CMAKE_SOURCE_DIR}/xgboost/lib/libxgboost.dll.a")
 
 # Only link Qt6::Core if building frontend (and Qt6 is available)
 if(BUILD_FRONTEND)

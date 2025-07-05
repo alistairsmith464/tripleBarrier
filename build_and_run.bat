@@ -92,6 +92,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
+rem Copy xgboost.dll to frontend build output
+call "%PROJECT_ROOT%copy_xgboost_dll.bat"
+
 rem Run application
 echo Starting application...
 "%BUILD_DIR%\frontend\TripleBarrierApp.exe"

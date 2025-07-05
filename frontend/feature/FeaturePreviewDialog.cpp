@@ -1,4 +1,5 @@
 #include "FeaturePreviewDialog.h"
+#include "../MLHyperparamsDialog.h"
 #include <QVBoxLayout>
 #include <QTableWidget>
 #include <QHeaderView>
@@ -12,6 +13,9 @@
 #include <map>
 #include <set>
 #include <cmath>
+
+// Forward declaration for cleanFeatureTable
+static void cleanFeatureTable(QTableWidget* table);
 
 FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures,
                                            const std::vector<PreprocessedRow>& rows,
@@ -76,6 +80,12 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     vbox->addWidget(table);
     QPushButton* exportBtn = new QPushButton("Export to CSV", this);
     vbox->addWidget(exportBtn);
+    m_runMLButton = new QPushButton("Run ML Pipeline", this);
+    vbox->addWidget(m_runMLButton);
+    m_metricsLabel = new QLabel(this);
+    m_importancesLabel = new QLabel(this);
+    vbox->addWidget(m_metricsLabel);
+    vbox->addWidget(m_importancesLabel);
     connect(exportBtn, &QPushButton::clicked, this, [=]() {
         cleanFeatureTable(table);
         QString fileName = QFileDialog::getSaveFileName(this, "Export Features to CSV", "features_output.csv", "CSV Files (*.csv);;All Files (*.*)");
@@ -100,6 +110,11 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
         file.close();
         DialogUtils::showInfo(this, "Export Complete", "Features exported to " + fileName);
     });
+    connect(m_runMLButton, &QPushButton::clicked, this, &FeaturePreviewDialog::onRunMLClicked);
+    // Store for ML pipeline
+    this->m_selectedFeatures = selectedFeatures;
+    this->m_rows = rows;
+    this->m_labeledEvents = labeledEvents;
     QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok, this);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     vbox->addWidget(box);
@@ -120,4 +135,90 @@ static void cleanFeatureTable(QTableWidget* table) {
         }
         if (!valid) table->removeRow(row);
     }
+}
+
+void FeaturePreviewDialog::extractFeaturesAndLabels(const QSet<QString>& selectedFeatures,
+                                 const std::vector<PreprocessedRow>& rows,
+                                 const std::vector<LabeledEvent>& labeledEvents,
+                                 std::vector<std::map<std::string, double>>& features,
+                                 std::vector<int>& labels,
+                                 std::vector<double>& returns) {
+    QMap<QString, std::string> featureMap = {
+        {"Close-to-close return for the previous day", FeatureCalculator::CLOSE_TO_CLOSE_RETURN_1D},
+        {"Return over the past 5 days", FeatureCalculator::RETURN_5D},
+        {"Return over the past 10 days", FeatureCalculator::RETURN_10D},
+        {"Rolling standard deviation of daily returns over the last 5 days", FeatureCalculator::ROLLING_STD_5D},
+        {"EWMA volatility over 10 days", FeatureCalculator::EWMA_VOL_10D},
+        {"5-day simple moving average (SMA)", FeatureCalculator::SMA_5D},
+        {"10-day SMA", FeatureCalculator::SMA_10D},
+        {"20-day SMA", FeatureCalculator::SMA_20D},
+        {"Distance between current close price and 5-day SMA", FeatureCalculator::DIST_TO_SMA_5D},
+        {"Rate of Change (ROC) over 5 days", FeatureCalculator::ROC_5D},
+        {"Relative Strength Index (RSI) over 14 days", FeatureCalculator::RSI_14D},
+        {"5-day high minus 5-day low (price range)", FeatureCalculator::PRICE_RANGE_5D},
+        {"Current close price relative to 5-day high", FeatureCalculator::CLOSE_OVER_HIGH_5D},
+        {"Slope of linear regression of close prices over 10 days", FeatureCalculator::SLOPE_LR_10D},
+        {"Day of the week", FeatureCalculator::DAY_OF_WEEK},
+        {"Days since last event", FeatureCalculator::DAYS_SINCE_LAST_EVENT}
+    };
+    std::set<std::string> backendFeatures;
+    for (const QString& feat : selectedFeatures) {
+        if (featureMap.contains(feat)) backendFeatures.insert(featureMap[feat]);
+    }
+    std::vector<double> prices;
+    std::vector<std::string> timestamps;
+    std::vector<int> eventIndices;
+    for (size_t i = 0; i < rows.size(); ++i) {
+        prices.push_back(rows[i].price);
+        timestamps.push_back(rows[i].timestamp);
+    }
+    for (const auto& e : labeledEvents) {
+        auto it = std::find_if(rows.begin(), rows.end(), [&](const PreprocessedRow& r) { return r.timestamp == e.entry_time; });
+        if (it != rows.end()) eventIndices.push_back(int(std::distance(rows.begin(), it)));
+    }
+    features.clear();
+    labels.clear();
+    returns.clear();
+    for (size_t i = 0; i < eventIndices.size(); ++i) {
+        features.push_back(FeatureCalculator::calculateFeatures(prices, timestamps, eventIndices, int(i), backendFeatures));
+        labels.push_back(labeledEvents[i].label);
+        returns.push_back(labeledEvents[i].exit_price - labeledEvents[i].entry_price);
+    }
+}
+
+void FeaturePreviewDialog::onRunMLClicked() {
+    MLHyperparamsDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted) return;
+    extractFeaturesAndLabels(m_selectedFeatures, m_rows, m_labeledEvents, m_features, m_labels, m_returns);
+    MLPipeline::PipelineConfig config;
+    config.split_type = MLPipeline::Chronological;
+    config.train_ratio = 0.6;
+    config.val_ratio = 0.2;
+    config.test_ratio = 0.2;
+    config.n_splits = 5;
+    config.embargo = 0;
+    config.random_seed = 42;
+    config.n_rounds = dlg.nRounds();
+    config.max_depth = dlg.maxDepth();
+    config.nthread = dlg.nThread();
+    config.objective = dlg.objective().toStdString();
+    auto result = MLPipeline::runPipeline(m_features, m_labels, m_returns, config);
+    showMLResults(result);
+}
+
+void FeaturePreviewDialog::showMLResults(const MLPipeline::PipelineResult& result) {
+    QString metrics = QString("<b>Classification Metrics:</b><br>Accuracy: %1<br>Precision: %2<br>Recall: %3<br>F1: %4<br><br><b>Financial Metrics:</b><br>Avg Return: %5<br>Sharpe Ratio: %6<br>Hit Ratio: %7")
+        .arg(result.metrics.accuracy, 0, 'f', 3)
+        .arg(result.metrics.precision, 0, 'f', 3)
+        .arg(result.metrics.recall, 0, 'f', 3)
+        .arg(result.metrics.f1, 0, 'f', 3)
+        .arg(result.metrics.avg_return, 0, 'f', 3)
+        .arg(result.metrics.sharpe_ratio, 0, 'f', 3)
+        .arg(result.metrics.hit_ratio, 0, 'f', 3);
+    m_metricsLabel->setText(metrics);
+    QString importances = "<b>Feature Importances:</b><br>";
+    for (const auto& kv : result.feature_importances) {
+        importances += QString::fromStdString(kv.first) + ": " + QString::number(kv.second, 'f', 3) + "<br>";
+    }
+    m_importancesLabel->setText(importances);
 }

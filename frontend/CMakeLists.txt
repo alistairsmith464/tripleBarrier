@@ -14,6 +14,8 @@ add_executable(TripleBarrierApp
     BarrierConfigDialog.h
     FeatureSelectionDialog.cpp
     FeatureSelectionDialog.h
+    MLHyperparamsDialog.cpp
+    MLHyperparamsDialog.h
     utils/CSVExportUtils.cpp
     utils/DialogUtils.cpp
     utils/FileDialogUtils.cpp
@@ -31,4 +33,7 @@ target_link_libraries(TripleBarrierApp
     Qt6::Widgets 
     Qt6::Charts
     backend
+    "${CMAKE_SOURCE_DIR}/xgboost/lib/libxgboost.dll.a"
 )
+
+target_include_directories(TripleBarrierApp PRIVATE ${CMAKE_SOURCE_DIR})

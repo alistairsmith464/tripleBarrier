@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 #include <cmath>
+#include <algorithm>
 
 namespace DataCleaningUtils {
     // Cleans a vector of feature maps by removing any row with NaN, Inf, or invalid values
