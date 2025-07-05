@@ -159,6 +159,8 @@ void MainWindow::onSelectCSVFile() {
                 params.event_interval = 10;
                 params.barrier_multiple = cfg.profit_multiple;
                 params.vertical_barrier = cfg.vertical_window;
+                params.use_cusum = cfg.use_cusum;
+                params.cusum_threshold = cfg.cusum_threshold;
                 auto processed = DataPreprocessor::preprocess(rows, params);
                 // Find event indices
                 std::vector<size_t> event_indices;

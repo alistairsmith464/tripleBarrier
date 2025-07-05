@@ -13,7 +13,12 @@ std::vector<PreprocessedRow> DataPreprocessor::preprocess(const std::vector<Data
 
     std::vector<double> vol = VolatilityCalculator::rollingStdDev(logReturns, params.volatility_window);
 
-    auto events = EventSelector::selectEvents(rows, params.event_interval);
+    std::vector<Event> events;
+    if (params.use_cusum) {
+        events = EventSelector::selectCUSUMEvents(rows, vol, params.cusum_threshold);
+    } else {
+        events = EventSelector::selectEvents(rows, params.event_interval);
+    }
     std::vector<bool> is_event(rows.size(), false);
     for (const auto& e : events) is_event[e.index] = true;
 
