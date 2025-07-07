@@ -85,6 +85,23 @@ std::vector<float> XGBoostModel::predict_proba(const std::vector<std::vector<flo
     return probas;
 }
 
+std::vector<float> XGBoostModel::predict_regression(const std::vector<std::vector<float>>& X) const {
+    int n_samples = (int)X.size();
+    if (!booster_ || n_samples == 0) return {};
+    int n_features = n_features_;
+    std::vector<float> flat_X;
+    flat_X.reserve(n_samples * n_features);
+    for (const auto& row : X) flat_X.insert(flat_X.end(), row.begin(), row.end());
+    DMatrixHandle dtest;
+    XGDMatrixCreateFromMat(flat_X.data(), n_samples, n_features, -1, &dtest);
+    bst_ulong out_len;
+    const float* out_result;
+    XGBoosterPredict(booster_, dtest, 0, 0, 0, &out_len, &out_result);
+    std::vector<float> preds(out_result, out_result + out_len);
+    XGDMatrixFree(dtest);
+    return preds;
+}
+
 std::map<std::string, float> XGBoostModel::feature_importances() const {
     std::map<std::string, float> importances;
     if (!booster_) return importances;

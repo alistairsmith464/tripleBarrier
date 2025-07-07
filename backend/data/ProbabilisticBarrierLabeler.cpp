@@ -37,7 +37,18 @@ std::vector<LabeledEvent> ProbabilisticBarrierLabeler::label(
         // Aggregate: mean probability over window
         prob_up /= std::max(1, steps);
         prob_down /= std::max(1, steps);
-        double soft_label = prob_up - prob_down; // Net probability difference
+        double prob_time = 1.0 - prob_up - prob_down;
+        prob_time = std::max(0.0, prob_time); // ensure non-negative
+        // Normalize
+        double sum = prob_up + prob_down + prob_time;
+        if (sum > 0) {
+            prob_up /= sum;
+            prob_down /= sum;
+            prob_time /= sum;
+        }
+        // Compute soft label in [-1, 1]
+        double soft_label = prob_up - prob_down;
+        soft_label = std::max(-1.0, std::min(1.0, soft_label));
         // Store soft label in LabeledEvent (add field if needed)
         results.push_back(LabeledEvent{
             entry.timestamp,

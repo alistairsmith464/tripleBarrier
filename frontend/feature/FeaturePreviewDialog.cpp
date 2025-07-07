@@ -186,10 +186,65 @@ void FeaturePreviewDialog::extractFeaturesAndLabels(const QSet<QString>& selecte
     }
 }
 
+void FeaturePreviewDialog::extractFeaturesAndLabelsSoft(const QSet<QString>& selectedFeatures,
+                                 const std::vector<PreprocessedRow>& rows,
+                                 const std::vector<LabeledEvent>& labeledEvents,
+                                 std::vector<std::map<std::string, double>>& features,
+                                 std::vector<double>& soft_labels,
+                                 std::vector<double>& returns) {
+    QMap<QString, std::string> featureMap = {
+        {"Close-to-close return for the previous day", FeatureCalculator::CLOSE_TO_CLOSE_RETURN_1D},
+        {"Return over the past 5 days", FeatureCalculator::RETURN_5D},
+        {"Return over the past 10 days", FeatureCalculator::RETURN_10D},
+        {"Rolling standard deviation of daily returns over the last 5 days", FeatureCalculator::ROLLING_STD_5D},
+        {"EWMA volatility over 10 days", FeatureCalculator::EWMA_VOL_10D},
+        {"5-day simple moving average (SMA)", FeatureCalculator::SMA_5D},
+        {"10-day SMA", FeatureCalculator::SMA_10D},
+        {"20-day SMA", FeatureCalculator::SMA_20D},
+        {"Distance between current close price and 5-day SMA", FeatureCalculator::DIST_TO_SMA_5D},
+        {"Rate of Change (ROC) over 5 days", FeatureCalculator::ROC_5D},
+        {"Relative Strength Index (RSI) over 14 days", FeatureCalculator::RSI_14D},
+        {"5-day high minus 5-day low (price range)", FeatureCalculator::PRICE_RANGE_5D},
+        {"Current close price relative to 5-day high", FeatureCalculator::CLOSE_OVER_HIGH_5D},
+        {"Slope of linear regression of close prices over 10 days", FeatureCalculator::SLOPE_LR_10D},
+        {"Day of the week", FeatureCalculator::DAY_OF_WEEK},
+        {"Days since last event", FeatureCalculator::DAYS_SINCE_LAST_EVENT}
+    };
+    std::set<std::string> backendFeatures;
+    for (const QString& feat : selectedFeatures) {
+        if (featureMap.contains(feat)) backendFeatures.insert(featureMap[feat]);
+    }
+    std::vector<double> prices;
+    std::vector<std::string> timestamps;
+    std::vector<int> eventIndices;
+    for (size_t i = 0; i < rows.size(); ++i) {
+        prices.push_back(rows[i].price);
+        timestamps.push_back(rows[i].timestamp);
+    }
+    for (const auto& e : labeledEvents) {
+        auto it = std::find_if(rows.begin(), rows.end(), [&](const PreprocessedRow& r) { return r.timestamp == e.entry_time; });
+        if (it != rows.end()) eventIndices.push_back(int(std::distance(rows.begin(), it)));
+    }
+    features.clear();
+    soft_labels.clear();
+    returns.clear();
+    for (size_t i = 0; i < eventIndices.size(); ++i) {
+        features.push_back(FeatureCalculator::calculateFeatures(prices, timestamps, eventIndices, int(i), backendFeatures));
+        soft_labels.push_back(labeledEvents[i].soft_label);
+        returns.push_back(labeledEvents[i].exit_price - labeledEvents[i].entry_price);
+    }
+}
+
 void FeaturePreviewDialog::onRunMLClicked() {
     MLHyperparamsDialog dlg(this);
     if (dlg.exec() != QDialog::Accepted) return;
-    extractFeaturesAndLabels(m_selectedFeatures, m_rows, m_labeledEvents, m_features, m_labels, m_returns);
+    bool useSoft = false;
+    for (const auto& e : m_labeledEvents) {
+        if (std::abs(e.soft_label) > 1e-6 || e.soft_label != 0) {
+            useSoft = true;
+            break;
+        }
+    }
     MLPipeline::PipelineConfig config;
     config.split_type = MLPipeline::Chronological;
     config.train_ratio = 0.6;
@@ -202,26 +257,48 @@ void FeaturePreviewDialog::onRunMLClicked() {
     config.max_depth = dlg.maxDepth();
     config.nthread = dlg.nThread();
     config.objective = dlg.objective().toStdString();
-    auto result = MLPipeline::runPipeline(m_features, m_labels, m_returns, config);
-    showMLResults(result);
+    if (useSoft) {
+        std::vector<std::map<std::string, double>> features;
+        std::vector<double> soft_labels, returns;
+        extractFeaturesAndLabelsSoft(m_selectedFeatures, m_rows, m_labeledEvents, features, soft_labels, returns);
+        auto result = MLPipeline::runPipelineSoft(features, soft_labels, returns, config);
+        showMLResults(result);
+    } else {
+        extractFeaturesAndLabels(m_selectedFeatures, m_rows, m_labeledEvents, m_features, m_labels, m_returns);
+        auto result = MLPipeline::runPipeline(m_features, m_labels, m_returns, config);
+        showMLResults(result);
+    }
 }
 
 void FeaturePreviewDialog::showMLResults(const MLPipeline::PipelineResult& result) {
-    QString metrics = QString("<b>Classification Metrics:</b><br>Accuracy: %1<br>Precision: %2<br>Recall: %3<br>F1: %4<br>"
-        "<br><b>Counts:</b> TP: %5, TN: %6, FP: %7, FN: %8, Total: %9"
-        "<br><br><b>Financial Metrics:</b><br>Avg Return: %10<br>Sharpe Ratio: %11<br>Hit Ratio: %12")
-        .arg(result.metrics.accuracy, 0, 'f', 3)
-        .arg(result.metrics.precision, 0, 'f', 3)
-        .arg(result.metrics.recall, 0, 'f', 3)
-        .arg(result.metrics.f1, 0, 'f', 3)
-        .arg(result.metrics.true_positives)
-        .arg(result.metrics.true_negatives)
-        .arg(result.metrics.false_positives)
-        .arg(result.metrics.false_negatives)
-        .arg(result.metrics.total)
-        .arg(result.metrics.avg_return, 0, 'f', 3)
-        .arg(result.metrics.sharpe_ratio, 0, 'f', 3)
-        .arg(result.metrics.hit_ratio, 0, 'f', 3);
+    QString metrics;
+    if (result.metrics.f1 == 0 && result.metrics.true_positives == 0 && result.metrics.true_negatives == 0 && result.metrics.false_positives == 0 && result.metrics.false_negatives == 0) {
+        metrics = QString("<b>Regression Metrics:</b><br>R²: %1<br>MSE: %2<br>MAE: %3<br>Total: %4"
+            "<br><br><b>Financial Metrics:</b><br>Avg Return: %5<br>Sharpe Ratio: %6<br>Hit Ratio: %7")
+            .arg(result.metrics.accuracy, 0, 'f', 3)
+            .arg(result.metrics.precision, 0, 'f', 3)
+            .arg(result.metrics.recall, 0, 'f', 3)
+            .arg(result.metrics.total)
+            .arg(result.metrics.avg_return, 0, 'f', 3)
+            .arg(result.metrics.sharpe_ratio, 0, 'f', 3)
+            .arg(result.metrics.hit_ratio, 0, 'f', 3);
+    } else {
+        metrics = QString("<b>Classification Metrics:</b><br>Accuracy: %1<br>Precision: %2<br>Recall: %3<br>F1: %4<br>"
+            "<br><b>Counts:</b> TP: %5, TN: %6, FP: %7, FN: %8, Total: %9"
+            "<br><br><b>Financial Metrics:</b><br>Avg Return: %10<br>Sharpe Ratio: %11<br>Hit Ratio: %12")
+            .arg(result.metrics.accuracy, 0, 'f', 3)
+            .arg(result.metrics.precision, 0, 'f', 3)
+            .arg(result.metrics.recall, 0, 'f', 3)
+            .arg(result.metrics.f1, 0, 'f', 3)
+            .arg(result.metrics.true_positives)
+            .arg(result.metrics.true_negatives)
+            .arg(result.metrics.false_positives)
+            .arg(result.metrics.false_negatives)
+            .arg(result.metrics.total)
+            .arg(result.metrics.avg_return, 0, 'f', 3)
+            .arg(result.metrics.sharpe_ratio, 0, 'f', 3)
+            .arg(result.metrics.hit_ratio, 0, 'f', 3);
+    }
     m_metricsLabel->setText(metrics);
     QString importances = "<b>Feature Importances:</b><br>";
     for (const auto& kv : result.feature_importances) {

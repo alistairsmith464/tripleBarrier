@@ -59,6 +59,22 @@ void MainWindow::setupUI()
     connect(m_csvAction, &QAction::triggered, this, &MainWindow::onSelectCSVFile);
     connect(m_clearButton, &QPushButton::clicked, this, &MainWindow::onClearButtonClicked);
     connect(m_ui.mlButton, &QPushButton::clicked, this, &MainWindow::onMLButtonClicked);
+
+    // Add plot mode toggle
+    QHBoxLayout *plotModeLayout = new QHBoxLayout();
+    QLabel *plotModeLabel = new QLabel("Plot Mode:", this);
+    m_plotModeComboBox = new QComboBox(this);
+    m_plotModeComboBox->addItem("Time Series");
+    m_plotModeComboBox->addItem("Histogram");
+    plotModeLayout->addWidget(plotModeLabel);
+    plotModeLayout->addWidget(m_plotModeComboBox);
+    plotModeLayout->addStretch();
+    m_ui.mainLayout->insertLayout(1, plotModeLayout); // Insert near top
+    connect(m_plotModeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int idx) {
+        m_plotMode = (idx == 0) ? PlotMode::TimeSeries : PlotMode::Histogram;
+        if (!g_lastRows.empty() && !g_lastLabeledEvents.empty())
+            plotLabeledEvents(g_lastRows, g_lastLabeledEvents);
+    });
 }
 
 void MainWindow::onUploadDataButtonClicked() {
@@ -126,7 +142,7 @@ void MainWindow::showUploadError(const QString& error) {
 }
 
 void MainWindow::plotLabeledEvents(const std::vector<PreprocessedRow>& rows, const std::vector<LabeledEvent>& labeledEvents) {
-    LabeledEventPlotter::plot(m_chartView, rows, labeledEvents);
+    LabeledEventPlotter::plot(m_chartView, rows, labeledEvents, m_plotMode);
     g_lastRows = rows;
     g_lastLabeledEvents = labeledEvents;
 }

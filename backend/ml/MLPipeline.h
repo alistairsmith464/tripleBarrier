@@ -45,10 +45,18 @@ namespace MLPipeline {
         std::string objective = "binary:logistic";
     };
 
-    // Main pipeline entry point
+    // Main pipeline entry point (classification, hard labels)
     PipelineResult runPipeline(
         const std::vector<std::map<std::string, double>>& X,
         const std::vector<int>& y,
+        const std::vector<double>& returns, // for financial metrics
+        const PipelineConfig& config
+    );
+
+    // New: Regression/soft-label pipeline entry point (probabilistic barriers)
+    PipelineResult runPipelineSoft(
+        const std::vector<std::map<std::string, double>>& X,
+        const std::vector<double>& y_soft,
         const std::vector<double>& returns, // for financial metrics
         const PipelineConfig& config
     );

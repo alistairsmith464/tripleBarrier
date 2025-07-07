@@ -62,6 +62,30 @@ std::vector<double> select_rows(const std::vector<double>& v, const std::vector<
     for (auto i : idxs) out.push_back(v[i]);
     return out;
 }
+MetricsResult compute_regression_metrics(const std::vector<double>& y_true, const std::vector<double>& y_pred) {
+    double mse = 0, mae = 0, r2 = 0, mean = 0;
+    size_t n = y_true.size();
+    for (size_t i = 0; i < n; ++i) mean += y_true[i];
+    mean /= n;
+    double ss_tot = 0, ss_res = 0;
+    for (size_t i = 0; i < n; ++i) {
+        double err = y_pred[i] - y_true[i];
+        mse += err * err;
+        mae += std::abs(err);
+        ss_res += err * err;
+        ss_tot += (y_true[i] - mean) * (y_true[i] - mean);
+    }
+    mse /= n;
+    mae /= n;
+    r2 = ss_tot > 0 ? 1.0 - ss_res / ss_tot : 0;
+    MetricsResult result{};
+    result.accuracy = r2;
+    result.precision = mse;
+    result.recall = mae;
+    result.f1 = 0;
+    result.total = static_cast<int>(n);
+    return result;
+}
 }
 
 PipelineResult MLPipeline::runPipeline(
@@ -148,4 +172,73 @@ PipelineResult MLPipeline::runPipeline(
     // Convert y_prob to double
     std::vector<double> y_prob_d(y_prob.begin(), y_prob.end());
     return {y_pred, y_prob_d, importances_d, metrics};
+}
+
+PipelineResult MLPipeline::runPipelineSoft(
+    const std::vector<std::map<std::string, double>>& X,
+    const std::vector<double>& y_soft,
+    const std::vector<double>& returns,
+    const PipelineConfig& config
+) {
+    std::vector<std::map<std::string, double>> X_clean;
+    std::vector<double> y_clean;
+    std::vector<double> returns_clean;
+    for (size_t i = 0; i < X.size(); ++i) {
+        bool valid = true;
+        for (const auto& kv : X[i]) {
+            if (std::isnan(kv.second) || std::isinf(kv.second)) {
+                valid = false;
+                break;
+            }
+        }
+        if (valid) {
+            X_clean.push_back(X[i]);
+            y_clean.push_back(y_soft[i]);
+            returns_clean.push_back(returns[i]);
+        }
+    }
+    std::vector<size_t> train_idx, val_idx, test_idx;
+    if (config.split_type == Chronological) {
+        size_t N = X_clean.size();
+        size_t n_train = size_t(N * config.train_ratio);
+        size_t n_val = size_t(N * config.val_ratio);
+        size_t n_test = N - n_train - n_val;
+        for (size_t i = 0; i < n_train; ++i) train_idx.push_back(i);
+        for (size_t i = n_train; i < n_train + n_val; ++i) val_idx.push_back(i);
+        for (size_t i = n_train + n_val; i < N; ++i) test_idx.push_back(i);
+    } else {
+        auto folds = MLSplitUtils::purgedKFoldSplit(X_clean.size(), config.n_splits, config.embargo);
+        if (!folds.empty()) {
+            train_idx = folds[0].train_indices;
+            val_idx = folds[0].val_indices;
+            test_idx = folds.back().val_indices;
+        }
+    }
+    auto to_float_matrix = [](const std::vector<std::map<std::string, double>>& X) {
+        std::vector<std::vector<float>> Xf;
+        for (const auto& row : X) {
+            std::vector<float> v;
+            for (const auto& kv : row) v.push_back(static_cast<float>(kv.second));
+            Xf.push_back(v);
+        }
+        return Xf;
+    };
+    auto to_float_vec = [](const std::vector<double>& y) {
+        std::vector<float> yf(y.begin(), y.end());
+        return yf;
+    };
+    auto X_train_f = to_float_matrix(select_rows(X_clean, train_idx));
+    auto y_train_f = to_float_vec(select_rows(y_clean, train_idx));
+    auto X_test_f = to_float_matrix(select_rows(X_clean, test_idx));
+    auto y_test = select_rows(y_clean, test_idx);
+    auto returns_test = select_rows(returns_clean, test_idx);
+    XGBoostModel model;
+    std::string objective = config.objective.empty() ? "reg:squarederror" : config.objective;
+    model.fit(X_train_f, y_train_f, config.n_rounds, config.max_depth, config.nthread, objective);
+    std::vector<float> y_pred_f = model.predict_regression(X_test_f);
+    std::vector<double> y_pred(y_pred_f.begin(), y_pred_f.end());
+    MetricsResult metrics = compute_regression_metrics(y_test, y_pred);
+    auto importances = model.feature_importances();
+    std::map<std::string, double> importances_d(importances.begin(), importances.end());
+    return {std::vector<int>(), y_pred, importances_d, metrics};
 }

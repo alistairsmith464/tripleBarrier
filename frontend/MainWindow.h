@@ -1,5 +1,6 @@
 #pragma once
 
+#include "plot/LabeledEventPlotter.h"
 #include <QMainWindow>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -11,6 +12,7 @@
 #include <QMessageBox>
 #include <QMenu>
 #include <QAction>
+#include <QComboBox>
 #include <vector>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
@@ -61,10 +63,13 @@ private:
     QAction *m_csvAction;
     QAction *m_exportCSVAction;
     QChartView *m_chartView;
+    QComboBox *m_plotModeComboBox;
 
     // File handler (stack-allocated, not a pointer)
     FileHandler m_fileHandler;
 
     // UI
     MainWindowUI m_ui;
+
+    PlotMode m_plotMode = PlotMode::TimeSeries;
 };
