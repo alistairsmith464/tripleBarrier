@@ -1,6 +1,7 @@
 #pragma once
 #include <QDialog>
 #include <QLabel>
+#include <QCheckBox>
 #include <vector>
 #include <map>
 #include <QString>
@@ -26,6 +27,8 @@ private:
     QPushButton* m_runMLButton;
     QLabel* m_metricsLabel;
     QLabel* m_importancesLabel;
+    QCheckBox* m_tuneHyperparamsCheckBox;
+    QLabel* m_dataInfoLabel;
     std::vector<std::map<std::string, double>> m_features;
     std::vector<int> m_labels;
     std::vector<double> m_returns;

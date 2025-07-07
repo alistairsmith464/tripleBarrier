@@ -11,14 +11,11 @@ struct BarrierConfig {
     // Labeling type
     enum LabelingType { Hard, Probabilistic } labeling_type = Hard;
     void validate() const {
-        if (stop_multiple > 1.0) {
-            throw std::invalid_argument("BarrierConfig: stop_multiple cannot be greater than 1.0");
-        }
         if (profit_multiple <= 0.0) {
             throw std::invalid_argument("BarrierConfig: profit_multiple must be positive");
         }
-        if (stop_multiple < 0.0) {
-            throw std::invalid_argument("BarrierConfig: stop_multiple must be non-negative");
+        if (stop_multiple <= 0.0) {
+            throw std::invalid_argument("BarrierConfig: stop_multiple must be positive");
         }
         if (vertical_window <= 0) {
             throw std::invalid_argument("BarrierConfig: vertical_window must be positive");

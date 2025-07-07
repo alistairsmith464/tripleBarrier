@@ -78,6 +78,14 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     }
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     vbox->addWidget(table);
+    
+    // Add data info label
+    m_dataInfoLabel = new QLabel(this);
+    m_dataInfoLabel->setText(QString("<b>Data Summary:</b> %1 price records, %2 labeled events")
+                            .arg(rows.size()).arg(labeledEvents.size()));
+    m_dataInfoLabel->setStyleSheet("color: #2c3e50; font-size: 12px; padding: 5px;");
+    vbox->addWidget(m_dataInfoLabel);
+    
     QPushButton* exportBtn = new QPushButton("Export to CSV", this);
     vbox->addWidget(exportBtn);
     m_runMLButton = new QPushButton("Run ML Pipeline", this);
@@ -86,6 +94,9 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     m_importancesLabel = new QLabel(this);
     vbox->addWidget(m_metricsLabel);
     vbox->addWidget(m_importancesLabel);
+    m_tuneHyperparamsCheckBox = new QCheckBox("Auto-tune hyperparameters (grid search)", this);
+    m_tuneHyperparamsCheckBox->setToolTip("If checked, the pipeline will automatically search for the best hyperparameters (n_rounds, max_depth, nthread).");
+    vbox->addWidget(m_tuneHyperparamsCheckBox);
     connect(exportBtn, &QPushButton::clicked, this, [=]() {
         cleanFeatureTable(table);
         QString fileName = QFileDialog::getSaveFileName(this, "Export Features to CSV", "features_output.csv", "CSV Files (*.csv);;All Files (*.*)");
@@ -257,15 +268,26 @@ void FeaturePreviewDialog::onRunMLClicked() {
     config.max_depth = dlg.maxDepth();
     config.nthread = dlg.nThread();
     config.objective = dlg.objective().toStdString();
+    bool tune = m_tuneHyperparamsCheckBox && m_tuneHyperparamsCheckBox->isChecked();
     if (useSoft) {
         std::vector<std::map<std::string, double>> features;
         std::vector<double> soft_labels, returns;
         extractFeaturesAndLabelsSoft(m_selectedFeatures, m_rows, m_labeledEvents, features, soft_labels, returns);
-        auto result = MLPipeline::runPipelineSoft(features, soft_labels, returns, config);
+        MLPipeline::PipelineResult result;
+        if (tune) {
+            result = MLPipeline::runPipelineSoftWithTuning(features, soft_labels, returns, config);
+        } else {
+            result = MLPipeline::runPipelineSoft(features, soft_labels, returns, config);
+        }
         showMLResults(result);
     } else {
         extractFeaturesAndLabels(m_selectedFeatures, m_rows, m_labeledEvents, m_features, m_labels, m_returns);
-        auto result = MLPipeline::runPipeline(m_features, m_labels, m_returns, config);
+        MLPipeline::PipelineResult result;
+        if (tune) {
+            result = MLPipeline::runPipelineWithTuning(m_features, m_labels, m_returns, config);
+        } else {
+            result = MLPipeline::runPipeline(m_features, m_labels, m_returns, config);
+        }
         showMLResults(result);
     }
 }

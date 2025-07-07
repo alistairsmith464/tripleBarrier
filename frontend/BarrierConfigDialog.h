@@ -19,7 +19,7 @@ public:
         profitBox->setRange(0.01, 10.0);
         profitBox->setValue(2.0);
         stopBox = new QDoubleSpinBox(this);
-        stopBox->setRange(0.0, 1.0);
+        stopBox->setRange(0.01, 10.0);
         stopBox->setValue(1.0);
         vertBox = new QSpinBox(this);
         vertBox->setRange(1, 1000);

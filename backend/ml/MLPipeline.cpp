@@ -242,3 +242,70 @@ PipelineResult MLPipeline::runPipelineSoft(
     std::map<std::string, double> importances_d(importances.begin(), importances.end());
     return {std::vector<int>(), y_pred, importances_d, metrics};
 }
+
+PipelineResult MLPipeline::runPipelineWithTuning(
+    const std::vector<std::map<std::string, double>>& X,
+    const std::vector<int>& y,
+    const std::vector<double>& returns,
+    PipelineConfig config
+) {
+    // Sensible defaults for grid search
+    std::vector<int> n_rounds_grid = {10, 20, 50};
+    std::vector<int> max_depth_grid = {3, 5, 7};
+    std::vector<int> nthread_grid = {2, 4};
+    std::vector<std::string> objective_grid = {"binary:logistic"};
+    double best_score = -1e9;
+    PipelineResult best_result;
+    for (int n_rounds : n_rounds_grid) {
+        for (int max_depth : max_depth_grid) {
+            for (int nthread : nthread_grid) {
+                for (const std::string& obj : objective_grid) {
+                    config.n_rounds = n_rounds;
+                    config.max_depth = max_depth;
+                    config.nthread = nthread;
+                    config.objective = obj;
+                    auto result = runPipeline(X, y, returns, config);
+                    double score = result.metrics.accuracy; // Use accuracy for selection
+                    if (score > best_score) {
+                        best_score = score;
+                        best_result = result;
+                    }
+                }
+            }
+        }
+    }
+    return best_result;
+}
+
+PipelineResult MLPipeline::runPipelineSoftWithTuning(
+    const std::vector<std::map<std::string, double>>& X,
+    const std::vector<double>& y_soft,
+    const std::vector<double>& returns,
+    PipelineConfig config
+) {
+    std::vector<int> n_rounds_grid = {10, 20, 50};
+    std::vector<int> max_depth_grid = {3, 5, 7};
+    std::vector<int> nthread_grid = {2, 4};
+    std::vector<std::string> objective_grid = {"reg:squarederror"};
+    double best_score = -1e9;
+    PipelineResult best_result;
+    for (int n_rounds : n_rounds_grid) {
+        for (int max_depth : max_depth_grid) {
+            for (int nthread : nthread_grid) {
+                for (const std::string& obj : objective_grid) {
+                    config.n_rounds = n_rounds;
+                    config.max_depth = max_depth;
+                    config.nthread = nthread;
+                    config.objective = obj;
+                    auto result = runPipelineSoft(X, y_soft, returns, config);
+                    double score = result.metrics.accuracy; // Use R^2 for selection
+                    if (score > best_score) {
+                        best_score = score;
+                        best_result = result;
+                    }
+                }
+            }
+        }
+    }
+    return best_result;
+}

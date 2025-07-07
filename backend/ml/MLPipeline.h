@@ -60,4 +60,20 @@ namespace MLPipeline {
         const std::vector<double>& returns, // for financial metrics
         const PipelineConfig& config
     );
+
+    // Grid search for best hyperparameters (classification, hard labels)
+    PipelineResult runPipelineWithTuning(
+        const std::vector<std::map<std::string, double>>& X,
+        const std::vector<int>& y,
+        const std::vector<double>& returns,
+        PipelineConfig config // used as base config, but n_rounds/max_depth/nthread/objective are tuned
+    );
+
+    // Grid search for best hyperparameters (regression, soft labels)
+    PipelineResult runPipelineSoftWithTuning(
+        const std::vector<std::map<std::string, double>>& X,
+        const std::vector<double>& y_soft,
+        const std::vector<double>& returns,
+        PipelineConfig config // used as base config, but n_rounds/max_depth/nthread/objective are tuned
+    );
 }
