@@ -15,6 +15,8 @@ add_library(backend
     data/FeatureCalculator.h
     data/HardBarrierLabeler.cpp
     data/HardBarrierLabeler.h
+    data/TTBMLabeler.cpp
+    data/TTBMLabeler.h
     data/IBarrierLabeler.h
     data/BarrierConfig.h
     ml/MLPipeline.cpp
@@ -63,3 +65,7 @@ add_test(NAME EventSelectorTest COMMAND TestEventSelector)
 add_executable(TestDataPreprocessor tests/TestDataPreprocessor.cpp)
 target_link_libraries(TestDataPreprocessor backend gtest gtest_main)
 add_test(NAME DataPreprocessorTest COMMAND TestDataPreprocessor)
+
+add_executable(TestTTBMLabeler tests/TestTTBMLabeler.cpp)
+target_link_libraries(TestTTBMLabeler backend gtest gtest_main)
+add_test(NAME TTBMLabelerTest COMMAND TestTTBMLabeler)

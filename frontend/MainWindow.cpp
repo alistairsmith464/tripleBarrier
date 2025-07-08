@@ -65,12 +65,20 @@ void MainWindow::setupUI()
     m_plotModeComboBox = new QComboBox(this);
     m_plotModeComboBox->addItem("Time Series");
     m_plotModeComboBox->addItem("Histogram");
+    m_plotModeComboBox->addItem("TTBM Time Series");
+    m_plotModeComboBox->addItem("TTBM Distribution");
     plotModeLayout->addWidget(plotModeLabel);
     plotModeLayout->addWidget(m_plotModeComboBox);
     plotModeLayout->addStretch();
     m_ui.mainLayout->insertLayout(1, plotModeLayout); // Insert near top
     connect(m_plotModeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int idx) {
-        m_plotMode = (idx == 0) ? PlotMode::TimeSeries : PlotMode::Histogram;
+        switch(idx) {
+            case 0: m_plotMode = PlotMode::TimeSeries; break;
+            case 1: m_plotMode = PlotMode::Histogram; break;
+            case 2: m_plotMode = PlotMode::TTBM_TimeSeries; break;
+            case 3: m_plotMode = PlotMode::TTBM_Distribution; break;
+            default: m_plotMode = PlotMode::TimeSeries; break;
+        }
         if (!g_lastRows.empty() && !g_lastLabeledEvents.empty())
             plotLabeledEvents(g_lastRows, g_lastLabeledEvents);
     });

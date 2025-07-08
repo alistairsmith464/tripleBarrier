@@ -8,7 +8,9 @@
 // Plot mode for event visualization
 enum class PlotMode {
     TimeSeries,
-    Histogram
+    Histogram,
+    TTBM_TimeSeries,     // Time series with TTBM continuous coloring
+    TTBM_Distribution    // Histogram of TTBM label distribution
 };
 
 namespace LabeledEventPlotter {
