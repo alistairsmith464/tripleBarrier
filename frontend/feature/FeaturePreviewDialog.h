@@ -40,5 +40,4 @@ private:
                                  std::vector<int>& labels,
                                  std::vector<double>& returns);
     void showMLResults(const MLPipeline::PipelineResult& result);
-    void showPortfolioSimulation(const std::vector<int>& labels, const std::vector<double>& returns);
 };

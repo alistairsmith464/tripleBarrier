@@ -353,7 +353,6 @@ void FeaturePreviewDialog::onRunMLClicked() {
     
     // Show results
     showMLResults(result);
-    showPortfolioSimulation(m_labels, m_returns);
 }
 
 void FeaturePreviewDialog::showMLResults(const MLPipeline::PipelineResult& result) {
@@ -391,89 +390,4 @@ void FeaturePreviewDialog::showMLResults(const MLPipeline::PipelineResult& resul
         importances += QString::fromStdString(kv.first) + ": " + QString::number(kv.second, 'f', 3) + "<br>";
     }
     m_importancesLabel->setText(importances);
-}
-
-void FeaturePreviewDialog::showPortfolioSimulation(const std::vector<int>& labels, const std::vector<double>& returns) {
-    if (labels.size() != returns.size() || labels.empty()) {
-        return;
-    }
-    
-    // Portfolio simulation with hard labels (full position or no position)
-    double total_pnl = 0.0;
-    int long_positions = 0, short_positions = 0, no_positions = 0;
-    std::vector<double> position_pnls;
-    
-    for (size_t i = 0; i < labels.size(); ++i) {
-        int label = labels[i];
-        
-        // Skip neutral signals
-        if (label == 0) {
-            no_positions++;
-            continue;
-        }
-        
-        // Direction: 1 = long, -1 = short
-        double direction = static_cast<double>(label);
-        
-        // Position P&L = direction * return (full position)
-        double position_pnl = direction * returns[i];
-        
-        total_pnl += position_pnl;
-        position_pnls.push_back(position_pnl);
-        
-        if (label == 1) long_positions++;
-        else if (label == -1) short_positions++;
-    }
-    
-    // Calculate portfolio metrics
-    int total_trades = long_positions + short_positions;
-    double avg_pnl = total_trades > 0 ? total_pnl / total_trades : 0.0;
-    
-    // Calculate volatility of P&L
-    double pnl_variance = 0.0;
-    for (double pnl : position_pnls) {
-        pnl_variance += (pnl - avg_pnl) * (pnl - avg_pnl);
-    }
-    double pnl_volatility = total_trades > 1 ? std::sqrt(pnl_variance / (total_trades - 1)) : 0.0;
-    
-    // Sharpe ratio (assuming 0 risk-free rate)
-    double sharpe_ratio = pnl_volatility > 0 ? avg_pnl / pnl_volatility : 0.0;
-    
-    // Hit ratio (% of profitable trades)
-    int profitable_trades = 0;
-    for (double pnl : position_pnls) {
-        if (pnl > 0) profitable_trades++;
-    }
-    double hit_ratio = total_trades > 0 ? double(profitable_trades) / total_trades : 0.0;
-    
-    // Max drawdown calculation
-    double peak_pnl = 0.0;
-    double current_pnl = 0.0;
-    double max_drawdown = 0.0;
-    for (double pnl : position_pnls) {
-        current_pnl += pnl;
-        peak_pnl = std::max(peak_pnl, current_pnl);
-        double drawdown = peak_pnl - current_pnl;
-        max_drawdown = std::max(max_drawdown, drawdown);
-    }
-    
-    QString portfolio_results = QString(
-        "<br><br><b>Portfolio Simulation (Hard Labels):</b><br>"
-        "Total P&L: %1 | Avg per trade: %2<br>"
-        "Positions: Long=%3, Short=%4, Skipped=%5<br>"
-        "Hit ratio: %6% | Sharpe ratio: %7<br>"
-        "Max drawdown: %8 | P&L volatility: %9"
-    ).arg(total_pnl, 0, 'f', 6)
-     .arg(avg_pnl, 0, 'f', 6)
-     .arg(long_positions)
-     .arg(short_positions)
-     .arg(no_positions)
-     .arg(hit_ratio * 100.0, 0, 'f', 1)
-     .arg(sharpe_ratio, 0, 'f', 3)
-     .arg(max_drawdown, 0, 'f', 6)
-     .arg(pnl_volatility, 0, 'f', 6);
-    
-    // Append to existing metrics display
-    QString current_text = m_metricsLabel->text();
-    m_metricsLabel->setText(current_text + portfolio_results);
 }

@@ -91,15 +91,15 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
     vertSeries->setColor(Qt::blue);
     
     for (const auto& e : labeledEvents) {
-        auto it = std::find_if(rows.begin(), rows.end(), [&](const PreprocessedRow& r) { return r.timestamp == e.entry_time; });
+        auto it = std::find_if(rows.begin(), rows.end(), [&](const PreprocessedRow& r) { return r.timestamp == e.exit_time; });
         if (it == rows.end()) continue;
         int idx = int(std::distance(rows.begin(), it));
         if (idx >= xDates.size()) continue;
         QDateTime dt = xDates[idx];
         if (!dt.isValid()) continue;
-        if (e.label == +1) profitSeries->append(dt.toMSecsSinceEpoch(), e.entry_price);
-        else if (e.label == -1) stopSeries->append(dt.toMSecsSinceEpoch(), e.entry_price);
-        else vertSeries->append(dt.toMSecsSinceEpoch(), e.entry_price);
+        if (e.label == +1) profitSeries->append(dt.toMSecsSinceEpoch(), e.exit_price);
+        else if (e.label == -1) stopSeries->append(dt.toMSecsSinceEpoch(), e.exit_price);
+        else vertSeries->append(dt.toMSecsSinceEpoch(), e.exit_price);
     }
     chart->addSeries(profitSeries);
     chart->addSeries(stopSeries);
