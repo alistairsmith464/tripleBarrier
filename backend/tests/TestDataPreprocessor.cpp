@@ -13,9 +13,7 @@ TEST(DataPreprocessorTest, PreprocessBasic) {
     EXPECT_EQ(result.size(), rows.size());
     EXPECT_EQ(result[0].timestamp, "0");
     EXPECT_EQ(result[1].timestamp, "1");
-    // Check log_return and volatility are set
     EXPECT_EQ(result[0].log_return, 0.0);
-    // Volatility for first window-1 should be NaN
     EXPECT_TRUE(std::isnan(result[0].volatility));
 }
 
@@ -44,10 +42,8 @@ TEST(DataPreprocessorTest, LargeDataSet) {
     }
     DataPreprocessor::Params params;
     params.volatility_window = 10;
-    params.event_interval = 1000;
     auto result = DataPreprocessor::preprocess(rows, params);
     EXPECT_EQ(result.size(), N);
-    // Check some sample values
     EXPECT_EQ(result[0].timestamp, "0");
     EXPECT_EQ(result[N-1].timestamp, std::to_string(N-1));
 }
@@ -60,14 +56,33 @@ TEST(DataPreprocessorTest, CustomParams) {
     }
     DataPreprocessor::Params params;
     params.volatility_window = 5;
-    params.event_interval = 2;
     params.barrier_multiple = 3.0;
     params.vertical_barrier = 7;
     auto result = DataPreprocessor::preprocess(rows, params);
     EXPECT_EQ(result.size(), rows.size());
-    // Check volatility window effect
     for (int i = 0; i < 4; ++i) {
         EXPECT_TRUE(std::isnan(result[i].volatility));
     }
     EXPECT_FALSE(std::isnan(result[4].volatility));
+}
+
+TEST(DataPreprocessorTest, DynamicEventSelection) {
+    std::vector<DataRow> rows(30);
+    for (int i = 0; i < 30; ++i) {
+        rows[i].timestamp = std::to_string(i);
+        rows[i].price = 100 + i;
+    }
+    
+    DataPreprocessor::Params params;
+    params.volatility_window = 5;
+    params.vertical_barrier = 12;
+    params.barrier_config.labeling_type = BarrierConfig::Hard;
+    auto result = DataPreprocessor::preprocess(rows, params);
+    
+    int events = 0;
+    for (const auto& row : result) {
+        if (row.is_event) events++;
+    }
+    
+    EXPECT_GT(events, 3);
 }

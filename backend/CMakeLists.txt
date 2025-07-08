@@ -13,6 +13,10 @@ add_library(backend
     data/CUSUMFilter.h
     data/FeatureCalculator.cpp
     data/FeatureCalculator.h
+    data/HardBarrierLabeler.cpp
+    data/HardBarrierLabeler.h
+    data/IBarrierLabeler.h
+    data/BarrierConfig.h
     ml/MLPipeline.cpp
     ml/MLSplits.h
     ml/XGBoostModel.cpp

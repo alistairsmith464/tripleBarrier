@@ -5,7 +5,6 @@
 #include <stdexcept>
 #include <ctime>
 
-// Feature name constants
 const std::string FeatureCalculator::CLOSE_TO_CLOSE_RETURN_1D = "close_to_close_return_1d";
 const std::string FeatureCalculator::RETURN_5D = "return_5d";
 const std::string FeatureCalculator::RETURN_10D = "return_10d";
@@ -133,7 +132,6 @@ double FeatureCalculator::slopeLRND(const std::vector<double>& prices, int idx, 
 }
 int FeatureCalculator::dayOfWeek(const std::vector<std::string>& timestamps, int idx) {
     if (idx < 0 || idx >= (int)timestamps.size()) return -1;
-    // Assume format YYYY-MM-DD or YYYY-MM-DD HH:MM:SS
     std::tm tm = {};
     std::string s = timestamps[idx].substr(0, 10);
     sscanf(s.c_str(), "%d-%d-%d", &tm.tm_year, &tm.tm_mon, &tm.tm_mday);

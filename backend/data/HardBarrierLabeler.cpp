@@ -13,23 +13,34 @@ std::vector<LabeledEvent> HardBarrierLabeler::label(
     for (size_t event_idx : event_indices) {
         if (event_idx >= data.size()) continue;
         const auto& entry = data[event_idx];
-        double pt = entry.price + profit_multiple * entry.volatility;
-        double sl = entry.price - stop_multiple * entry.volatility;
+        double pt = entry.price * (1.0 + profit_multiple * entry.volatility);
+        double sl = entry.price * (1.0 - stop_multiple * entry.volatility);
         size_t end_idx = std::min(event_idx + size_t(vertical_barrier), data.size() - 1);
         int label = 0;
         size_t exit_idx = end_idx;
         size_t profit_hit = data.size();
         size_t stop_hit = data.size();
+        size_t profit_hit_time = data.size();
+        size_t stop_hit_time = data.size();
+        
         for (size_t i = event_idx + 1; i <= end_idx; ++i) {
             bool profit = data[i].price >= pt;
             bool stop = data[i].price <= sl;
             if (profit && stop) {
                 profit_hit = i;
                 stop_hit = i;
+                profit_hit_time = i - event_idx;
+                stop_hit_time = i - event_idx;
                 break;
             }
-            if (profit && profit_hit == data.size()) profit_hit = i;
-            if (stop && stop_hit == data.size()) stop_hit = i;
+            if (profit && profit_hit == data.size()) {
+                profit_hit = i;
+                profit_hit_time = i - event_idx;
+            }
+            if (stop && stop_hit == data.size()) {
+                stop_hit = i;
+                stop_hit_time = i - event_idx;
+            }
             if (profit_hit != data.size() && stop_hit != data.size()) break;
         }
         if (profit_hit < stop_hit) {
@@ -45,12 +56,16 @@ std::vector<LabeledEvent> HardBarrierLabeler::label(
             label = 0;
             exit_idx = end_idx;
         }
+        
+        int periods_to_exit = static_cast<int>(exit_idx - event_idx);
+        
         results.push_back(LabeledEvent{
             entry.timestamp,
             data[exit_idx].timestamp,
             label,
             entry.price,
-            data[exit_idx].price
+            data[exit_idx].price,
+            periods_to_exit
         });
     }
     return results;

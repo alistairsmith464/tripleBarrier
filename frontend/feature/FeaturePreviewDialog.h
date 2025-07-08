@@ -29,6 +29,7 @@ private:
     QLabel* m_importancesLabel;
     QCheckBox* m_tuneHyperparamsCheckBox;
     QLabel* m_dataInfoLabel;
+    QLabel* m_debugInfoLabel;
     std::vector<std::map<std::string, double>> m_features;
     std::vector<int> m_labels;
     std::vector<double> m_returns;
@@ -38,11 +39,6 @@ private:
                                  std::vector<std::map<std::string, double>>& features,
                                  std::vector<int>& labels,
                                  std::vector<double>& returns);
-    void extractFeaturesAndLabelsSoft(const QSet<QString>& selectedFeatures,
-                                 const std::vector<PreprocessedRow>& rows,
-                                 const std::vector<LabeledEvent>& labeledEvents,
-                                 std::vector<std::map<std::string, double>>& features,
-                                 std::vector<double>& soft_labels,
-                                 std::vector<double>& returns);
     void showMLResults(const MLPipeline::PipelineResult& result);
+    void showPortfolioSimulation(const std::vector<int>& labels, const std::vector<double>& returns);
 };

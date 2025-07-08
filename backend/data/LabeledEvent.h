@@ -4,8 +4,8 @@
 struct LabeledEvent {
     std::string entry_time;
     std::string exit_time;
-    int label; // +1, -1, 0
+    int label;
     double entry_price;
     double exit_price;
-    double soft_label = 0.0; // For probabilistic labeling
+    int periods_to_exit = 0;
 };

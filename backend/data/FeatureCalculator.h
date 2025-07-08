@@ -6,7 +6,6 @@
 
 class FeatureCalculator {
 public:
-    // Enum or string constants for feature names
     static const std::string CLOSE_TO_CLOSE_RETURN_1D;
     static const std::string RETURN_5D;
     static const std::string RETURN_10D;
@@ -24,7 +23,6 @@ public:
     static const std::string DAY_OF_WEEK;
     static const std::string DAYS_SINCE_LAST_EVENT;
 
-    // Calculate all selected features for a given event index
     static std::map<std::string, double> calculateFeatures(
         const std::vector<double>& prices,
         const std::vector<std::string>& timestamps,
@@ -34,7 +32,6 @@ public:
         const std::vector<int>* eventStarts = nullptr
     );
 
-    // Individual feature calculators (stubs)
     static double closeToCloseReturn1D(const std::vector<double>& prices, int idx);
     static double returnND(const std::vector<double>& prices, int idx, int n);
     static double rollingStdND(const std::vector<double>& prices, int idx, int n);

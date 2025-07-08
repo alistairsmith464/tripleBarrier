@@ -18,7 +18,7 @@ bool exportLabeledEventsToCSV(const QString& fileName,
     QTextStream out(&file);
     // out.setCodec("UTF-8"); // Not needed in Qt6
     // Write header
-    out << "timestamp,price,volatility,label,soft_label,exit_time,entry_price,exit_price\n";
+    out << "timestamp,price,volatility,label,exit_time,entry_price,exit_price\n";
     for (const auto& e : labeledEvents) {
         // Find the corresponding PreprocessedRow for entry_time
         auto it = std::find_if(rows.begin(), rows.end(), [&](const PreprocessedRow& r) { return r.timestamp == e.entry_time; });
@@ -28,7 +28,6 @@ bool exportLabeledEventsToCSV(const QString& fileName,
             << price << ","
             << vol << ","
             << e.label << ","
-            << e.soft_label << ","
             << QString::fromStdString(e.exit_time) << ","
             << e.entry_price << ","
             << e.exit_price << "\n";

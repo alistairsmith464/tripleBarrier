@@ -34,46 +34,27 @@ namespace MLPipeline {
 
     struct PipelineConfig {
         SplitType split_type;
-        int n_splits; // for KFold
-        int embargo;  // for PurgedKFold
-        double train_ratio, val_ratio, test_ratio; // for Chronological
+        int n_splits;
+        int embargo;
+        double train_ratio, val_ratio, test_ratio;
         int random_seed;
-        // XGBoost hyperparameters
         int n_rounds = 20;
         int max_depth = 3;
         int nthread = 4;
         std::string objective = "binary:logistic";
     };
 
-    // Main pipeline entry point (classification, hard labels)
     PipelineResult runPipeline(
         const std::vector<std::map<std::string, double>>& X,
         const std::vector<int>& y,
-        const std::vector<double>& returns, // for financial metrics
+        const std::vector<double>& returns,
         const PipelineConfig& config
     );
 
-    // New: Regression/soft-label pipeline entry point (probabilistic barriers)
-    PipelineResult runPipelineSoft(
-        const std::vector<std::map<std::string, double>>& X,
-        const std::vector<double>& y_soft,
-        const std::vector<double>& returns, // for financial metrics
-        const PipelineConfig& config
-    );
-
-    // Grid search for best hyperparameters (classification, hard labels)
     PipelineResult runPipelineWithTuning(
         const std::vector<std::map<std::string, double>>& X,
         const std::vector<int>& y,
         const std::vector<double>& returns,
-        PipelineConfig config // used as base config, but n_rounds/max_depth/nthread/objective are tuned
-    );
-
-    // Grid search for best hyperparameters (regression, soft labels)
-    PipelineResult runPipelineSoftWithTuning(
-        const std::vector<std::map<std::string, double>>& X,
-        const std::vector<double>& y_soft,
-        const std::vector<double>& returns,
-        PipelineConfig config // used as base config, but n_rounds/max_depth/nthread/objective are tuned
+        PipelineConfig config
     );
 }

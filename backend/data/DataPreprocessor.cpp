@@ -17,8 +17,13 @@ std::vector<PreprocessedRow> DataPreprocessor::preprocess(const std::vector<Data
     if (params.use_cusum) {
         events = EventSelector::selectCUSUMEvents(rows, vol, params.cusum_threshold);
     } else {
-        events = EventSelector::selectEvents(rows, params.event_interval);
+        if (params.barrier_config.labeling_type == BarrierConfig::Hard) {
+            events = EventSelector::selectDynamicEvents(rows, params.vertical_barrier);
+        } else {
+            events = EventSelector::selectEvents(rows, params.vertical_barrier);
+        }
     }
+
     std::vector<bool> is_event(rows.size(), false);
     for (const auto& e : events) is_event[e.index] = true;
 

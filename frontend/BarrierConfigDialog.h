@@ -32,9 +32,6 @@ public:
         volWinBox = new QSpinBox(this);
         volWinBox->setRange(1, 1000);
         volWinBox->setValue(20);
-        evtIntBox = new QSpinBox(this);
-        evtIntBox->setRange(1, 1000);
-        evtIntBox->setValue(10);
         layout->addRow("Profit Multiple:", profitBox);
         layout->addRow(new QLabel("\u2022 Multiplier for the profit-taking barrier (e.g., 2.0 = 2x volatility above entry).", this));
         layout->addRow("Stop Multiple:", stopBox);
@@ -47,8 +44,6 @@ public:
         layout->addRow(new QLabel("\u2022 Sensitivity for CUSUM filter (higher = fewer events).", this));
         layout->addRow("Volatility Window:", volWinBox);
         layout->addRow(new QLabel("\u2022 Window size for volatility calculation (e.g., 20 = 20 bars).", this));
-        layout->addRow("Event Interval:", evtIntBox);
-        layout->addRow(new QLabel("\u2022 Minimum interval between detected events (in bars).", this));
         errorLabel = new QLabel(this);
         errorLabel->setStyleSheet("color: #e74c3c; font-size: 12px;");
         layout->addRow(errorLabel);
@@ -60,7 +55,6 @@ public:
 
         QComboBox* labelingTypeBox = new QComboBox(this);
         labelingTypeBox->addItem("Hard Barrier");
-        labelingTypeBox->addItem("Probabilistic Barrier");
         layout->insertRow(0, "Labeling Type:", labelingTypeBox);
         this->labelingTypeBox = labelingTypeBox;
     }
@@ -71,11 +65,7 @@ public:
         cfg.vertical_window = vertBox->value();
         cfg.use_cusum = cusumCheck->isChecked();
         cfg.cusum_threshold = cusumThresholdBox->value();
-        if (labelingTypeBox->currentIndex() == 0) {
-            cfg.labeling_type = BarrierConfig::Hard;
-        } else {
-            cfg.labeling_type = BarrierConfig::Probabilistic;
-        }
+        cfg.labeling_type = BarrierConfig::Hard;
         return cfg;
     }
 private slots:
@@ -96,8 +86,6 @@ private:
     QLabel *errorLabel;
     QComboBox* labelingTypeBox;
     QSpinBox* volWinBox;
-    QSpinBox* evtIntBox;
 public:
     int volatilityWindow() const { return volWinBox->value(); }
-    int eventInterval() const { return evtIntBox->value(); }
 };

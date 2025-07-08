@@ -10,9 +10,8 @@ bool UserInputUtils::getBarrierConfig(QWidget* parent, BarrierConfig& cfg) {
     return false;
 }
 
-bool UserInputUtils::getPreprocessingParams(QWidget* parent, DataPreprocessor::Params& params, const BarrierConfig& cfg, int volWin, int evtInt) {
+bool UserInputUtils::getPreprocessingParams(QWidget* parent, DataPreprocessor::Params& params, const BarrierConfig& cfg, int volWin) {
     params.volatility_window = volWin;
-    params.event_interval = evtInt;
     params.barrier_multiple = cfg.profit_multiple;
     params.vertical_barrier = cfg.vertical_window;
     params.use_cusum = cfg.use_cusum;
@@ -24,5 +23,5 @@ bool UserInputUtils::getLabelingConfig(QWidget* parent, BarrierConfig& cfg, Data
     BarrierConfigDialog dialog(parent);
     if (dialog.exec() != QDialog::Accepted) return false;
     cfg = dialog.getConfig();
-    return getPreprocessingParams(parent, params, cfg, dialog.volatilityWindow(), dialog.eventInterval());
+    return getPreprocessingParams(parent, params, cfg, dialog.volatilityWindow());
 }

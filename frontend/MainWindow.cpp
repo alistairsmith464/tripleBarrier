@@ -19,7 +19,6 @@
 #include "../backend/data/LabeledEvent.h"
 #include <vector>
 #include "../backend/data/HardBarrierLabeler.h"
-#include "../backend/data/ProbabilisticBarrierLabeler.h"
 #include "utils/CSVExportUtils.h"
 #include "plot/LabeledEventPlotter.h"
 #include "feature/FeaturePreviewDialog.h"

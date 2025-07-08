@@ -10,12 +10,11 @@ class DataPreprocessor {
 public:
     struct Params {
         int volatility_window = 20;
-        int event_interval = 10;
         double barrier_multiple = 2.0;
         int vertical_barrier = 20;
-        // CUSUM options
         bool use_cusum = false;
         double cusum_threshold = 5.0;
+        BarrierConfig barrier_config;
     };
 
     static std::vector<PreprocessedRow> preprocess(const std::vector<DataRow>& rows, const Params& params);

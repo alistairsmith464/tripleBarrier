@@ -6,7 +6,6 @@
 #include <algorithm>
 
 namespace DataCleaningUtils {
-    // Cleans a vector of feature maps by removing any row with NaN, Inf, or invalid values
     inline void cleanFeatureRows(std::vector<std::map<std::string, double>>& features) {
         features.erase(
             std::remove_if(features.begin(), features.end(), [](const std::map<std::string, double>& row) {

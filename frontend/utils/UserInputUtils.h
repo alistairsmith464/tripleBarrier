@@ -10,7 +10,7 @@
 class UserInputUtils {
 public:
     static bool getBarrierConfig(QWidget* parent, BarrierConfig& cfg);
-    static bool getPreprocessingParams(QWidget* parent, DataPreprocessor::Params& params, const BarrierConfig& cfg, int volWin, int evtInt);
+    static bool getPreprocessingParams(QWidget* parent, DataPreprocessor::Params& params, const BarrierConfig& cfg, int volWin);
     static bool getLabelingConfig(QWidget* parent, BarrierConfig& cfg, DataPreprocessor::Params& params);
 };
 
