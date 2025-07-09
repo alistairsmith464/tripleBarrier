@@ -27,7 +27,7 @@ jobs:
           cmake --build .
           # Copy the built library to lib directory
           mkdir -p ../lib
-          cp lib/libxgboost.so ../lib/ || cp libxgboost.so ../lib/
+          find . -name "libxgboost.so" -exec cp {} ../lib/ \;
 
       - name: Verify XGBoost installation
         run: |
