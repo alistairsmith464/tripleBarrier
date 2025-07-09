@@ -25,10 +25,17 @@ jobs:
           cd build
           cmake .. -G Ninja
           cmake --build .
-        # This will produce libxgboost.so and/or libxgboost.a in xgboost/build
+          # Copy the built library to lib directory
+          mkdir -p ../lib
+          cp lib/libxgboost.so ../lib/ || cp libxgboost.so ../lib/
+
+      - name: Verify XGBoost installation
+        run: |
+          echo "Checking XGBoost library files:"
+          find xgboost -name "*libxgboost*" -type f
 
       - name: Configure CMake
-        run: cmake -S . -B build -G Ninja -DBUILD_FRONTEND=OFF -Dxgboost_DIR=${{ github.workspace }}/xgboost/build
+        run: cmake -S . -B build -G Ninja -DBUILD_FRONTEND=OFF
 
       - name: Build
         run: cmake --build build
