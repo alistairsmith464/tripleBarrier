@@ -11,6 +11,7 @@
 #include "../backend/data/FeatureExtractor.h"
 #include "../backend/data/PortfolioSimulator.h"
 #include "../backend/ml/MLPipeline.h"
+#include "../services/MLService.h"
 #include <memory>
 
 class FeaturePreviewDialog : public QDialog {
@@ -43,6 +44,6 @@ private:
     void createFeatureTable();
     void updateDataInfo();
     void updateBarrierDiagnostics();
-    void showMLClassificationResults(const MLPipeline::PipelineResult& result);
-    void showMLRegressionResults(const MLPipeline::RegressionPipelineResult& result);
+    void showMLClassificationResults(const MLResults& results);
+    void showMLRegressionResults(const MLResults& results);
 };

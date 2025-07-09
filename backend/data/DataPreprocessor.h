@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "../backend/data/DataRow.h"
+#include "DataRow.h"
 #include "PreprocessedRow.h"
 #include "VolatilityCalculator.h"
 #include "EventSelector.h"

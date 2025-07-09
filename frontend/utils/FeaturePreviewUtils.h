@@ -7,6 +7,7 @@
 #include "../backend/data/FeatureExtractor.h"
 #include "../backend/data/PortfolioSimulator.h"
 
+// Utility class for formatting display text in feature preview dialogs
 class FeaturePreviewUtils {
 public:
     // Convert Qt types to std types for backend

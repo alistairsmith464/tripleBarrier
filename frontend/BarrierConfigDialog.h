@@ -8,6 +8,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include "../backend/data/BarrierConfig.h"
+#include "frontend/config/VisualizationConfig.h"
 
 class BarrierConfigDialog : public QDialog {
     Q_OBJECT
@@ -37,21 +38,17 @@ public:
         cusumThresholdBox->setValue(5.0);
         cusumThresholdBox->setEnabled(false);
         
-        // TTBM Options (decay parameters are now fixed for optimal regression performance)
         ttbmDecayTypeBox = new QComboBox(this);
         ttbmDecayTypeBox->addItem("Exponential Decay (Fixed Parameters)");
         ttbmDecayTypeBox->addItem("Linear Decay (Fixed Parameters)");
         ttbmDecayTypeBox->addItem("Hyperbolic Decay (Fixed Parameters)");
         ttbmDecayTypeBox->setEnabled(false);
         
-        // Remove individual parameter controls - now fixed for regression optimization
+        // Parameter controls removed - using fixed optimal values from configuration
         ttbmLambdaBox = nullptr;
         ttbmAlphaBox = nullptr;
         ttbmBetaBox = nullptr;
         
-        volWinBox = new QSpinBox(this);
-        volWinBox->setRange(1, 1000);
-        volWinBox->setValue(20);
         volWinBox = new QSpinBox(this);
         volWinBox->setRange(1, 1000);
         volWinBox->setValue(20);
@@ -100,12 +97,10 @@ public:
         cfg.labeling_type = (labelingTypeBox->currentIndex() == 0) ? 
                            BarrierConfig::Hard : BarrierConfig::TTBM;
         
-        // TTBM parameters (now fixed - no longer user-configurable)
         cfg.ttbm_decay_type = static_cast<BarrierConfig::TTBMDecayType>(ttbmDecayTypeBox->currentIndex());
-        // Fixed optimal parameters for regression (from BarrierConfig.h)
-        cfg.ttbm_lambda = 2.0;  // Fixed exponential decay
-        cfg.ttbm_alpha = 0.8;   // Fixed linear decay
-        cfg.ttbm_beta = 3.0;    // Fixed hyperbolic decay
+        cfg.ttbm_lambda = VisualizationConfig::getOptimalLambda();
+        cfg.ttbm_alpha = VisualizationConfig::getOptimalAlpha();
+        cfg.ttbm_beta = VisualizationConfig::getOptimalBeta();
         
         return cfg;
     }
@@ -128,11 +123,11 @@ private:
     QComboBox* labelingTypeBox;
     QSpinBox* volWinBox;
     
-    // TTBM Controls (parameters now fixed)
+    // TTBM controls - fixed parameters loaded from configuration
     QComboBox* ttbmDecayTypeBox;
-    QDoubleSpinBox* ttbmLambdaBox;  // Kept for compatibility but not used
-    QDoubleSpinBox* ttbmAlphaBox;   // Kept for compatibility but not used
-    QDoubleSpinBox* ttbmBetaBox;    // Kept for compatibility but not used
+    QDoubleSpinBox* ttbmLambdaBox;  // Set to nullptr - using fixed configuration values
+    QDoubleSpinBox* ttbmAlphaBox;   // Set to nullptr - using fixed configuration values
+    QDoubleSpinBox* ttbmBetaBox;    // Set to nullptr - using fixed configuration values
 public:
     int volatilityWindow() const { return volWinBox->value(); }
 };

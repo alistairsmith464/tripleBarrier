@@ -1,6 +1,8 @@
 #pragma once
 
 #include "plot/LabeledEventPlotter.h"
+#include "services/DataService.h"
+#include "services/MLService.h"
 #include <QMainWindow>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -19,18 +21,11 @@
 #include <QtCharts/QScatterSeries>
 #include <QtCharts/QDateTimeAxis>
 #include <QDateTime>
-#include "FileHandler.h"
-#include "../backend/data/CSVDataSource.h"
-#include "../backend/data/PreprocessedRow.h"
-#include "../backend/data/LabeledEvent.h"
 #include "FeatureSelectionDialog.h"
 #include "ui/MainWindowUI.h"
 
 QT_BEGIN_NAMESPACE
 QT_END_NAMESPACE
-
-extern std::vector<PreprocessedRow> g_lastRows;
-extern std::vector<LabeledEvent> g_lastLabeledEvents;
 
 class MainWindow : public QMainWindow
 {
@@ -42,7 +37,6 @@ public:
 
 private slots:
     void onClearButtonClicked();
-    void onUploadDataButtonClicked();
     void onSelectCSVFile();
     void onMLButtonClicked(); // Slot for ML button
 
@@ -63,11 +57,16 @@ private:
     QChartView *m_chartView;
     QComboBox *m_plotModeComboBox;
 
-    // File handler (stack-allocated, not a pointer)
-    FileHandler m_fileHandler;
-
     // UI
     MainWindowUI m_ui;
+
+    // Services
+    std::unique_ptr<DataService> m_dataService;
+    std::unique_ptr<MLService> m_mlService;
+
+    // Data state
+    std::vector<PreprocessedRow> m_lastRows;
+    std::vector<LabeledEvent> m_lastLabeledEvents;
 
     PlotMode m_plotMode = PlotMode::TimeSeries;
 };

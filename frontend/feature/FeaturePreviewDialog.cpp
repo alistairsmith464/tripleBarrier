@@ -1,6 +1,7 @@
 #include "FeaturePreviewDialog.h"
 #include "../MLHyperparamsDialog.h"
 #include "../utils/FeaturePreviewUtils.h"
+#include "../services/MLService.h"
 #include <QVBoxLayout>
 #include <QTableWidget>
 #include <QHeaderView>
@@ -64,11 +65,9 @@ void FeaturePreviewDialog::setupUI() {
 }
 
 void FeaturePreviewDialog::createFeatureTable() {
-    // Convert selected features to backend format
-    std::set<std::string> selectedFeaturesStd = FeaturePreviewUtils::convertQSetToStdSet(m_selectedFeatures);
-    
-    // Extract features using the backend
-    auto result = FeatureExtractor::extractFeaturesForClassification(selectedFeaturesStd, m_rows, m_labeledEvents);
+    // Create ML service instance for feature extraction
+    MLServiceImpl mlService;
+    auto result = mlService.extractFeatures(m_rows, m_labeledEvents, m_selectedFeatures);
     
     // Create table widget
     QTableWidget* table = new QTableWidget(int(result.features.size()), m_selectedFeatures.size(), this);
@@ -112,97 +111,54 @@ void FeaturePreviewDialog::onRunMLClicked() {
     MLHyperparamsDialog dlg(this);
     if (dlg.exec() != QDialog::Accepted) return;
     
-    // Determine if this is TTBM or hard barrier
+    // Determine TTBM mode
     bool is_ttbm = false;
     if (!m_labeledEvents.empty()) {
         is_ttbm = m_labeledEvents[0].is_ttbm;
     }
     
-    bool tune = m_tuneHyperparamsCheckBox && m_tuneHyperparamsCheckBox->isChecked();
+    // Configure ML pipeline
+    MLConfig config;
+    config.selectedFeatures = m_selectedFeatures;
+    config.useTTBM = is_ttbm;
+    config.crossValidationRatio = 0.2;
+    config.randomSeed = 42;
     
-    // Setup ML pipeline configuration
-    MLPipeline::PipelineConfig config;
-    config.split_type = MLPipeline::Chronological;
-    config.train_ratio = 0.7;
-    config.val_ratio = 0.15;
-    config.test_ratio = 0.15;
-    config.n_splits = 3;
-    config.embargo = 0;
-    config.random_seed = 42;
+    // Run ML pipeline using service
+    MLServiceImpl mlService;
+    MLResults results = mlService.runMLPipeline(m_rows, m_labeledEvents, config);
     
-    if (is_ttbm) {
-        config.n_rounds = tune ? dlg.nRounds() : 500;
-        config.max_depth = tune ? dlg.maxDepth() : 3;
-        config.nthread = dlg.nThread();
-        config.objective = "reg:squarederror";
-        config.train_ratio = 0.8;
-        config.val_ratio = 0.1;
-        config.test_ratio = 0.1;
-    } else {
-        config.n_rounds = dlg.nRounds();
-        config.max_depth = dlg.maxDepth();
-        config.nthread = dlg.nThread();
-        config.objective = "binary:logistic";
+    if (!results.success) {
+        m_metricsLabel->setText(QString("<font color='red'>ML Error: %1</font>").arg(results.errorMessage));
+        return;
     }
     
     // Update data info label with model information
-    QString modelInfo = FeaturePreviewUtils::formatModelInfo(is_ttbm, tune, m_labeledEvents);
+    QString modelInfo = FeaturePreviewUtils::formatModelInfo(is_ttbm, false, m_labeledEvents);
     m_dataInfoLabel->setText(modelInfo);
     
-    // Run the appropriate ML pipeline
-    std::set<std::string> selectedFeaturesStd = FeaturePreviewUtils::convertQSetToStdSet(m_selectedFeatures);
-    
+    // Display results
     if (is_ttbm) {
-        auto featureResult = FeatureExtractor::extractFeaturesForRegression(selectedFeaturesStd, m_rows, m_labeledEvents);
-        
-        MLPipeline::RegressionPipelineResult result;
-        if (tune) {
-            result = MLPipeline::runPipelineRegressionWithTuning(featureResult.features, featureResult.labels_double, featureResult.returns, config);
-        } else {
-            result = MLPipeline::runPipelineRegression(featureResult.features, featureResult.labels_double, featureResult.returns, config);
-        }
-        
-        showMLRegressionResults(result);
+        showMLRegressionResults(results);
     } else {
-        auto featureResult = FeatureExtractor::extractFeaturesForClassification(selectedFeaturesStd, m_rows, m_labeledEvents);
-        
-        MLPipeline::PipelineResult result;
-        if (tune) {
-            result = MLPipeline::runPipelineWithTuning(featureResult.features, featureResult.labels, featureResult.returns, config);
-        } else {
-            result = MLPipeline::runPipeline(featureResult.features, featureResult.labels, featureResult.returns, config);
-        }
-        
-        showMLClassificationResults(result);
+        showMLClassificationResults(results);
     }
 }
 
-void FeaturePreviewDialog::showMLClassificationResults(const MLPipeline::PipelineResult& result) {
-    // Convert integer predictions to double for portfolio simulation
-    std::vector<double> double_predictions;
-    for (int pred : result.predictions) {
-        double_predictions.push_back(static_cast<double>(pred));
-    }
-    
-    // Run portfolio simulation
-    auto portfolioResults = PortfolioSimulator::runSimulation(double_predictions, m_labeledEvents, false);
-    
-    // Display results
-    QString metrics = FeaturePreviewUtils::formatPortfolioResults(portfolioResults, false);
+void FeaturePreviewDialog::showMLClassificationResults(const MLResults& results) {
+    // Display portfolio simulation results
+    QString metrics = FeaturePreviewUtils::formatPortfolioResults(results.portfolioResult, false);
     m_metricsLabel->setText(metrics);
     m_importancesLabel->setText("");
 }
 
-void FeaturePreviewDialog::showMLRegressionResults(const MLPipeline::RegressionPipelineResult& result) {
-    // Run portfolio simulation
-    auto portfolioResults = PortfolioSimulator::runSimulation(result.predictions, m_labeledEvents, true);
-    
-    // Display results
-    QString metrics = FeaturePreviewUtils::formatPortfolioResults(portfolioResults, true);
+void FeaturePreviewDialog::showMLRegressionResults(const MLResults& results) {
+    // Display portfolio simulation results 
+    QString metrics = FeaturePreviewUtils::formatPortfolioResults(results.portfolioResult, true);
     m_metricsLabel->setText(metrics);
     m_importancesLabel->setText("");
     
     // Show sample trading decisions
-    QString debug = FeaturePreviewUtils::formatSampleTradingDecisions(result.predictions, true, 10);
+    QString debug = FeaturePreviewUtils::formatSampleTradingDecisions(results.predictions, true, 10);
     m_debugInfoLabel->setText(debug);
 }

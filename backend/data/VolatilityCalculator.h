@@ -3,7 +3,7 @@
 #include <cmath>
 
 namespace VolatilityCalculator {
-    std::vector<double> rollingStdDev(const std::vector<double>& logReturns, int window) {
+    inline std::vector<double> rollingStdDev(const std::vector<double>& logReturns, int window) {
         std::vector<double> result(logReturns.size(), std::nan("") );
 
         if (window <= 1 || logReturns.size() < window) return result;

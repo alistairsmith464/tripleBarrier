@@ -8,21 +8,22 @@ add_executable(TripleBarrierApp
     MainWindow.cpp
     MainWindow.h
     MainWindow.ui
-    FileHandler.cpp
-    FileHandler.h
     BarrierConfigDialog.cpp
     BarrierConfigDialog.h
     FeatureSelectionDialog.cpp
     FeatureSelectionDialog.h
     MLHyperparamsDialog.cpp
     MLHyperparamsDialog.h
-    utils/CSVExportUtils.cpp
     utils/DialogUtils.cpp
     utils/FileDialogUtils.cpp
     utils/UserInputUtils.cpp
-    utils/LabelingUtils.cpp
     utils/FeaturePreviewUtils.cpp
+    utils/DateParsingUtils.cpp
+    services/DataService.cpp
+    services/MLService.cpp
+    state/ApplicationState.cpp
     plot/LabeledEventPlotter.cpp
+    plot/PlotStrategy.cpp
     feature/FeaturePreviewDialog.cpp
     ui/MainWindowUI.cpp
     ../backend/data/HardBarrierLabeler.cpp

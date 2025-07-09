@@ -1,4 +1,5 @@
 #include "FeaturePreviewUtils.h"
+#include "../config/VisualizationConfig.h"
 #include <numeric>
 #include <algorithm>
 
@@ -91,16 +92,18 @@ QString FeaturePreviewUtils::formatPortfolioResults(
 
 QString FeaturePreviewUtils::formatTradingStrategy(bool is_ttbm) {
     if (is_ttbm) {
-        return "<b>Trading Strategy:</b><br>"
-               "• Position size = Signal strength × 3%% of portfolio<br>"
+        double multiplier = VisualizationConfig::getTTBMPositionMultiplier();
+        return QString("<b>Trading Strategy:</b><br>"
+               "• Position size = Signal strength × %1%% of portfolio<br>"
                "• Positive signal: Long position<br>"
                "• Negative signal: Short position<br>"
-               "• Signal near zero: Small/no position<br><br>";
+               "• Signal near zero: Small/no position<br><br>").arg(multiplier);
     } else {
-        return "<b>Trading Strategy:</b><br>"
-               "• Signal +1: Long position (2%% of portfolio)<br>"
-               "• Signal -1: Short position (2%% of portfolio)<br>"
-               "• Signal 0: No position<br><br>";
+        double positionSize = VisualizationConfig::getHardBarrierPositionSize();
+        return QString("<b>Trading Strategy:</b><br>"
+               "• Signal +1: Long position (%1%% of portfolio)<br>"
+               "• Signal -1: Short position (%1%% of portfolio)<br>"
+               "• Signal 0: No position<br><br>").arg(positionSize);
     }
 }
 
@@ -118,6 +121,7 @@ QString FeaturePreviewUtils::formatModelInfo(
                         .arg(tune_enabled ? "enabled" : "disabled");
     
     if (is_ttbm) {
+        // Calculate label statistics for display
         double min_label = 1.0, max_label = -1.0, mean_label = 0.0;
         int zero_labels = 0, positive_count = 0, negative_count = 0;
         
@@ -132,6 +136,7 @@ QString FeaturePreviewUtils::formatModelInfo(
         }
         mean_label /= labeledEvents.size();
         
+        double positionMultiplier = VisualizationConfig::getTTBMPositionMultiplier();
         QString label_analysis = QString("TTBM Regression: Predicting Directional Confidence<br>"
                                        "Target: TTBM label (directional confidence from -1 to +1)<br>"
                                        "Range: [%1, %2], Mean: %3<br>"
@@ -139,7 +144,7 @@ QString FeaturePreviewUtils::formatModelInfo(
                                        "Positive Labels: %7/%8 (%9%)<br>"
                                        "Negative Labels: %10/%11 (%12%)<br>"
                                        "<b>Portfolio simulation scales bet size by signal strength</b><br>"
-                                       "<b>Position size = |prediction| * 3% of portfolio (max 3%)</b>")
+                                       "<b>Position size = |prediction| * %13% of portfolio (max %14%)</b>")
                                 .arg(min_label, 0, 'f', 4)
                                 .arg(max_label, 0, 'f', 4)
                                 .arg(mean_label, 0, 'f', 4)
@@ -148,7 +153,9 @@ QString FeaturePreviewUtils::formatModelInfo(
                                 .arg(positive_count).arg(labeledEvents.size())
                                 .arg(100.0 * positive_count / labeledEvents.size(), 0, 'f', 1)
                                 .arg(negative_count).arg(labeledEvents.size())
-                                .arg(100.0 * negative_count / labeledEvents.size(), 0, 'f', 1);
+                                .arg(100.0 * negative_count / labeledEvents.size(), 0, 'f', 1)
+                                .arg(positionMultiplier)
+                                .arg(positionMultiplier);
         
         return model_info + label_analysis;
     } else {
@@ -184,10 +191,12 @@ QString FeaturePreviewUtils::formatSampleTradingDecisions(
         
         QString trade_info;
         if (is_ttbm) {
-            double position_size = std::abs(pred) * 3.0;
+            double multiplier = VisualizationConfig::getTTBMPositionMultiplier();
+            double threshold = VisualizationConfig::getTradingThreshold();
+            double position_size = std::abs(pred) * multiplier;
             QString direction = pred > 0 ? "LONG" : "SHORT";
             
-            if (std::abs(pred) < 0.1) {
+            if (std::abs(pred) < threshold) {
                 trade_info = QString("Sample %1: Signal=%2 → NO TRADE (signal too weak)")
                             .arg(i + 1).arg(pred, 0, 'f', 4);
             } else {
@@ -195,12 +204,14 @@ QString FeaturePreviewUtils::formatSampleTradingDecisions(
                             .arg(i + 1).arg(pred, 0, 'f', 4).arg(direction).arg(position_size, 0, 'f', 2);
             }
         } else {
-            if (std::abs(pred - 1.0) < 0.1) {
-                trade_info = QString("Sample %1: Signal=%2 → LONG 2%% position")
-                            .arg(i + 1).arg(pred, 0, 'f', 4);
-            } else if (std::abs(pred + 1.0) < 0.1) {
-                trade_info = QString("Sample %1: Signal=%2 → SHORT 2%% position")
-                            .arg(i + 1).arg(pred, 0, 'f', 4);
+            double positionSize = VisualizationConfig::getHardBarrierPositionSize();
+            double threshold = VisualizationConfig::getTradingThreshold();
+            if (std::abs(pred - 1.0) < threshold) {
+                trade_info = QString("Sample %1: Signal=%2 → LONG %3%% position")
+                            .arg(i + 1).arg(pred, 0, 'f', 4).arg(positionSize);
+            } else if (std::abs(pred + 1.0) < threshold) {
+                trade_info = QString("Sample %1: Signal=%2 → SHORT %3%% position")
+                            .arg(i + 1).arg(pred, 0, 'f', 4).arg(positionSize);
             } else {
                 trade_info = QString("Sample %1: Signal=%2 → NO TRADE")
                             .arg(i + 1).arg(pred, 0, 'f', 4);

@@ -6,31 +6,31 @@
 #include <QSizePolicy>
 #include <QFont>
 #include <QApplication>
-#include "../backend/data/DataPreprocessor.h"
 #include "BarrierConfigDialog.h"
 #include <QInputDialog>
 #include "../backend/data/LabeledEvent.h"
+#include "../backend/data/DataRow.h"
+#include "../backend/data/CSVDataSource.h"
+#include "../backend/data/PreprocessedRow.h"
+#include "../backend/data/DataPreprocessor.h"
+#include "../backend/data/BarrierConfig.h"
 #include <QtCharts/QValueAxis>
 #include "FeatureSelectionDialog.h"
-#include "../backend/data/FeatureCalculator.h"
 #include <QTableWidget>
 #include <QHeaderView>
-#include "../backend/data/PreprocessedRow.h"
-#include "../backend/data/LabeledEvent.h"
 #include <vector>
-#include "../backend/data/HardBarrierLabeler.h"
 #include "plot/LabeledEventPlotter.h"
 #include "feature/FeaturePreviewDialog.h"
 #include "utils/DialogUtils.h"
 #include "utils/FileDialogUtils.h"
 #include "utils/UserInputUtils.h"
-#include "utils/LabelingUtils.h"
-
-std::vector<PreprocessedRow> g_lastRows;
-std::vector<LabeledEvent> g_lastLabeledEvents;
+#include "services/DataService.h"
+#include "services/MLService.h"
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+    : QMainWindow(parent),
+      m_dataService(std::make_unique<DataServiceImpl>()),
+      m_mlService(std::make_unique<MLServiceImpl>())
 {
     setupUI();
     setWindowTitle("Triple Barrier - File Upload");
@@ -76,8 +76,8 @@ void MainWindow::setupUI()
             case 3: m_plotMode = PlotMode::TTBM_Distribution; break;
             default: m_plotMode = PlotMode::TimeSeries; break;
         }
-        if (!g_lastRows.empty() && !g_lastLabeledEvents.empty())
-            plotLabeledEvents(g_lastRows, g_lastLabeledEvents);
+        if (!m_lastRows.empty() && !m_lastLabeledEvents.empty())
+            plotLabeledEvents(m_lastRows, m_lastLabeledEvents);
     });
 }
 
@@ -105,7 +105,7 @@ void MainWindow::onSelectCSVFile() {
                 for (size_t i = 0; i < processed.size(); ++i) {
                     if (processed[i].is_event) event_indices.push_back(i);
                 }
-                std::vector<LabeledEvent> labeled = LabelingUtils::labelEvents(processed, event_indices, cfg);
+                std::vector<LabeledEvent> labeled = m_dataService->generateLabeledEvents(processed, cfg);
                 plotLabeledEvents(processed, labeled);
             } catch (const std::exception& ex) {
                 showUploadError(QString("Barrier config error: %1").arg(ex.what()));
@@ -143,19 +143,19 @@ void MainWindow::showUploadError(const QString& error) {
 
 void MainWindow::plotLabeledEvents(const std::vector<PreprocessedRow>& rows, const std::vector<LabeledEvent>& labeledEvents) {
     LabeledEventPlotter::plot(m_chartView, rows, labeledEvents, m_plotMode);
-    g_lastRows = rows;
-    g_lastLabeledEvents = labeledEvents;
+    m_lastRows = rows;
+    m_lastLabeledEvents = labeledEvents;
 }
 
 void MainWindow::onMLButtonClicked() {
     FeatureSelectionDialog dlg(this);
     if (dlg.exec() == QDialog::Accepted) {
         QSet<QString> selected = dlg.selectedFeatures();
-        if (g_lastRows.empty() || g_lastLabeledEvents.empty()) {
+        if (m_lastRows.empty() || m_lastLabeledEvents.empty()) {
             DialogUtils::showWarning(this, "Feature Error", "No labeled events available. Please upload and label data first.");
             return;
         }
-        FeaturePreviewDialog previewDlg(selected, g_lastRows, g_lastLabeledEvents, this);
+        FeaturePreviewDialog previewDlg(selected, m_lastRows, m_lastLabeledEvents, this);
         previewDlg.exec();
     }
 }
