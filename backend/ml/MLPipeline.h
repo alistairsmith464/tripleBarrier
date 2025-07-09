@@ -4,27 +4,31 @@
 #include <string>
 #include "XGBoostModel.h"
 
-namespace MLPipeline {
-    struct MetricsResult {
-        double accuracy;
-        double precision;
-        double recall;
-        double f1;
-        double avg_return;
+namespace MLPipeline {  
+    struct PortfolioSimulation {
+        double starting_capital;
+        double final_capital;
+        double total_return;
+        double annualized_return;
+        double max_drawdown;
         double sharpe_ratio;
-        double hit_ratio;
-        int true_positives = 0;
-        int true_negatives = 0;
-        int false_positives = 0;
-        int false_negatives = 0;
-        int total = 0;
+        int total_trades;
+        double win_rate;
+        std::vector<std::string> trade_decisions;
     };
 
     struct PipelineResult {
         std::vector<int> predictions;
         std::vector<double> probabilities;
         std::map<std::string, double> feature_importances;
-        MetricsResult metrics;
+        PortfolioSimulation portfolio;
+    };
+
+    struct RegressionPipelineResult {
+        std::vector<double> predictions;
+        std::vector<double> uncertainties;
+        std::map<std::string, double> feature_importances;
+        PortfolioSimulation portfolio;
     };
 
     enum SplitType {
@@ -54,6 +58,20 @@ namespace MLPipeline {
     PipelineResult runPipelineWithTuning(
         const std::vector<std::map<std::string, double>>& X,
         const std::vector<int>& y,
+        const std::vector<double>& returns,
+        PipelineConfig config
+    );
+
+    RegressionPipelineResult runPipelineRegression(
+        const std::vector<std::map<std::string, double>>& X,
+        const std::vector<double>& y,
+        const std::vector<double>& returns,
+        const PipelineConfig& config
+    );
+
+    RegressionPipelineResult runPipelineRegressionWithTuning(
+        const std::vector<std::map<std::string, double>>& X,
+        const std::vector<double>& y,
         const std::vector<double>& returns,
         PipelineConfig config
     );

@@ -93,7 +93,8 @@ std::vector<LabeledEvent> TTBMLabeler::label(
             periods_to_exit,
             ttbm_label,
             time_ratio,
-            decay_factor
+            decay_factor,
+            true  // is_ttbm
         });
     }
     

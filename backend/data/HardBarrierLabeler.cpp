@@ -65,7 +65,11 @@ std::vector<LabeledEvent> HardBarrierLabeler::label(
             label,
             entry.price,
             data[exit_idx].price,
-            periods_to_exit
+            periods_to_exit,
+            0.0,
+            1.0,
+            1.0,
+            false
         });
     }
     return results;

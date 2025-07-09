@@ -37,30 +37,17 @@ public:
         cusumThresholdBox->setValue(5.0);
         cusumThresholdBox->setEnabled(false);
         
-        // TTBM Options
+        // TTBM Options (decay parameters are now fixed for optimal regression performance)
         ttbmDecayTypeBox = new QComboBox(this);
-        ttbmDecayTypeBox->addItem("Exponential Decay");
-        ttbmDecayTypeBox->addItem("Linear Decay");
-        ttbmDecayTypeBox->addItem("Hyperbolic Decay");
+        ttbmDecayTypeBox->addItem("Exponential Decay (Fixed Parameters)");
+        ttbmDecayTypeBox->addItem("Linear Decay (Fixed Parameters)");
+        ttbmDecayTypeBox->addItem("Hyperbolic Decay (Fixed Parameters)");
         ttbmDecayTypeBox->setEnabled(false);
         
-        ttbmLambdaBox = new QDoubleSpinBox(this);
-        ttbmLambdaBox->setRange(0.1, 10.0);
-        ttbmLambdaBox->setValue(1.0);
-        ttbmLambdaBox->setDecimals(2);
-        ttbmLambdaBox->setEnabled(false);
-        
-        ttbmAlphaBox = new QDoubleSpinBox(this);
-        ttbmAlphaBox->setRange(0.0, 1.0);
-        ttbmAlphaBox->setValue(0.5);
-        ttbmAlphaBox->setDecimals(2);
-        ttbmAlphaBox->setEnabled(false);
-        
-        ttbmBetaBox = new QDoubleSpinBox(this);
-        ttbmBetaBox->setRange(0.1, 10.0);
-        ttbmBetaBox->setValue(1.0);
-        ttbmBetaBox->setDecimals(2);
-        ttbmBetaBox->setEnabled(false);
+        // Remove individual parameter controls - now fixed for regression optimization
+        ttbmLambdaBox = nullptr;
+        ttbmAlphaBox = nullptr;
+        ttbmBetaBox = nullptr;
         
         volWinBox = new QSpinBox(this);
         volWinBox->setRange(1, 1000);
@@ -79,15 +66,9 @@ public:
         layout->addRow("CUSUM Threshold:", cusumThresholdBox);
         layout->addRow(new QLabel("• Sensitivity for CUSUM filter (higher = fewer events).", this));
         
-        // TTBM Options
+        // TTBM Options (parameters now fixed for regression optimization)
         layout->addRow("TTBM Decay Type:", ttbmDecayTypeBox);
-        layout->addRow(new QLabel("• How quickly label confidence decays with time.", this));
-        layout->addRow("Lambda (λ) - Exponential:", ttbmLambdaBox);
-        layout->addRow(new QLabel("• Exponential decay rate (higher = faster decay).", this));
-        layout->addRow("Alpha (α) - Linear:", ttbmAlphaBox);
-        layout->addRow(new QLabel("• Linear decay factor (0-1, higher = more decay).", this));
-        layout->addRow("Beta (β) - Hyperbolic:", ttbmBetaBox);
-        layout->addRow(new QLabel("• Hyperbolic decay steepness (higher = faster decay).", this));
+        layout->addRow(new QLabel("• Decay parameters are now fixed and optimized for regression performance.", this));
         
         layout->addRow("Volatility Window:", volWinBox);
         layout->addRow(new QLabel("• Window size for volatility calculation (e.g., 20 = 20 bars).", this));
@@ -104,9 +85,7 @@ public:
         connect(labelingTypeBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
             bool isTTBM = (index == 1);
             ttbmDecayTypeBox->setEnabled(isTTBM);
-            ttbmLambdaBox->setEnabled(isTTBM);
-            ttbmAlphaBox->setEnabled(isTTBM);
-            ttbmBetaBox->setEnabled(isTTBM);
+            // Individual parameter controls are now fixed (no longer user-editable)
         });
     }
     BarrierConfig getConfig() const {
@@ -121,11 +100,12 @@ public:
         cfg.labeling_type = (labelingTypeBox->currentIndex() == 0) ? 
                            BarrierConfig::Hard : BarrierConfig::TTBM;
         
-        // TTBM parameters
+        // TTBM parameters (now fixed - no longer user-configurable)
         cfg.ttbm_decay_type = static_cast<BarrierConfig::TTBMDecayType>(ttbmDecayTypeBox->currentIndex());
-        cfg.ttbm_lambda = ttbmLambdaBox->value();
-        cfg.ttbm_alpha = ttbmAlphaBox->value();
-        cfg.ttbm_beta = ttbmBetaBox->value();
+        // Fixed optimal parameters for regression (from BarrierConfig.h)
+        cfg.ttbm_lambda = 2.0;  // Fixed exponential decay
+        cfg.ttbm_alpha = 0.8;   // Fixed linear decay
+        cfg.ttbm_beta = 3.0;    // Fixed hyperbolic decay
         
         return cfg;
     }
@@ -148,11 +128,11 @@ private:
     QComboBox* labelingTypeBox;
     QSpinBox* volWinBox;
     
-    // TTBM Controls
+    // TTBM Controls (parameters now fixed)
     QComboBox* ttbmDecayTypeBox;
-    QDoubleSpinBox* ttbmLambdaBox;
-    QDoubleSpinBox* ttbmAlphaBox;
-    QDoubleSpinBox* ttbmBetaBox;
+    QDoubleSpinBox* ttbmLambdaBox;  // Kept for compatibility but not used
+    QDoubleSpinBox* ttbmAlphaBox;   // Kept for compatibility but not used
+    QDoubleSpinBox* ttbmBetaBox;    // Kept for compatibility but not used
 public:
     int volatilityWindow() const { return volWinBox->value(); }
 };

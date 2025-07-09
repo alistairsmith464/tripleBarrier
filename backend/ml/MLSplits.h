@@ -16,7 +16,6 @@ namespace MLSplitUtils {
         std::vector<size_t> val_indices;
     };
 
-    // Chronological split: ratios must sum to 1.0 (e.g., 0.6, 0.2, 0.2)
     inline SplitResult chronologicalSplit(
         const std::vector<std::map<std::string, double>>& X,
         const std::vector<int>& y,
@@ -38,11 +37,10 @@ namespace MLSplitUtils {
         return result;
     }
 
-    // Purged K-Fold CV with embargo (indices only)
     inline std::vector<PurgedFold> purgedKFoldSplit(
         size_t N,
         int n_splits = 5,
-        int embargo = 0 // number of samples to embargo after each val fold
+        int embargo = 0
     ) {
         std::vector<PurgedFold> folds;
         size_t fold_size = N / n_splits;
@@ -54,7 +52,6 @@ namespace MLSplitUtils {
                 if (i >= val_start && i < val_end) {
                     val_indices.push_back(i);
                 } else {
-                    // Purge: skip if within embargo of val fold
                     if ((i >= val_start - embargo && i < val_start) || (i >= val_end && i < val_end + embargo))
                         continue;
                     train_indices.push_back(i);
