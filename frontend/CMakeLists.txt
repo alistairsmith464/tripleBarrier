@@ -21,6 +21,7 @@ add_executable(TripleBarrierApp
     utils/FileDialogUtils.cpp
     utils/UserInputUtils.cpp
     utils/LabelingUtils.cpp
+    utils/FeaturePreviewUtils.cpp
     plot/LabeledEventPlotter.cpp
     feature/FeaturePreviewDialog.cpp
     ui/MainWindowUI.cpp

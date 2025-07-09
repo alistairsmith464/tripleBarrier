@@ -19,6 +19,10 @@ add_library(backend
     data/TTBMLabeler.h
     data/IBarrierLabeler.h
     data/BarrierConfig.h
+    data/FeatureExtractor.cpp
+    data/FeatureExtractor.h
+    data/PortfolioSimulator.cpp
+    data/PortfolioSimulator.h
     ml/MLPipeline.cpp
     ml/MLSplits.h
     ml/XGBoostModel.cpp
