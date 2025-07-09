@@ -13,6 +13,7 @@ std::vector<LabeledEvent> HardBarrierLabeler::label(
     for (size_t event_idx : event_indices) {
         if (event_idx >= data.size()) continue;
         const auto& entry = data[event_idx];
+        
         double pt = entry.price * (1.0 + profit_multiple * entry.volatility);
         double sl = entry.price * (1.0 - stop_multiple * entry.volatility);
         size_t end_idx = std::min(event_idx + size_t(vertical_barrier), data.size() - 1);
@@ -66,10 +67,14 @@ std::vector<LabeledEvent> HardBarrierLabeler::label(
             entry.price,
             data[exit_idx].price,
             periods_to_exit,
-            0.0,
-            1.0,
-            1.0,
-            false
+            0.0,  // ttbm_label (not used for hard labeling)
+            static_cast<double>(periods_to_exit) / static_cast<double>(vertical_barrier),  // time_elapsed_ratio
+            1.0,  // decay_factor (no decay for hard labeling)
+            false,  // is_ttbm
+            pt,  // profit_barrier
+            sl,  // stop_barrier
+            entry.volatility,  // entry_volatility
+            data[exit_idx].price  // trigger_price
         });
     }
     return results;

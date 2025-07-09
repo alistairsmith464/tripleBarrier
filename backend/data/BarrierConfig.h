@@ -40,5 +40,15 @@ struct BarrierConfig {
                 throw std::invalid_argument("BarrierConfig: ttbm_beta must be positive (fixed at 3.0)");
             }
         }
+        
+        if (profit_multiple != stop_multiple) {
+            // Warn if profit_multiple and stop_multiple are drastically different
+            // This is a basic check and can be adjusted based on specific strategy requirements
+            if (std::abs(profit_multiple - stop_multiple) > std::min(profit_multiple, stop_multiple)) {
+                throw std::invalid_argument("BarrierConfig: profit_multiple and stop_multiple are drastically different");
+            }
+        }
+        
+        // Additional validation can be added here based on the specific requirements of the strategy
     }
 };

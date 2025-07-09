@@ -5,6 +5,9 @@
 TTBMLabeler::TTBMLabeler(BarrierConfig::TTBMDecayType decay_type,
                          double lambda, double alpha, double beta)
     : decay_type_(decay_type), lambda_(lambda), alpha_(alpha), beta_(beta) {
+    if (lambda <= 0.0) throw std::invalid_argument("lambda must be positive for exponential decay");
+    if (alpha < 0.0 || alpha > 1.0) throw std::invalid_argument("alpha must be between 0 and 1 for linear decay");
+    if (beta <= 0.0) throw std::invalid_argument("beta must be positive for hyperbolic decay");
 }
 
 std::vector<LabeledEvent> TTBMLabeler::label(
@@ -20,33 +23,32 @@ std::vector<LabeledEvent> TTBMLabeler::label(
         if (event_idx >= data.size()) continue;
         
         const auto& entry = data[event_idx];
+        if (entry.volatility <= 0.0) continue;  // Skip invalid volatility
+        
         double pt = entry.price * (1.0 + profit_multiple * entry.volatility);
         double sl = entry.price * (1.0 - stop_multiple * entry.volatility);
+        
         size_t end_idx = std::min(event_idx + size_t(vertical_barrier), data.size() - 1);
         
         int hard_label = 0;
         size_t exit_idx = end_idx;
         size_t barrier_hit_time = vertical_barrier;
         
-        size_t profit_hit = data.size();
-        size_t stop_hit = data.size();
+        size_t profit_hit = SIZE_MAX;
+        size_t stop_hit = SIZE_MAX;
         
         for (size_t i = event_idx + 1; i <= end_idx; ++i) {
             bool profit = data[i].price >= pt;
             bool stop = data[i].price <= sl;
             
-            if (profit && stop) {
-                profit_hit = i;
-                stop_hit = i;
-                break;
-            }
-            if (profit && profit_hit == data.size()) {
+            if (profit && profit_hit == SIZE_MAX) {
                 profit_hit = i;
             }
-            if (stop && stop_hit == data.size()) {
+            if (stop && stop_hit == SIZE_MAX) {
                 stop_hit = i;
             }
-            if (profit_hit != data.size() && stop_hit != data.size()) break;
+            
+            if (profit_hit != SIZE_MAX && stop_hit != SIZE_MAX) break;
         }
         
         if (profit_hit < stop_hit) {
@@ -57,7 +59,7 @@ std::vector<LabeledEvent> TTBMLabeler::label(
             hard_label = -1;
             exit_idx = stop_hit;
             barrier_hit_time = stop_hit - event_idx;
-        } else if (profit_hit == stop_hit && profit_hit != data.size()) {
+        } else if (profit_hit == stop_hit && profit_hit != SIZE_MAX) {
             hard_label = +1;
             exit_idx = profit_hit;
             barrier_hit_time = profit_hit - event_idx;
@@ -66,16 +68,16 @@ std::vector<LabeledEvent> TTBMLabeler::label(
             exit_idx = end_idx;
             barrier_hit_time = vertical_barrier;
         }
+          double time_elapsed_ratio = static_cast<double>(barrier_hit_time) / static_cast<double>(vertical_barrier);
         
-        double time_ratio = static_cast<double>(barrier_hit_time) / static_cast<double>(vertical_barrier);
-        time_ratio = std::min(1.0, time_ratio);
-        
-        double decay_factor = applyDecay(time_ratio);
+        double decay_factor = applyDecay(time_elapsed_ratio);
         double ttbm_label = hard_label * decay_factor;
-        
-        ttbm_label = std::max(-1.0, std::min(1.0, ttbm_label));
-        
+
         int periods_to_exit = static_cast<int>(exit_idx - event_idx);
+        
+        if (exit_idx >= data.size()) {
+            exit_idx = data.size() - 1;
+        }
         
         results.push_back(LabeledEvent{
             entry.timestamp,
@@ -85,9 +87,13 @@ std::vector<LabeledEvent> TTBMLabeler::label(
             data[exit_idx].price,
             periods_to_exit,
             ttbm_label,
-            time_ratio,
+            time_elapsed_ratio,
             decay_factor,
-            true
+            true,
+            pt,  // profit_barrier
+            sl,  // stop_barrier
+            entry.volatility,  // entry_volatility
+            data[exit_idx].price  // trigger_price
         });
     }
     
@@ -95,17 +101,18 @@ std::vector<LabeledEvent> TTBMLabeler::label(
 }
 
 double TTBMLabeler::exponentialDecay(double time_ratio) const {
-    // f(t_b, t_v) = e^(-λ * t_b / t_v)
     return std::exp(-lambda_ * time_ratio);
 }
 
 double TTBMLabeler::linearDecay(double time_ratio) const {
-    // f(t_b, t_v) = 1 - α * t_b / t_v
     return std::max(0.0, 1.0 - alpha_ * time_ratio);
 }
 
 double TTBMLabeler::hyperbolicDecay(double time_ratio) const {
-    // f(t_b, t_v) = 1 / (1 + β * t_b / t_v)
+    const double epsilon = 1e-12;
+    if (std::abs(beta_ * time_ratio) > 1e6) {
+        return 0.0;  // Prevent overflow
+    }
     return 1.0 / (1.0 + beta_ * time_ratio);
 }
 
@@ -118,6 +125,6 @@ double TTBMLabeler::applyDecay(double time_ratio) const {
         case BarrierConfig::Hyperbolic:
             return hyperbolicDecay(time_ratio);
         default:
-            return exponentialDecay(time_ratio);
+            throw std::invalid_argument("Unknown decay type");
     }
 }

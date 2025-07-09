@@ -2,9 +2,8 @@
 #include <vector>
 #include <cmath>
 
-class VolatilityCalculator {
-public:
-    static std::vector<double> rollingStdDev(const std::vector<double>& logReturns, int window) {
+namespace VolatilityCalculator {
+    std::vector<double> rollingStdDev(const std::vector<double>& logReturns, int window) {
         std::vector<double> result(logReturns.size(), std::nan("") );
 
         if (window <= 1 || logReturns.size() < window) return result;
@@ -19,9 +18,9 @@ public:
 
             double mean = sum / window;
             double var = (sum2 / window) - (mean * mean);
-            result[i] = std::sqrt(var);
+            result[i] = std::sqrt(std::max(0.0, var));
         }
         
         return result;
     }
-};
+}
