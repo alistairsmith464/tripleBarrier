@@ -16,29 +16,24 @@
 namespace {
 QColor hardLabelToColor(int label) {
     switch (label) {
-        case 1: return Qt::green;   // Profit
-        case -1: return Qt::red;    // Stop
-        default: return Qt::white;  // Vertical/Neutral
+        case 1: return Qt::green; 
+        case -1: return Qt::red; 
+        default: return Qt::white; 
     }
 }
 
-// Convert TTBM continuous label to color with simple gradient (no time scaling)
 QColor ttbmLabelToColor(double ttbm_label) {
-    // Normalize ttbm_label from [-1, +1] to [0, 1]
     double normalized = (ttbm_label + 1.0) / 2.0;
     normalized = std::max(0.0, std::min(1.0, normalized));
     
-    // Create simple gradient from red (-1) through white (0) to green (+1)
     if (normalized < 0.5) {
-        // Red to White gradient for negative values
-        double factor = normalized * 2.0;  // Scale to [0, 1]
+        double factor = normalized * 2.0; 
         int red = 255;
         int green = static_cast<int>(255 * factor);
         int blue = static_cast<int>(255 * factor);
         return QColor(red, green, blue);
     } else {
-        // White to Green gradient for positive values
-        double factor = (normalized - 0.5) * 2.0;  // Scale to [0, 1]
+        double factor = (normalized - 0.5) * 2.0;
         int red = static_cast<int>(255 * (1.0 - factor));
         int green = 255;
         int blue = static_cast<int>(255 * (1.0 - factor));
@@ -46,10 +41,8 @@ QColor ttbmLabelToColor(double ttbm_label) {
     }
 }
 
-// Get marker size based on time-to-barrier (faster hits = larger markers)
 int getMarkerSize(double time_ratio) {
-    // Scale marker size from 6 to 15 based on speed (inverse of time_ratio)
-    double speed_factor = 1.0 - time_ratio; // 1.0 = instant, 0.0 = max time
+    double speed_factor = 1.0 - time_ratio;
     return static_cast<int>(6 + 9 * speed_factor);
 }
 }
@@ -60,7 +53,6 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
     QChart *chart = new QChart();
     
     if (mode == PlotMode::Histogram) {
-        // Histogram of hard labels
         int count_pos = 0, count_neg = 0, count_zero = 0;
         for (const auto& e : labeledEvents) {
             if (e.label == 1) count_pos++;
@@ -89,18 +81,15 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
     }
     
     if (mode == PlotMode::TTBM_Distribution) {
-        // Histogram of TTBM labels with enhanced binning
-        const int numBins = 30; // More bins for better resolution
+        const int numBins = 30;
         QVector<double> binCounts(numBins, 0);
         QStringList binLabels;
         
-        // Create bins from -1 to +1 with better labeling
         for (int i = 0; i < numBins; ++i) {
             double binCenter = -1.0 + (2.0 * i + 1.0) / numBins;
             binLabels << QString::number(binCenter, 'f', 2);
         }
         
-        // Count TTBM labels in bins
         for (const auto& e : labeledEvents) {
             double ttbm = e.ttbm_label;
             int binIndex = static_cast<int>((ttbm + 1.0) / 2.0 * numBins);
@@ -109,7 +98,6 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
         }
         
         QBarSet *set = new QBarSet("TTBM Label Count");
-        // Color bars based on their position (label value)
         for (int i = 0; i < numBins; ++i) {
             *set << binCounts[i];
         }
@@ -118,7 +106,6 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
         series->append(set);
         chart->addSeries(series);
         
-        // Create gradient coloring for the bars (this is limited in Qt, but we can try)
         QBarCategoryAxis *axisX = new QBarCategoryAxis();
         axisX->append(binLabels);
         axisX->setTitleText("TTBM Label");
@@ -132,7 +119,6 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
         chartView->setChart(chart);
         return;
     }
-    // Time series plotting (regular or TTBM)
     QString title = (mode == PlotMode::TTBM_TimeSeries) ? 
                    "Price Series with TTBM Labels" : 
                    "Price Series with Triple Barrier Labels";
@@ -159,9 +145,7 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
     chart->addSeries(priceSeries);
 
     if (mode == PlotMode::TTBM_TimeSeries) {
-        // TTBM visualization with continuous coloring and size scaling
-        // Create more color series for better gradient effect
-        const int numColorSeries = 15; // More series for smoother gradient
+        const int numColorSeries = 15;
         QVector<QScatterSeries*> colorSeries(numColorSeries);
         
         for (int i = 0; i < numColorSeries; ++i) {
@@ -169,9 +153,9 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
             double labelRange = -1.0 + (2.0 * i) / (numColorSeries - 1);
             colorSeries[i]->setName(QString("TTBM %1").arg(labelRange, 0, 'f', 2));
             colorSeries[i]->setMarkerShape(QScatterSeries::MarkerShapeCircle);
-            colorSeries[i]->setColor(ttbmLabelToColor(labelRange)); // Simplified color function
-            colorSeries[i]->setMarkerSize(10); // Default size
-            colorSeries[i]->setPen(QPen(Qt::black, 1)); // Thin black border
+            colorSeries[i]->setColor(ttbmLabelToColor(labelRange)); 
+            colorSeries[i]->setMarkerSize(10);
+            colorSeries[i]->setPen(QPen(Qt::black, 1));
         }
         
         for (const auto& e : labeledEvents) {
@@ -182,18 +166,15 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
             QDateTime dt = xDates[idx];
             if (!dt.isValid()) continue;
             
-            // Determine which color series this event belongs to
             int seriesIndex = static_cast<int>((e.ttbm_label + 1.0) / 2.0 * (numColorSeries - 1));
             seriesIndex = std::max(0, std::min(numColorSeries - 1, seriesIndex));
             
-            // Set marker size based on how quickly the barrier was hit (keep size scaling)
             int markerSize = getMarkerSize(e.time_to_barrier_ratio);
             colorSeries[seriesIndex]->setMarkerSize(markerSize);
             
             colorSeries[seriesIndex]->append(dt.toMSecsSinceEpoch(), e.exit_price);
         }
         
-        // Add only non-empty series to the chart
         for (int i = 0; i < numColorSeries; ++i) {
             if (colorSeries[i]->count() > 0) {
                 chart->addSeries(colorSeries[i]);
@@ -201,22 +182,21 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
         }
         
     } else {
-        // Traditional hard label visualization
         QScatterSeries *profitSeries = new QScatterSeries();
         profitSeries->setName("Profit Hit (+1)");
         profitSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
         profitSeries->setColor(Qt::green);
-        profitSeries->setPen(QPen(Qt::black, 1)); // Thin black border
+        profitSeries->setPen(QPen(Qt::black, 1));
         QScatterSeries *stopSeries = new QScatterSeries();
         stopSeries->setName("Stop Hit (-1)");
         stopSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
         stopSeries->setColor(Qt::red);
-        stopSeries->setPen(QPen(Qt::black, 1)); // Thin black border
+        stopSeries->setPen(QPen(Qt::black, 1));
         QScatterSeries *vertSeries = new QScatterSeries();
         vertSeries->setName("Vertical Barrier (0)");
         vertSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
         vertSeries->setColor(Qt::blue);
-        vertSeries->setPen(QPen(Qt::black, 1)); // Thin black border
+        vertSeries->setPen(QPen(Qt::black, 1));
         
         for (const auto& e : labeledEvents) {
             auto it = std::find_if(rows.begin(), rows.end(), [&](const PreprocessedRow& r) { return r.timestamp == e.exit_time; });
@@ -240,7 +220,6 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
     chart->addAxis(axisX, Qt::AlignBottom);
     priceSeries->attachAxis(axisX);
     
-    // Attach axes for all series
     for (auto series : chart->series()) {
         if (series != priceSeries)
             series->attachAxis(axisX);
@@ -260,4 +239,4 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
     }
 }
 
-} // namespace LabeledEventPlotter
+}

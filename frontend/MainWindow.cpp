@@ -19,7 +19,6 @@
 #include "../backend/data/LabeledEvent.h"
 #include <vector>
 #include "../backend/data/HardBarrierLabeler.h"
-#include "utils/CSVExportUtils.h"
 #include "plot/LabeledEventPlotter.h"
 #include "feature/FeaturePreviewDialog.h"
 #include "utils/DialogUtils.h"
@@ -53,13 +52,11 @@ void MainWindow::setupUI()
     m_clearButton = m_ui.clearButton;
     m_uploadMenu = m_ui.uploadMenu;
     m_csvAction = m_ui.csvAction;
-    m_exportCSVAction = m_ui.exportCSVAction;
     m_chartView = m_ui.chartView;
     connect(m_csvAction, &QAction::triggered, this, &MainWindow::onSelectCSVFile);
     connect(m_clearButton, &QPushButton::clicked, this, &MainWindow::onClearButtonClicked);
     connect(m_ui.mlButton, &QPushButton::clicked, this, &MainWindow::onMLButtonClicked);
 
-    // Add plot mode toggle
     QHBoxLayout *plotModeLayout = new QHBoxLayout();
     QLabel *plotModeLabel = new QLabel("Plot Mode:", this);
     m_plotModeComboBox = new QComboBox(this);
@@ -70,7 +67,7 @@ void MainWindow::setupUI()
     plotModeLayout->addWidget(plotModeLabel);
     plotModeLayout->addWidget(m_plotModeComboBox);
     plotModeLayout->addStretch();
-    m_ui.mainLayout->insertLayout(1, plotModeLayout); // Insert near top
+    m_ui.mainLayout->insertLayout(1, plotModeLayout);
     connect(m_plotModeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int idx) {
         switch(idx) {
             case 0: m_plotMode = PlotMode::TimeSeries; break;
@@ -82,10 +79,6 @@ void MainWindow::setupUI()
         if (!g_lastRows.empty() && !g_lastLabeledEvents.empty())
             plotLabeledEvents(g_lastRows, g_lastLabeledEvents);
     });
-}
-
-void MainWindow::onUploadDataButtonClicked() {
-    // Not used, menu is attached directly to button
 }
 
 void MainWindow::onSelectCSVFile() {
@@ -165,8 +158,4 @@ void MainWindow::onMLButtonClicked() {
         FeaturePreviewDialog previewDlg(selected, g_lastRows, g_lastLabeledEvents, this);
         previewDlg.exec();
     }
-}
-
-void MainWindow::onExportCSVClicked() {
-    // Export to CSV is now handled in FeaturePreviewDialog only
 }

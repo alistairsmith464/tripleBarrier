@@ -9,7 +9,6 @@
 using namespace MLPipeline;
 
 namespace {
-// Calculate F1 score for classification
 double calculate_f1_score(const std::vector<int>& y_true, const std::vector<int>& y_pred) {
     int tp = 0, fp = 0, fn = 0;
     for (size_t i = 0; i < y_true.size(); ++i) {
@@ -24,14 +23,11 @@ double calculate_f1_score(const std::vector<int>& y_true, const std::vector<int>
     return (precision + recall == 0) ? 0 : 2 * precision * recall / (precision + recall);
 }
 
-// Calculate R² score for regression
 double calculate_r2_score(const std::vector<double>& y_true, const std::vector<double>& y_pred) {
     if (y_true.size() != y_pred.size() || y_true.empty()) return 0.0;
     
-    // Calculate mean of true values
     double y_mean = std::accumulate(y_true.begin(), y_true.end(), 0.0) / y_true.size();
     
-    // Calculate SS_res (sum of squares of residuals) and SS_tot (total sum of squares)
     double ss_res = 0.0, ss_tot = 0.0;
     for (size_t i = 0; i < y_true.size(); ++i) {
         ss_res += (y_true[i] - y_pred[i]) * (y_true[i] - y_pred[i]);
@@ -41,7 +37,6 @@ double calculate_r2_score(const std::vector<double>& y_true, const std::vector<d
     return (ss_tot == 0) ? 0.0 : 1.0 - (ss_res / ss_tot);
 }
 
-// Portfolio simulation for both classification and regression signals
 PortfolioSimulation simulate_portfolio(
     const std::vector<double>& signals,
     const std::vector<double>& returns,
@@ -63,7 +58,6 @@ PortfolioSimulation simulate_portfolio(
         std::string decision;
         
         if (is_hard_barrier) {
-            // For hard barriers: flat 2% position for +1/-1 signals
             if (signals[i] > 0.5) {
                 position_pct = 0.02;
                 decision = "BUY 2%";
@@ -75,7 +69,6 @@ PortfolioSimulation simulate_portfolio(
                 decision = "HOLD";
             }
         } else {
-            // For TTBM: position size scaled by signal strength, max 3%
             position_pct = std::min(std::abs(signals[i]) * 0.03, 0.03);
             if (signals[i] < 0) position_pct = -position_pct;
             
@@ -105,14 +98,11 @@ PortfolioSimulation simulate_portfolio(
         }
     }
     
-    // Calculate metrics
     double total_return = (capital - 100000.0) / 100000.0;
     double max_drawdown = (max_capital - min_capital) / max_capital;
     
-    // Annualized return (assuming daily data, 252 trading days)
     double annualized_return = total_return * 252.0 / signals.size();
     
-    // Sharpe ratio approximation
     double avg_daily_return = total_return / signals.size();
     double daily_variance = 0;
     for (size_t i = 1; i < capital_history.size(); ++i) {
@@ -128,7 +118,7 @@ PortfolioSimulation simulate_portfolio(
             sharpe_ratio, total_trades, win_rate, trade_decisions};
 }
 
-} // end anonymous namespace
+}
 
 namespace MLPipeline {
 
@@ -157,7 +147,6 @@ PipelineResult runPipeline(
     const std::vector<double>& returns,
     const PipelineConfig& config
 ) {
-    // Clean data
     std::vector<std::map<std::string, double>> X_clean;
     std::vector<int> y_clean;
     std::vector<double> returns_clean;
@@ -176,7 +165,6 @@ PipelineResult runPipeline(
         }
     }
 
-    // Split data
     std::vector<size_t> train_idx, val_idx, test_idx;
     if (config.split_type == Chronological) {
         size_t N = X_clean.size();
@@ -195,7 +183,6 @@ PipelineResult runPipeline(
         }
     }
 
-    // Convert to float matrices
     auto to_float_matrix = [](const std::vector<std::map<std::string, double>>& X) {
         std::vector<std::vector<float>> Xf;
         for (const auto& row : X) {
@@ -216,25 +203,20 @@ PipelineResult runPipeline(
     auto y_test = select_rows(y_clean, test_idx);
     auto returns_test = select_rows(returns_clean, test_idx);
 
-    // Train model
     XGBoostModel model;
     model.fit(X_train_f, y_train_f, config.n_rounds, config.max_depth, config.nthread, config.objective);
 
-    // Predict
     std::vector<int> y_pred = model.predict(X_test_f);
     std::vector<float> y_prob = model.predict_proba(X_test_f);
 
-    // Portfolio simulation - convert predictions to signals
     std::vector<double> signals;
     bool is_hard_barrier = (config.objective == "binary:logistic");
     
     if (is_hard_barrier) {
-        // For hard barriers, use discrete predictions as signals
         for (int pred : y_pred) {
             signals.push_back(static_cast<double>(pred));
         }
     } else {
-        // For TTBM classification, use probabilities as signals
         for (float prob : y_prob) {
             signals.push_back(static_cast<double>(prob));
         }
@@ -253,7 +235,6 @@ PipelineResult runPipelineWithTuning(
     const std::vector<double>& returns,
     PipelineConfig config
 ) {
-    // Clean data first
     std::vector<std::map<std::string, double>> X_clean;
     std::vector<int> y_clean;
     std::vector<double> returns_clean;
@@ -272,7 +253,6 @@ PipelineResult runPipelineWithTuning(
         }
     }
 
-    // Create validation split for hyperparameter tuning
     std::vector<size_t> train_idx, val_idx, test_idx;
     if (config.split_type == Chronological) {
         size_t N = X_clean.size();
@@ -310,7 +290,6 @@ PipelineResult runPipelineWithTuning(
                     config.nthread = nthread;
                     config.objective = obj;
                     
-                    // Train on train set, validate on val set
                     auto to_float_matrix = [](const std::vector<std::map<std::string, double>>& X) {
                         std::vector<std::vector<float>> Xf;
                         for (const auto& row : X) {
@@ -334,11 +313,9 @@ PipelineResult runPipelineWithTuning(
                     
                     std::vector<int> y_pred_val = model.predict(X_val_f);
                     
-                    // Use F1 score for classification optimization
                     double score = calculate_f1_score(y_val, y_pred_val);
                     if (score > best_score) {
                         best_score = score;
-                        // Train final model on clean data with best hyperparameters
                         best_result = runPipeline(X_clean, y_clean, returns_clean, config);
                     }
                 }
@@ -354,7 +331,6 @@ RegressionPipelineResult runPipelineRegression(
     const std::vector<double>& returns,
     const PipelineConfig& config
 ) {
-    // Clean data
     std::vector<std::map<std::string, double>> X_clean;
     std::vector<double> y_clean;
     std::vector<double> returns_clean;
@@ -374,7 +350,6 @@ RegressionPipelineResult runPipelineRegression(
         }
     }
 
-    // Split data
     std::vector<size_t> train_idx, val_idx, test_idx;
     if (config.split_type == Chronological) {
         size_t N = X_clean.size();
@@ -393,7 +368,6 @@ RegressionPipelineResult runPipelineRegression(
         }
     }
 
-    // Convert to float matrices
     auto to_float_matrix = [](const std::vector<std::map<std::string, double>>& X) {
         std::vector<std::vector<float>> Xf;
         for (const auto& row : X) {
@@ -414,15 +388,12 @@ RegressionPipelineResult runPipelineRegression(
     auto y_test = select_rows(y_clean, test_idx);
     auto returns_test = select_rows(returns_clean, test_idx);
 
-    // Train model
     XGBoostModel model;
     model.fit(X_train_f, y_train_f, config.n_rounds, config.max_depth, config.nthread, config.objective);
 
-    // Predict
     std::vector<float> y_pred_f = model.predict_proba(X_test_f);
     std::vector<double> y_pred_double(y_pred_f.begin(), y_pred_f.end());
 
-    // Portfolio simulation - regression signals are continuous between -1 and 1
     PortfolioSimulation portfolio = simulate_portfolio(y_pred_double, returns_test, false);
     
     std::vector<double> uncertainties(y_pred_double.size(), 0.0);
@@ -436,7 +407,6 @@ RegressionPipelineResult runPipelineRegressionWithTuning(
     const std::vector<double>& returns,
     PipelineConfig config
 ) {
-    // Clean data first
     std::vector<std::map<std::string, double>> X_clean;
     std::vector<double> y_clean;
     std::vector<double> returns_clean;
@@ -456,7 +426,6 @@ RegressionPipelineResult runPipelineRegressionWithTuning(
         }
     }
 
-    // Create validation split for hyperparameter tuning
     std::vector<size_t> train_idx, val_idx, test_idx;
     if (config.split_type == Chronological) {
         size_t N = X_clean.size();
@@ -494,7 +463,6 @@ RegressionPipelineResult runPipelineRegressionWithTuning(
                     config.nthread = nthread;
                     config.objective = obj;
                     
-                    // Train on train set, validate on val set
                     auto to_float_matrix = [](const std::vector<std::map<std::string, double>>& X) {
                         std::vector<std::vector<float>> Xf;
                         for (const auto& row : X) {
@@ -519,11 +487,9 @@ RegressionPipelineResult runPipelineRegressionWithTuning(
                     std::vector<float> y_pred_val_f = model.predict_proba(X_val_f);
                     std::vector<double> y_pred_val(y_pred_val_f.begin(), y_pred_val_f.end());
                     
-                    // Use R² score for regression optimization
                     double score = calculate_r2_score(y_val, y_pred_val);
                     if (score > best_score) {
                         best_score = score;
-                        // Train final model on clean data with best hyperparameters
                         best_result = runPipelineRegression(X_clean, y_clean, returns_clean, config);
                     }
                 }
@@ -533,4 +499,4 @@ RegressionPipelineResult runPipelineRegressionWithTuning(
     return best_result;
 }
 
-} // namespace MLPipeline
+}

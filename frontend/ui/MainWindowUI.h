@@ -17,7 +17,6 @@ struct MainWindowUI {
     QPushButton *clearButton = nullptr;
     QMenu *uploadMenu = nullptr;
     QAction *csvAction = nullptr;
-    QAction *exportCSVAction = nullptr;
     QChartView *chartView = nullptr;
     QPushButton *mlButton = nullptr;
     QVBoxLayout *mainLayout = nullptr;

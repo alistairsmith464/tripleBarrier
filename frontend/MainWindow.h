@@ -45,7 +45,6 @@ private slots:
     void onUploadDataButtonClicked();
     void onSelectCSVFile();
     void onMLButtonClicked(); // Slot for ML button
-    void onExportCSVClicked(); // Slot for exporting features/labels to CSV
 
 private:
     void setupUI();
@@ -61,7 +60,6 @@ private:
     QProgressBar *m_progressBar;
     QMenu *m_uploadMenu;
     QAction *m_csvAction;
-    QAction *m_exportCSVAction;
     QChartView *m_chartView;
     QComboBox *m_plotModeComboBox;
 

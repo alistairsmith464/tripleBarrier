@@ -5,8 +5,6 @@
 #include <QHeaderView>
 #include <QDialogButtonBox>
 #include <QPushButton>
-#include <QFileDialog>
-#include "../utils/CSVExportUtils.h"
 #include "../utils/DialogUtils.h"
 #include "../backend/data/FeatureCalculator.h"
 #include "../backend/data/DataCleaningUtils.h"
@@ -16,9 +14,6 @@
 #include <numeric>
 #include <algorithm>
 #include <iostream>
-
-// Forward declaration for cleanFeatureTable
-static void cleanFeatureTable(QTableWidget* table);
 
 FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures,
                                            const std::vector<PreprocessedRow>& rows,
@@ -82,17 +77,14 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     vbox->addWidget(table);
     
-    // Add data info label
     m_dataInfoLabel = new QLabel(this);
     m_dataInfoLabel->setText(QString("<b>Data Summary:</b> %1 price records, %2 labeled events")
                             .arg(rows.size()).arg(labeledEvents.size()));
     m_dataInfoLabel->setStyleSheet("color: #2c3e50; font-size: 12px; padding: 5px;");
     vbox->addWidget(m_dataInfoLabel);
     
-    // Add debug info about barriers
     m_debugInfoLabel = new QLabel(this);
     if (!labeledEvents.empty()) {
-        // Calculate some diagnostic statistics
         int profit_hits = 0, stop_hits = 0, time_hits = 0;
         double avg_volatility = 0.0;
         double max_volatility = 0.0, min_volatility = 1e9;
@@ -103,7 +95,6 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
             else time_hits++;
         }
         
-        // Find corresponding volatility values and add detailed barrier analysis
         std::vector<double> entry_prices, profit_barriers, stop_barriers;
         for (const auto& event : labeledEvents) {
             auto it = std::find_if(rows.begin(), rows.end(), 
@@ -113,17 +104,13 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
                 max_volatility = std::max(max_volatility, it->volatility);
                 min_volatility = std::min(min_volatility, it->volatility);
                 
-                // Calculate estimated barrier levels based on event outcomes
-                // Since we don't have the original config, we'll estimate from the actual exit prices
                 double entry_price = it->price;
                 double exit_price = event.exit_price;
                 double price_move = std::abs(exit_price - entry_price);
                 double volatility = it->volatility;
                 
-                // Estimate the multiplier that would have been used
                 double estimated_multiple = volatility > 0 ? price_move / volatility : 0.0;
                 
-                // Use the estimated multiple to show what the barriers would have been
                 double profit_barrier = entry_price + estimated_multiple * volatility;
                 double stop_barrier = entry_price - estimated_multiple * volatility;
                 
@@ -134,7 +121,6 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
         }
         avg_volatility /= labeledEvents.size();
         
-        // Calculate barrier statistics
         QString barrier_stats = "";
         if (!entry_prices.empty()) {
             double avg_entry = std::accumulate(entry_prices.begin(), entry_prices.end(), 0.0) / entry_prices.size();
@@ -155,7 +141,6 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
                            .arg(barrier_width_pct, 0, 'f', 2);
         }
         
-        // Calculate timing statistics
         std::vector<int> profit_times, stop_times, time_times;
         for (const auto& event : labeledEvents) {
             if (event.label == 1) profit_times.push_back(event.periods_to_exit);
@@ -187,8 +172,6 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     m_debugInfoLabel->setStyleSheet("color: #8e44ad; font-size: 11px; padding: 5px;");
     vbox->addWidget(m_debugInfoLabel);
     
-    QPushButton* exportBtn = new QPushButton("Export to CSV", this);
-    vbox->addWidget(exportBtn);
     m_runMLButton = new QPushButton("Run ML Pipeline", this);
     vbox->addWidget(m_runMLButton);
     m_metricsLabel = new QLabel(this);
@@ -198,55 +181,14 @@ FeaturePreviewDialog::FeaturePreviewDialog(const QSet<QString>& selectedFeatures
     m_tuneHyperparamsCheckBox = new QCheckBox("Auto-tune hyperparameters (grid search)", this);
     m_tuneHyperparamsCheckBox->setToolTip("If checked, the pipeline will automatically search for the best hyperparameters (n_rounds, max_depth, nthread).");
     vbox->addWidget(m_tuneHyperparamsCheckBox);
-    connect(exportBtn, &QPushButton::clicked, this, [=]() {
-        cleanFeatureTable(table);
-        QString fileName = QFileDialog::getSaveFileName(this, "Export Features to CSV", "features_output.csv", "CSV Files (*.csv);;All Files (*.*)");
-        if (fileName.isEmpty()) return;
-        QFile file(fileName);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            DialogUtils::showError(this, "Export Error", "Could not open file for writing.");
-            return;
-        }
-        QTextStream out(&file);
-        QStringList headers;
-        for (const QString& feat : selectedFeatures) headers << feat;
-        out << headers.join(",") << "\n";
-        for (int row = 0; row < table->rowCount(); ++row) {
-            QStringList rowVals;
-            for (int col = 0; col < table->columnCount(); ++col) {
-                QTableWidgetItem* item = table->item(row, col);
-                rowVals << (item ? item->text() : "");
-            }
-            out << rowVals.join(",") << "\n";
-        }
-        file.close();
-        DialogUtils::showInfo(this, "Export Complete", "Features exported to " + fileName);
-    });
     connect(m_runMLButton, &QPushButton::clicked, this, &FeaturePreviewDialog::onRunMLClicked);
-    // Store for ML pipeline
+
     this->m_selectedFeatures = selectedFeatures;
     this->m_rows = rows;
     this->m_labeledEvents = labeledEvents;
     QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok, this);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     vbox->addWidget(box);
-}
-
-static void cleanFeatureTable(QTableWidget* table) {
-    for (int row = table->rowCount() - 1; row >= 0; --row) {
-        bool valid = true;
-        for (int col = 0; col < table->columnCount(); ++col) {
-            QTableWidgetItem* item = table->item(row, col);
-            if (!item) { valid = false; break; }
-            bool ok = false;
-            double val = item->text().toDouble(&ok);
-            if (!ok || std::isnan(val) || std::isinf(val)) {
-                valid = false;
-                break;
-            }
-        }
-        if (!valid) table->removeRow(row);
-    }
 }
 
 void FeaturePreviewDialog::extractFeaturesAndLabels(const QSet<QString>& selectedFeatures,
@@ -295,9 +237,7 @@ void FeaturePreviewDialog::extractFeaturesAndLabels(const QSet<QString>& selecte
     for (size_t i = 0; i < eventIndices.size(); ++i) {
         features.push_back(FeatureCalculator::calculateFeatures(prices, timestamps, eventIndices, int(i), backendFeatures));
         
-        // For hard barriers, use discrete labels directly
         labels.push_back(labeledEvents[i].label);
-        
         returns.push_back(labeledEvents[i].exit_price - labeledEvents[i].entry_price);
     }
 }
@@ -396,14 +336,10 @@ void FeaturePreviewDialog::extractFeaturesAndLabelsRegression(const QSet<QString
         
         features.push_back(enhanced_features);
         
-        // Use TTBM label as the target for regression
         labels.push_back(labeledEvents[i].ttbm_label);
-        
-        // Keep original return for comparison
         returns.push_back(labeledEvents[i].exit_price - labeledEvents[i].entry_price);
     }
     
-    // Clean invalid feature values
     for (auto& feature_row : features) {
         for (auto& kv : feature_row) {
             if (std::isnan(kv.second) || std::isinf(kv.second)) {
@@ -412,13 +348,11 @@ void FeaturePreviewDialog::extractFeaturesAndLabelsRegression(const QSet<QString
         }
     }
     
-    // Debug: Print label statistics
     if (!labels.empty()) {
         double min_label = *std::min_element(labels.begin(), labels.end());
         double max_label = *std::max_element(labels.begin(), labels.end());
         double mean_label = std::accumulate(labels.begin(), labels.end(), 0.0) / labels.size();
         
-        // Count zero and near-zero labels
         int zero_count = 0;
         int positive_count = 0;
         int negative_count = 0;
@@ -436,9 +370,7 @@ void FeaturePreviewDialog::extractFeaturesAndLabelsRegression(const QSet<QString
                   << "Zero: " << zero_count << " (" << (100.0*zero_count/labels.size()) << "%)" << std::endl;
     }
     
-    // Apply robust feature scaling (median/IQR)
     if (!features.empty()) {
-        // Calculate median and IQR for robust scaling
         std::map<std::string, double> feature_medians;
         std::map<std::string, double> feature_iqrs;
         
@@ -451,7 +383,6 @@ void FeaturePreviewDialog::extractFeaturesAndLabelsRegression(const QSet<QString
             }
         }
         
-        // Calculate medians and IQRs
         for (const auto& kv : feature_medians) {
             std::vector<double> values;
             for (const auto& feature_row : features) {
@@ -465,14 +396,12 @@ void FeaturePreviewDialog::extractFeaturesAndLabelsRegression(const QSet<QString
                 std::sort(values.begin(), values.end());
                 size_t n = values.size();
                 
-                // Calculate median
                 if (n % 2 == 0) {
                     feature_medians[kv.first] = (values[n/2-1] + values[n/2]) / 2.0;
                 } else {
                     feature_medians[kv.first] = values[n/2];
                 }
                 
-                // Calculate IQR
                 double q1 = values[n/4];
                 double q3 = values[3*n/4];
                 feature_iqrs[kv.first] = q3 - q1;
@@ -480,7 +409,6 @@ void FeaturePreviewDialog::extractFeaturesAndLabelsRegression(const QSet<QString
             }
         }
         
-        // Apply robust scaling
         for (auto& feature_row : features) {
             for (auto& kv : feature_row) {
                 kv.second = (kv.second - feature_medians[kv.first]) / feature_iqrs[kv.first];
@@ -495,7 +423,6 @@ void FeaturePreviewDialog::onRunMLClicked() {
     MLHyperparamsDialog dlg(this);
     if (dlg.exec() != QDialog::Accepted) return;
     
-    // Automatically determine model type based on labeled events
     bool is_ttbm = false;
     if (!m_labeledEvents.empty()) {
         is_ttbm = m_labeledEvents[0].is_ttbm;
@@ -503,7 +430,6 @@ void FeaturePreviewDialog::onRunMLClicked() {
     
     bool tune = m_tuneHyperparamsCheckBox && m_tuneHyperparamsCheckBox->isChecked();
     
-    // Configure ML pipeline
     MLPipeline::PipelineConfig config;
     config.split_type = MLPipeline::Chronological;
     config.train_ratio = 0.7;
@@ -513,7 +439,6 @@ void FeaturePreviewDialog::onRunMLClicked() {
     config.embargo = 0;
     config.random_seed = 42;
     
-    // Set hyperparameters based on model type
     if (is_ttbm) {
         config.n_rounds = tune ? dlg.nRounds() : 500;
         config.max_depth = tune ? dlg.maxDepth() : 3;
@@ -615,7 +540,6 @@ void FeaturePreviewDialog::onRunMLClicked() {
 }
 
 void FeaturePreviewDialog::showMLResults(const MLPipeline::PipelineResult& result) {
-    // Convert integer predictions to double for portfolio simulation
     std::vector<double> double_predictions;
     for (int pred : result.predictions) {
         double_predictions.push_back(static_cast<double>(pred));
@@ -660,8 +584,6 @@ void FeaturePreviewDialog::showMLResults(const MLPipeline::PipelineResult& resul
                             .arg(portfolioResults.worst_trade * 100, 0, 'f', 2);
     
     m_metricsLabel->setText(metrics);
-    
-    // Hide feature importances (no longer computed)
     m_importancesLabel->setText("");
 }
 
@@ -709,11 +631,8 @@ void FeaturePreviewDialog::showMLRegressionResults(const MLPipeline::RegressionP
                             .arg(portfolioResults.worst_trade * 100, 0, 'f', 2);
     
     m_metricsLabel->setText(metrics);
-    
-    // Hide feature importances (no longer computed)
     m_importancesLabel->setText("");
     
-    // Show sample trading decisions
     QString debug = "<b>Sample Trading Decisions (first 10):</b><br>";
     for (size_t i = 0; i < std::min(size_t(10), result.predictions.size()); ++i) {
         double pred = result.predictions[i];
@@ -746,17 +665,14 @@ PortfolioResults FeaturePreviewDialog::runPortfolioSimulation(const std::vector<
         double prediction = predictions[i];
         double actual_return = (events[i].exit_price - events[i].entry_price) / events[i].entry_price;
         
-        // Calculate position size based on signal type
         double position_size = 0.0;
         if (is_ttbm) {
-            // TTBM: Scale position by signal strength
             double signal_strength = std::abs(prediction);
             if (signal_strength > 0.1) {
                 position_size = std::min(signal_strength * 0.03, 0.03);
                 if (prediction < 0) position_size = -position_size;
             }
         } else {
-            // Hard barriers: Fixed position for +1/-1 signals
             if (std::abs(prediction - 1.0) < 0.1) {
                 position_size = 0.02;
             } else if (std::abs(prediction + 1.0) < 0.1) {
@@ -764,14 +680,11 @@ PortfolioResults FeaturePreviewDialog::runPortfolioSimulation(const std::vector<
             }
         }
         
-        // Calculate trade return
         double trade_return = position_size * actual_return;
         
-        // Update portfolio value
         portfolio_value *= (1.0 + trade_return);
         results.portfolio_values.push_back(portfolio_value);
         
-        // Record trade statistics
         if (std::abs(position_size) > 0.001) {
             results.total_trades++;
             results.trade_returns.push_back(trade_return);
@@ -787,17 +700,14 @@ PortfolioResults FeaturePreviewDialog::runPortfolioSimulation(const std::vector<
         }
     }
     
-    // Calculate final statistics
     results.final_value = portfolio_value;
     results.total_return = (results.final_value - results.starting_capital) / results.starting_capital;
     
-    // Annualized return (assumes daily data, 252 trading days/year)
     double periods = static_cast<double>(events.size());
     if (periods > 0) {
         results.annualized_return = std::pow(results.final_value / results.starting_capital, 252.0 / periods) - 1.0;
     }
     
-    // Calculate other metrics
     results.max_drawdown = calculateMaxDrawdown(results.portfolio_values);
     results.sharpe_ratio = calculateSharpeRatio(results.trade_returns);
     
@@ -823,7 +733,6 @@ double FeaturePreviewDialog::calculateSharpeRatio(const std::vector<double>& ret
     double std_dev = std::sqrt(variance);
     if (std_dev < 1e-10) return 0.0;
     
-    // Annualized Sharpe ratio
     return (mean_return * 252.0) / (std_dev * std::sqrt(252.0));
 }
 

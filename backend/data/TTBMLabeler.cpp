@@ -24,21 +24,18 @@ std::vector<LabeledEvent> TTBMLabeler::label(
         double sl = entry.price * (1.0 - stop_multiple * entry.volatility);
         size_t end_idx = std::min(event_idx + size_t(vertical_barrier), data.size() - 1);
         
-        // Track first barrier breach
         int hard_label = 0;
         size_t exit_idx = end_idx;
-        size_t barrier_hit_time = vertical_barrier;  // Default to max time if no barrier hit
+        size_t barrier_hit_time = vertical_barrier;
         
         size_t profit_hit = data.size();
         size_t stop_hit = data.size();
         
-        // Find first barrier breach
         for (size_t i = event_idx + 1; i <= end_idx; ++i) {
             bool profit = data[i].price >= pt;
             bool stop = data[i].price <= sl;
             
             if (profit && stop) {
-                // Both barriers hit simultaneously - prefer profit
                 profit_hit = i;
                 stop_hit = i;
                 break;
@@ -52,7 +49,6 @@ std::vector<LabeledEvent> TTBMLabeler::label(
             if (profit_hit != data.size() && stop_hit != data.size()) break;
         }
         
-        // Determine which barrier was hit first and when
         if (profit_hit < stop_hit) {
             hard_label = +1;
             exit_idx = profit_hit;
@@ -66,20 +62,17 @@ std::vector<LabeledEvent> TTBMLabeler::label(
             exit_idx = profit_hit;
             barrier_hit_time = profit_hit - event_idx;
         } else {
-            // Vertical barrier hit (no horizontal barrier breached)
             hard_label = 0;
             exit_idx = end_idx;
             barrier_hit_time = vertical_barrier;
         }
         
-        // Calculate TTBM label
         double time_ratio = static_cast<double>(barrier_hit_time) / static_cast<double>(vertical_barrier);
-        time_ratio = std::min(1.0, time_ratio);  // Ensure it doesn't exceed 1.0
+        time_ratio = std::min(1.0, time_ratio);
         
         double decay_factor = applyDecay(time_ratio);
         double ttbm_label = hard_label * decay_factor;
         
-        // Ensure TTBM label is within [-1, +1]
         ttbm_label = std::max(-1.0, std::min(1.0, ttbm_label));
         
         int periods_to_exit = static_cast<int>(exit_idx - event_idx);
@@ -94,7 +87,7 @@ std::vector<LabeledEvent> TTBMLabeler::label(
             ttbm_label,
             time_ratio,
             decay_factor,
-            true  // is_ttbm
+            true
         });
     }
     
