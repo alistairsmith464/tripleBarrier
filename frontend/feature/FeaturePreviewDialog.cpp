@@ -2,6 +2,7 @@
 #include "../MLHyperparamsDialog.h"
 #include "../utils/FeaturePreviewUtils.h"
 #include "../services/MLService.h"
+#include "../ui/UIStrings.h"
 #include <QVBoxLayout>
 #include <QTableWidget>
 #include <QHeaderView>
@@ -18,7 +19,7 @@ FeaturePreviewDialog::FeaturePreviewDialog(
     , m_rows(rows)
     , m_labeledEvents(labeledEvents)
 {
-    setWindowTitle("Feature Preview");
+    setWindowTitle(UIStrings::FEATURE_PREVIEW_TITLE);
     setupUI();
 }
 
@@ -41,7 +42,7 @@ void FeaturePreviewDialog::setupUI() {
     updateBarrierDiagnostics();
     
     // ML pipeline button
-    m_runMLButton = new QPushButton("Run ML Pipeline", this);
+    m_runMLButton = new QPushButton(UIStrings::RUN_ML, this);
     vbox->addWidget(m_runMLButton);
     
     // Results labels
@@ -51,7 +52,7 @@ void FeaturePreviewDialog::setupUI() {
     vbox->addWidget(m_importancesLabel);
     
     // Hyperparameter tuning checkbox
-    m_tuneHyperparamsCheckBox = new QCheckBox("Auto-tune hyperparameters (grid search)", this);
+    m_tuneHyperparamsCheckBox = new QCheckBox(UIStrings::AUTO_TUNE_HYPERPARAMS, this);
     m_tuneHyperparamsCheckBox->setToolTip("If checked, the pipeline will automatically search for the best hyperparameters (n_rounds, max_depth, nthread).");
     vbox->addWidget(m_tuneHyperparamsCheckBox);
     
@@ -60,6 +61,7 @@ void FeaturePreviewDialog::setupUI() {
     
     // OK button
     QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok, this);
+    box->button(QDialogButtonBox::Ok)->setText(UIStrings::OK);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     vbox->addWidget(box);
 }

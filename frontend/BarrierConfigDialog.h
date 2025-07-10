@@ -1,19 +1,41 @@
 #pragma once
-#include <QDialog>
 #include <QDoubleSpinBox>
 #include <QSpinBox>
-#include <QDialogButtonBox>
-#include <QFormLayout>
-#include <QLabel>
 #include <QCheckBox>
 #include <QComboBox>
 #include "../backend/data/BarrierConfig.h"
 #include "frontend/config/VisualizationConfig.h"
+#include "ui/BaseDialog.h"
+#include "ui/UIStrings.h"
+#include "utils/InputValidator.h"
 
-class BarrierConfigDialog : public QDialog {
+class BarrierConfigDialog : public BaseDialog {
     Q_OBJECT
+    
 public:
-    BarrierConfigDialog(QWidget* parent = nullptr) : QDialog(parent) {
+    BarrierConfigDialog(QWidget* parent = nullptr);
+    BarrierConfig getConfig() const;
+
+protected:
+    ValidationResult validateInput() override;
+    void onAccept() override;
+
+private:
+    void setupControls();
+    void setupValidation();
+    void onLabelingTypeChanged(int index);
+    void onCusumToggled(bool enabled);
+    
+    // UI Controls
+    QComboBox* labelingTypeBox;
+    QDoubleSpinBox* profitBox;
+    QDoubleSpinBox* stopBox;
+    QSpinBox* vertBox;
+    QCheckBox* cusumCheck;
+    QDoubleSpinBox* cusumThresholdBox;
+    QComboBox* ttbmDecayTypeBox;
+    QSpinBox* volWinBox;
+};
         setWindowTitle("Set Barrier Config");
         auto* layout = new QFormLayout(this);
         

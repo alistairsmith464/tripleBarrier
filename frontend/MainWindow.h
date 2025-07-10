@@ -3,6 +3,10 @@
 #include "plot/LabeledEventPlotter.h"
 #include "services/DataService.h"
 #include "services/MLService.h"
+#include "utils/ErrorHandler.h"
+#include "utils/AsyncTaskManager.h"
+#include "config/ApplicationConfig.h"
+#include "ui/UIStrings.h"
 #include <QMainWindow>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -16,6 +20,7 @@
 #include <QAction>
 #include <QComboBox>
 #include <vector>
+#include <memory>
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QScatterSeries>
@@ -38,13 +43,18 @@ public:
 private slots:
     void onClearButtonClicked();
     void onSelectCSVFile();
-    void onMLButtonClicked(); // Slot for ML button
+    void onMLButtonClicked();
+    void onApplicationShutdown();
 
 private:
     void setupUI();
+    void setupErrorHandling();
+    void loadApplicationConfig();
+    void saveApplicationConfig();
     void showUploadSuccess(const QString& filePath);
     void showUploadError(const QString& error);
     void plotLabeledEvents(const std::vector<PreprocessedRow>& rows, const std::vector<LabeledEvent>& labeledEvents);
+    void processCSVFileAsync(const QString& fileName);
 
     // UI components
     QPushButton *m_uploadDataButton;

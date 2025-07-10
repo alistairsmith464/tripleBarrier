@@ -1,21 +1,22 @@
 #include "FileDialogUtils.h"
+#include "../ui/UIStrings.h"
 #include <QFileDialog>
 
 namespace FileDialogUtils {
 QString getOpenCSVFile(QWidget* parent) {
     return QFileDialog::getOpenFileName(
         parent,
-        "Select CSV File",
+        UIStrings::SELECT_CSV_FILE,
         "",
-        "CSV Files (*.csv);;All Files (*.*)"
+        QString("%1;;%2").arg(UIStrings::CSV_FILTER, UIStrings::ALL_FILES_FILTER)
     );
 }
 QString getSaveCSVFile(QWidget* parent, const QString& defaultName) {
     return QFileDialog::getSaveFileName(
         parent,
-        "Export Labeled Data to CSV",
+        UIStrings::EXPORT_CSV_TITLE,
         defaultName,
-        "CSV Files (*.csv);;All Files (*.*)"
+        QString("%1;;%2").arg(UIStrings::CSV_FILTER, UIStrings::ALL_FILES_FILTER)
     );
 }
 }

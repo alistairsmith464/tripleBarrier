@@ -1,10 +1,12 @@
 #include "FeatureSelectionDialog.h"
+#include "ui/UIStrings.h"
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
 
 FeatureSelectionDialog::FeatureSelectionDialog(QWidget* parent)
     : QDialog(parent)
 {
+    setWindowTitle(UIStrings::FEATURE_SELECTION_TITLE);
     QVBoxLayout* layout = new QVBoxLayout(this);
     QStringList features = {
         "Close-to-close return for the previous day",
@@ -30,6 +32,8 @@ FeatureSelectionDialog::FeatureSelectionDialog(QWidget* parent)
         featureCheckboxes[feat] = cb;
     }
     QDialogButtonBox* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    buttonBox->button(QDialogButtonBox::Ok)->setText(UIStrings::OK);
+    buttonBox->button(QDialogButtonBox::Cancel)->setText(UIStrings::CANCEL);
     connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttonBox);

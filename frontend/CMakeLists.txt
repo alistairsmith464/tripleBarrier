@@ -19,13 +19,19 @@ add_executable(TripleBarrierApp
     utils/UserInputUtils.cpp
     utils/FeaturePreviewUtils.cpp
     utils/DateParsingUtils.cpp
+    utils/ErrorHandler.cpp
+    utils/InputValidator.cpp
+    utils/AsyncTaskManager.cpp
     services/DataService.cpp
     services/MLService.cpp
     state/ApplicationState.cpp
+    config/ApplicationConfig.cpp
     plot/LabeledEventPlotter.cpp
     plot/PlotStrategy.cpp
     feature/FeaturePreviewDialog.cpp
     ui/MainWindowUI.cpp
+    ui/BaseDialog.cpp
+    ui/UIStrings.cpp
     ../backend/data/HardBarrierLabeler.cpp
 )
 

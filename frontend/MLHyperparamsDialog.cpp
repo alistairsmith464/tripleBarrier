@@ -1,7 +1,8 @@
 #include "MLHyperparamsDialog.h"
+#include "ui/UIStrings.h"
 
 MLHyperparamsDialog::MLHyperparamsDialog(QWidget* parent) : QDialog(parent) {
-    setWindowTitle("XGBoost Hyperparameters");
+    setWindowTitle(UIStrings::ML_HYPERPARAMS_TITLE);
     QFormLayout* layout = new QFormLayout(this);
     m_nRounds = new QSpinBox(this);
     m_nRounds->setRange(1, 1000);
@@ -13,11 +14,13 @@ MLHyperparamsDialog::MLHyperparamsDialog(QWidget* parent) : QDialog(parent) {
     m_nThread->setRange(1, 32);
     m_nThread->setValue(4);
     
-    layout->addRow("Boosting Rounds", m_nRounds);
-    layout->addRow("Max Depth", m_maxDepth);
-    layout->addRow("Threads", m_nThread);
+    layout->addRow(UIStrings::N_ROUNDS, m_nRounds);
+    layout->addRow(UIStrings::MAX_DEPTH, m_maxDepth);
+    layout->addRow(UIStrings::THREADS, m_nThread);
     
     QDialogButtonBox* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    buttons->button(QDialogButtonBox::Ok)->setText(UIStrings::OK);
+    buttons->button(QDialogButtonBox::Cancel)->setText(UIStrings::CANCEL);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);
