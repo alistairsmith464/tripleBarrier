@@ -27,7 +27,6 @@ namespace MLPipeline {
         SOFT
     };
 
-    // Original pipeline configuration structure (deprecated, use UnifiedPipelineConfig)
     struct PipelineConfig {
         double test_size = 0.2;
         double val_size = 0.2;
@@ -45,7 +44,6 @@ namespace MLPipeline {
         int random_seed = 42;
         XGBoostConfig xgb_config;
         
-        // Validation method
         bool validate() const {
             double total = train_ratio + val_ratio + test_ratio;
             return std::abs(total - 1.0) < 1e-6 && 
@@ -75,7 +73,6 @@ namespace MLPipeline {
         HyperparameterGrid hyperparameter_grid;
     };
 
-    // Template-based pipeline to reduce code duplication
     template<typename LabelType>
     struct PipelineTraits {};
     
@@ -93,7 +90,6 @@ namespace MLPipeline {
         static constexpr bool is_classification = false;
     };
 
-    // Main pipeline functions
     PipelineResult runPipeline(
         const std::vector<std::map<std::string, double>>& X,
         const std::vector<int>& y,
@@ -122,7 +118,6 @@ namespace MLPipeline {
         const PipelineConfig& config
     );
 
-    // UnifiedPipelineConfig overloads
     PipelineResult runPipeline(
         const std::vector<std::map<std::string, double>>& X,
         const std::vector<int>& y,

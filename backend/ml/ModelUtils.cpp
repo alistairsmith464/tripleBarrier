@@ -18,7 +18,6 @@ ModelUtils::toFloatMatrix(const std::vector<std::map<std::string, double>>& X, b
         return {};
     }
     
-    // Collect all unique feature names in a consistent order
     std::set<std::string> feature_names_set;
     for (const auto& row : X) {
         for (const auto& [key, value] : row) {
@@ -26,7 +25,6 @@ ModelUtils::toFloatMatrix(const std::vector<std::map<std::string, double>>& X, b
         }
     }
     
-    // Convert to vector for consistent ordering
     std::vector<std::string> feature_names(feature_names_set.begin(), feature_names_set.end());
     
     std::vector<std::vector<float>> result;
@@ -36,7 +34,6 @@ ModelUtils::toFloatMatrix(const std::vector<std::map<std::string, double>>& X, b
         std::vector<float> float_row;
         float_row.reserve(feature_names.size());
         
-        // Add features in consistent order, use 0.0 for missing features
         for (const std::string& feature_name : feature_names) {
             auto it = row.find(feature_name);
             double value = (it != row.end()) ? it->second : 0.0;
@@ -85,7 +82,6 @@ ModelUtils::toFloatVecDouble(const std::vector<double>& y, bool validate_input) 
     return result;
 }
 
-// Feature preprocessing implementation
 ModelUtils::PreprocessingResult ModelUtils::preprocessFeatures(
     const std::vector<std::map<std::string, double>>& X,
     const PreprocessingConfig& config) {
@@ -97,7 +93,6 @@ ModelUtils::PreprocessingResult ModelUtils::preprocessFeatures(
         return result;
     }
     
-    // Collect all feature names
     std::set<std::string> all_features;
     for (const auto& sample : X) {
         for (const auto& [key, value] : sample) {
@@ -107,7 +102,6 @@ ModelUtils::PreprocessingResult ModelUtils::preprocessFeatures(
     
     result.feature_names.assign(all_features.begin(), all_features.end());
     
-    // Remove constant features
     if (config.remove_constant_features) {
         auto constant_features = selectFeaturesByVariance(X, 1e-10);
         for (const auto& feature : result.feature_names) {
@@ -116,18 +110,15 @@ ModelUtils::PreprocessingResult ModelUtils::preprocessFeatures(
             }
         }
         
-        // Remove constant features from data
         for (auto& sample : result.processed_data) {
             for (const auto& removed_feature : result.removed_features) {
                 sample.erase(removed_feature);
             }
         }
         
-        // Update feature names
         result.feature_names = constant_features;
     }
     
-    // Remove highly correlated features
     if (config.remove_correlated_features) {
         auto low_corr_features = selectFeaturesByCorrelation(result.processed_data, config.correlation_threshold);
         
@@ -141,18 +132,15 @@ ModelUtils::PreprocessingResult ModelUtils::preprocessFeatures(
         result.removed_features.insert(result.removed_features.end(), 
                                      corr_removed_features.begin(), corr_removed_features.end());
         
-        // Remove correlated features from data
         for (auto& sample : result.processed_data) {
             for (const auto& removed_feature : corr_removed_features) {
                 sample.erase(removed_feature);
             }
         }
         
-        // Update feature names
         result.feature_names = low_corr_features;
     }
     
-    // Apply scaling
     if (config.scale_features) {
         for (const auto& feature_name : result.feature_names) {
             auto feature_values = extractFeature(result.processed_data, feature_name);
@@ -174,8 +162,7 @@ ModelUtils::PreprocessingResult ModelUtils::preprocessFeatures(
             
             result.scaling_params[feature_name] = {mean, scale_param};
             
-            // Apply scaling to data
-            if (scale_param > 1e-10) { // Avoid division by zero
+            if (scale_param > 1e-10) { 
                 for (auto& sample : result.processed_data) {
                     auto it = sample.find(feature_name);
                     if (it != sample.end()) {
@@ -199,14 +186,12 @@ std::vector<std::map<std::string, double>> ModelUtils::applyPreprocessing(
     
     std::vector<std::map<std::string, double>> result = X;
     
-    // Remove features that were removed during preprocessing
     for (auto& sample : result) {
         for (const auto& removed_feature : preprocessing_info.removed_features) {
             sample.erase(removed_feature);
         }
     }
     
-    // Apply scaling
     for (auto& sample : result) {
         for (auto& [feature_name, value] : sample) {
             auto scaling_it = preprocessing_info.scaling_params.find(feature_name);
@@ -214,7 +199,7 @@ std::vector<std::map<std::string, double>> ModelUtils::applyPreprocessing(
                 double mean = scaling_it->second.first;
                 double scale = scaling_it->second.second;
                 
-                if (scale > 1e-10) { // Avoid division by zero
+                if (scale > 1e-10) {
                     value = (value - mean) / scale;
                 }
             }
@@ -224,7 +209,6 @@ std::vector<std::map<std::string, double>> ModelUtils::applyPreprocessing(
     return result;
 }
 
-// Feature engineering implementation
 std::vector<std::map<std::string, double>> ModelUtils::createPolynomialFeatures(
     const std::vector<std::map<std::string, double>>& X, int degree) {
     
@@ -238,7 +222,6 @@ std::vector<std::map<std::string, double>> ModelUtils::createPolynomialFeatures(
         return result;
     }
     
-    // Collect all feature names
     std::set<std::string> feature_names;
     for (const auto& sample : X) {
         for (const auto& [key, value] : sample) {
@@ -246,7 +229,6 @@ std::vector<std::map<std::string, double>> ModelUtils::createPolynomialFeatures(
         }
     }
     
-    // Add polynomial features
     for (int d = 2; d <= degree; ++d) {
         for (auto& sample : result) {
             for (const auto& feature_name : feature_names) {
@@ -269,7 +251,6 @@ std::vector<std::map<std::string, double>> ModelUtils::createInteractionFeatures
     std::vector<std::map<std::string, double>> result = X;
     
     if (interactions.empty()) {
-        // Create all pairwise interactions
         std::set<std::string> feature_names;
         for (const auto& sample : X) {
             for (const auto& [key, value] : sample) {
@@ -291,7 +272,6 @@ std::vector<std::map<std::string, double>> ModelUtils::createInteractionFeatures
             }
         }
     } else {
-        // Create specified interactions
         for (auto& sample : result) {
             for (const auto& [feature1, feature2] : interactions) {
                 auto val1_it = sample.find(feature1);
@@ -308,7 +288,6 @@ std::vector<std::map<std::string, double>> ModelUtils::createInteractionFeatures
     return result;
 }
 
-// Feature selection implementation
 std::vector<std::string> ModelUtils::selectFeaturesByVariance(
     const std::vector<std::map<std::string, double>>& X,
     double variance_threshold) {
@@ -319,7 +298,6 @@ std::vector<std::string> ModelUtils::selectFeaturesByVariance(
         return selected_features;
     }
     
-    // Collect all feature names
     std::set<std::string> all_features;
     for (const auto& sample : X) {
         for (const auto& [key, value] : sample) {
@@ -327,7 +305,6 @@ std::vector<std::string> ModelUtils::selectFeaturesByVariance(
         }
     }
     
-    // Calculate variance for each feature
     for (const auto& feature_name : all_features) {
         auto feature_values = extractFeature(X, feature_name);
         double variance = calculateVariance(feature_values);
@@ -350,7 +327,6 @@ std::vector<std::string> ModelUtils::selectFeaturesByCorrelation(
         return selected_features;
     }
     
-    // Collect all feature names
     std::set<std::string> all_features;
     for (const auto& sample : X) {
         for (const auto& [key, value] : sample) {
@@ -361,7 +337,6 @@ std::vector<std::string> ModelUtils::selectFeaturesByCorrelation(
     std::vector<std::string> feature_list(all_features.begin(), all_features.end());
     std::vector<bool> keep_feature(feature_list.size(), true);
     
-    // Check correlations between all pairs
     for (size_t i = 0; i < feature_list.size(); ++i) {
         if (!keep_feature[i]) continue;
         
@@ -374,7 +349,6 @@ std::vector<std::string> ModelUtils::selectFeaturesByCorrelation(
             double correlation = std::abs(calculateCorrelation(feature_i_values, feature_j_values));
             
             if (correlation > correlation_threshold) {
-                // Keep the feature with higher variance
                 double var_i = calculateVariance(feature_i_values);
                 double var_j = calculateVariance(feature_j_values);
                 
@@ -382,13 +356,12 @@ std::vector<std::string> ModelUtils::selectFeaturesByCorrelation(
                     keep_feature[j] = false;
                 } else {
                     keep_feature[i] = false;
-                    break; // Don't check more features against feature i
+                    break; 
                 }
             }
         }
     }
     
-    // Collect selected features
     for (size_t i = 0; i < feature_list.size(); ++i) {
         if (keep_feature[i]) {
             selected_features.push_back(feature_list[i]);
@@ -398,7 +371,6 @@ std::vector<std::string> ModelUtils::selectFeaturesByCorrelation(
     return selected_features;
 }
 
-// Model validation implementation
 bool ModelUtils::validateModelInputs(const std::vector<std::vector<float>>& X,
                                     const std::vector<float>& y) {
     if (X.empty() || y.empty()) {
@@ -409,7 +381,6 @@ bool ModelUtils::validateModelInputs(const std::vector<std::vector<float>>& X,
         throw std::invalid_argument("Features and targets must have the same number of samples");
     }
     
-    // Check for consistent feature dimensions
     if (!X.empty()) {
         size_t n_features = X[0].size();
         for (size_t i = 1; i < X.size(); ++i) {
@@ -419,7 +390,6 @@ bool ModelUtils::validateModelInputs(const std::vector<std::vector<float>>& X,
         }
     }
     
-    // Check for NaN/Inf values
     for (const auto& sample : X) {
         for (float value : sample) {
             if (std::isnan(value) || std::isinf(value)) {
@@ -443,7 +413,6 @@ void ModelUtils::checkDataConsistency(const std::vector<std::map<std::string, do
         throw std::invalid_argument("Training and test data cannot be empty");
     }
     
-    // Collect feature names from both datasets
     std::set<std::string> train_features, test_features;
     
     for (const auto& sample : X_train) {
@@ -458,7 +427,6 @@ void ModelUtils::checkDataConsistency(const std::vector<std::map<std::string, do
         }
     }
     
-    // Check for missing features
     std::vector<std::string> missing_in_test, missing_in_train;
     
     std::set_difference(train_features.begin(), train_features.end(),
@@ -486,7 +454,6 @@ void ModelUtils::checkDataConsistency(const std::vector<std::map<std::string, do
     }
 }
 
-// Feature importance implementation
 std::vector<ModelUtils::FeatureImportance> ModelUtils::computeFeatureImportance(
     const std::vector<std::map<std::string, double>>& X,
     const std::vector<double>& y,
@@ -498,7 +465,6 @@ std::vector<ModelUtils::FeatureImportance> ModelUtils::computeFeatureImportance(
         return importance_scores;
     }
     
-    // Collect all feature names
     std::set<std::string> all_features;
     for (const auto& sample : X) {
         for (const auto& [key, value] : sample) {
@@ -520,13 +486,11 @@ std::vector<ModelUtils::FeatureImportance> ModelUtils::computeFeatureImportance(
             importance_scores.push_back(importance);
         }
         
-        // Sort by importance score (descending)
         std::sort(importance_scores.begin(), importance_scores.end(),
                  [](const FeatureImportance& a, const FeatureImportance& b) {
                      return a.importance_score > b.importance_score;
                  });
         
-        // Update ranks
         for (size_t i = 0; i < importance_scores.size(); ++i) {
             importance_scores[i].rank = i + 1;
         }
@@ -535,7 +499,6 @@ std::vector<ModelUtils::FeatureImportance> ModelUtils::computeFeatureImportance(
     return importance_scores;
 }
 
-// Data quality analysis implementation
 ModelUtils::DataQualityReport ModelUtils::analyzeDataQuality(
     const std::vector<std::map<std::string, double>>& X) {
     
@@ -545,7 +508,6 @@ ModelUtils::DataQualityReport ModelUtils::analyzeDataQuality(
         return report;
     }
     
-    // Collect all feature names
     std::set<std::string> all_features;
     for (const auto& sample : X) {
         for (const auto& [key, value] : sample) {
@@ -555,25 +517,20 @@ ModelUtils::DataQualityReport ModelUtils::analyzeDataQuality(
     
     report.total_features = all_features.size();
     
-    // Analyze each feature
     for (const auto& feature_name : all_features) {
         auto feature_values = extractFeature(X, feature_name);
         
-        // Calculate variance
         double variance = calculateVariance(feature_values);
         report.feature_variance[feature_name] = variance;
         
-        // Check if constant
         if (variance < 1e-10) {
             report.constant_features++;
         }
         
-        // Calculate completeness
         double completeness = (static_cast<double>(feature_values.size()) / X.size()) * 100.0;
         report.feature_completeness[feature_name] = completeness;
     }
     
-    // Check correlations
     std::vector<std::string> feature_list(all_features.begin(), all_features.end());
     for (size_t i = 0; i < feature_list.size(); ++i) {
         auto feature_i_values = extractFeature(X, feature_list[i]);
@@ -593,7 +550,6 @@ ModelUtils::DataQualityReport ModelUtils::analyzeDataQuality(
     return report;
 }
 
-// Private utility functions
 double ModelUtils::calculateVariance(const std::vector<double>& values) {
     if (values.empty()) return 0.0;
     
@@ -648,20 +604,19 @@ std::vector<double> ModelUtils::extractFeature(const std::vector<std::map<std::s
     return values;
 }
 
-// Legacy function wrappers for backward compatibility
 std::vector<std::vector<float>> 
 toFloatMatrix(const std::vector<std::map<std::string, double>>& X) {
-    return ModelUtils::toFloatMatrix(X, false); // No validation for backward compatibility
+    return ModelUtils::toFloatMatrix(X, false);
 }
 
 std::vector<float> 
 toFloatVecInt(const std::vector<int>& y) {
-    return ModelUtils::toFloatVecInt(y, false); // No validation for backward compatibility
+    return ModelUtils::toFloatVecInt(y, false); 
 }
 
 std::vector<float> 
 toFloatVecDouble(const std::vector<double>& y) {
-    return ModelUtils::toFloatVecDouble(y, false); // No validation for backward compatibility
+    return ModelUtils::toFloatVecDouble(y, false); 
 }
 
 }

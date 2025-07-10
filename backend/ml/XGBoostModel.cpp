@@ -107,7 +107,6 @@ void XGBoostModel::set_xgboost_parameters(const XGBoostConfig& config) {
     ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "min_child_weight", std::to_string(config.min_child_weight).c_str());
     if (ret != 0) throw std::runtime_error("Failed to set min_child_weight parameter");
     
-    // Set num_class for multi-class objectives
     if (config.num_class > 0 && (config.objective.find("multi:") == 0)) {
         ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "num_class", std::to_string(config.num_class).c_str());
         if (ret != 0) throw std::runtime_error("Failed to set num_class parameter");
@@ -143,14 +142,12 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
     std::cout << "  - NaN features: " << nan_count << std::endl;
     std::cout << "  - Inf features: " << inf_count << std::endl;
     
-    // Debug label values
     std::cout << "  - Label range check:" << std::endl;
     float min_label = *std::min_element(y.begin(), y.end());
     float max_label = *std::max_element(y.begin(), y.end());
     std::cout << "    Min label: " << min_label << std::endl;
     std::cout << "    Max label: " << max_label << std::endl;
     
-    // Count unique labels
     std::set<float> unique_labels(y.begin(), y.end());
     std::cout << "    Unique labels: ";
     for (float label : unique_labels) {
@@ -158,7 +155,6 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
     }
     std::cout << std::endl;
     
-    // Check if we need to adjust the objective for multi-class
     XGBoostConfig adjusted_config = config;
     std::vector<float> adjusted_y = y;
     
@@ -167,8 +163,6 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
         std::cout << "  - WARNING: Detected " << unique_labels.size() << " classes but objective is binary:logistic" << std::endl;
         std::cout << "  - Switching to multi:softmax objective" << std::endl;
         
-        // For multi-class, XGBoost expects labels to be 0, 1, 2, ...
-        // Map our labels to 0-indexed, but we'll map back in predictions
         std::vector<float> sorted_labels(unique_labels.begin(), unique_labels.end());
         std::sort(sorted_labels.begin(), sorted_labels.end());
         
@@ -202,9 +196,8 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
     
     int n_samples = static_cast<int>(X.size());
     n_features_ = static_cast<int>(X[0].size());
-    config_ = adjusted_config;  // Use adjusted config
+    config_ = adjusted_config;
     
-    // Validate feature dimensions are consistent
     for (const auto& row : X) {
         if (static_cast<int>(row.size()) != n_features_) {
             throw std::invalid_argument("All feature vectors must have the same dimensions");
@@ -217,7 +210,6 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
         flat_X.insert(flat_X.end(), row.begin(), row.end());
     }
     
-    // Create DMatrix with proper error handling
     DMatrixHandle dtrain;
     int ret = XGDMatrixCreateFromMat(flat_X.data(), n_samples, n_features_, -1, &dtrain);
     if (ret != 0) {
@@ -225,7 +217,7 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
     }
     
     try {
-        ret = XGDMatrixSetFloatInfo(dtrain, "label", adjusted_y.data(), n_samples);  // Use adjusted labels
+        ret = XGDMatrixSetFloatInfo(dtrain, "label", adjusted_y.data(), n_samples); 
         if (ret != 0) throw std::runtime_error("Failed to set labels");
         
         BoosterHandle temp_booster;
@@ -233,11 +225,10 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
         if (ret != 0) throw std::runtime_error("Failed to create XGBoost booster");
         booster_ = temp_booster;
         
-        set_xgboost_parameters(adjusted_config);  // Use adjusted config
+        set_xgboost_parameters(adjusted_config); 
         
         std::cout << "  - Starting XGBoost training..." << std::endl;
         
-        // Train the model
         for (int iter = 0; iter < config.n_rounds; ++iter) {
             ret = XGBoosterUpdateOneIter(static_cast<BoosterHandle>(booster_), iter, dtrain);
             if (ret != 0) {
@@ -270,20 +261,16 @@ std::vector<int> XGBoostModel::predict(const std::vector<std::vector<float>>& X)
     std::vector<int> predictions;
     predictions.reserve(raw_predictions.size());
     
-    // Handle different objectives
     if (config_.objective == "multi:softmax") {
-        // Multi-class: map XGBoost indices back to original labels
         for (float pred : raw_predictions) {
             int xgb_index = static_cast<int>(pred);
             if (reverse_label_mapping_.count(xgb_index)) {
                 predictions.push_back(static_cast<int>(reverse_label_mapping_.at(xgb_index)));
             } else {
-                // Fallback if mapping not found
                 predictions.push_back(xgb_index);
             }
         }
     } else {
-        // Binary classification logic
         for (float prob : raw_predictions) {
             predictions.push_back((prob > config_.binary_threshold) ? 1 : 0);
         }
@@ -301,7 +288,6 @@ std::vector<float> XGBoostModel::predict_raw(const std::vector<std::vector<float
     
     int n_samples = static_cast<int>(X.size());
     
-    // Flatten feature matrix
     std::vector<float> flat_X;
     flat_X.reserve(n_samples * n_features_);
     for (const auto& row : X) {
@@ -349,7 +335,6 @@ void XGBoostModel::save_model(const std::string& filename) const {
 void XGBoostModel::load_model(const std::string& filename) {
     clear();
     
-    // Check if file exists
     std::ifstream file(filename);
     if (!file.good()) {
         throw std::runtime_error("Model file does not exist: " + filename);
@@ -370,7 +355,6 @@ void XGBoostModel::load_model(const std::string& filename) {
     }
     
     trained_ = true;
-    // Note: n_features_ and config_ would need to be saved/loaded separately for full restoration
 }
 
 void XGBoostModel::set_feature_names(const std::vector<std::string>& names) {
@@ -380,7 +364,6 @@ void XGBoostModel::set_feature_names(const std::vector<std::string>& names) {
     feature_names_ = names;
 }
 
-// Legacy methods for backward compatibility
 void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vector<float>& y, 
                       int n_rounds, int max_depth, int nthread, const std::string& objective) {
     XGBoostConfig config;

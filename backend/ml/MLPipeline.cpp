@@ -39,7 +39,6 @@ ResultType runPipelineTemplate(
     
     std::cout << "[DEBUG] ML Pipeline: Starting with " << X.size() << " samples" << std::endl;
     
-    // Add explicit cleaning options
     DataProcessor::CleaningOptions cleaningOpts;
     cleaningOpts.remove_nan = true;
     cleaningOpts.remove_inf = true;
@@ -98,7 +97,6 @@ ResultType runPipelineTemplate(
     } else {
         auto y_train_f = toFloatVecDouble(select_rows(y_clean, train_idx));
         
-        // Debug: Check training labels
         std::cout << "DEBUG: Training labels before model fit:" << std::endl;
         std::cout << "  - Training samples: " << y_train_f.size() << std::endl;
         if (!y_train_f.empty()) {
@@ -118,9 +116,8 @@ ResultType runPipelineTemplate(
         model.fit(X_train_f, y_train_f, model_config);
         
         std::cout << "DEBUG: Making predictions on " << X_eval_f.size() << " evaluation samples" << std::endl;
-        auto y_pred_f = model.predict_raw(X_eval_f);  // Use predict_raw for regression
+        auto y_pred_f = model.predict_raw(X_eval_f); 
         
-        // Debug: Check raw predictions from model
         std::cout << "DEBUG: Raw model predictions (float vector):" << std::endl;
         std::cout << "  - Raw predictions size: " << y_pred_f.size() << std::endl;
         if (!y_pred_f.empty()) {
@@ -139,7 +136,6 @@ ResultType runPipelineTemplate(
         
         std::vector<double> y_pred(y_pred_f.begin(), y_pred_f.end());
         
-        // Debug: Show prediction statistics
         std::cout << "DEBUG: Regression predictions for portfolio simulation:" << std::endl;
         std::cout << "  - Number of predictions: " << y_pred.size() << std::endl;
         if (!y_pred.empty()) {
@@ -355,7 +351,7 @@ RegressionPipelineResult runPipelineRegression(
     unified_config.max_depth = config.max_depth;
     unified_config.nthread = config.nthread;
     unified_config.objective = config.objective;
-    unified_config.barrier_type = BarrierType::SOFT; // Default for regression
+    unified_config.barrier_type = BarrierType::SOFT;
     
     return runPipelineRegression(X, y, returns, unified_config);
 }
@@ -373,7 +369,7 @@ RegressionPipelineResult runPipelineRegressionWithTuning(
     unified_config.max_depth = config.max_depth;
     unified_config.nthread = config.nthread;
     unified_config.objective = config.objective;
-    unified_config.barrier_type = BarrierType::SOFT; // Default for regression
+    unified_config.barrier_type = BarrierType::SOFT;
     
     return runPipelineRegressionWithTuning(X, y, returns, unified_config);
 }

@@ -6,11 +6,9 @@
 
 namespace MLPipeline {
 
-// Forward declarations
 struct PipelineConfig;
 struct UnifiedPipelineConfig;
 
-// Data cleaning and preprocessing utilities
 class DataProcessor {
 public:
     struct CleaningOptions {
@@ -32,7 +30,6 @@ public:
               const std::vector<double>& returns,
               const CleaningOptions& options = CleaningOptions{});
     
-    // Feature normalization utilities
     static std::vector<std::map<std::string, double>> 
     normalizeFeatures(const std::vector<std::map<std::string, double>>& X,
                      const std::map<std::string, std::pair<double, double>>& stats = {});
@@ -40,10 +37,8 @@ public:
     static std::map<std::string, std::pair<double, double>>
     calculateNormalizationStats(const std::vector<std::map<std::string, double>>& X);
     
-    // Outlier detection and removal
     static std::vector<bool> detectOutliers(const std::vector<double>& values, double threshold = 3.0);
     
-    // Data quality diagnostics
     struct DataQuality {
         size_t total_samples;
         size_t valid_samples;
@@ -57,11 +52,9 @@ public:
                                         const std::vector<double>& returns);
 };
 
-// Efficient data selection utilities
 template<typename T>
 std::vector<T> select_rows(const std::vector<T>& data, const std::vector<size_t>& idxs);
 
-// Enhanced data splitting with multiple strategies
 enum class SplitStrategy {
     CHRONOLOGICAL,
     PURGED_KFOLD,
@@ -82,7 +75,6 @@ struct SplitConfig {
 std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
 createSplits(size_t data_size, const SplitConfig& config);
 
-// Backward compatibility
 std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
 createSplits(size_t data_size, const PipelineConfig& config);
 

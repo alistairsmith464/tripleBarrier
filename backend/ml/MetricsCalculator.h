@@ -5,7 +5,6 @@
 
 namespace MLPipeline {
 
-// Comprehensive metric calculator class
 class MetricsCalculator {
 public:
     // Classification metrics

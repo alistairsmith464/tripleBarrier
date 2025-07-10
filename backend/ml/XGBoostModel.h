@@ -6,7 +6,6 @@
 
 namespace MLPipeline {
 
-// XGBoost configuration structure
 struct XGBoostConfig {
     int n_rounds = 20;
     int max_depth = 3;
@@ -19,10 +18,9 @@ struct XGBoostConfig {
     double reg_lambda = 1.0;
     double min_child_weight = 1.0;
     double binary_threshold = 0.5;
-    int num_class = 0;  // For multi-class objectives
+    int num_class = 0;
 };
 
-// Abstract ML model interface
 class IMLModel {
 public:
     virtual ~IMLModel() = default;
@@ -33,17 +31,14 @@ public:
     virtual bool is_trained() const = 0;
 };
 
-// XGBoost implementation of ML model interface
 class XGBoostModel : public IMLModel {
 public:
     XGBoostModel();
     ~XGBoostModel() override;
     
-    // Disable copy constructor and assignment to prevent shallow copying
     XGBoostModel(const XGBoostModel&) = delete;
     XGBoostModel& operator=(const XGBoostModel&) = delete;
     
-    // Enable move constructor and assignment
     XGBoostModel(XGBoostModel&& other) noexcept;
     XGBoostModel& operator=(XGBoostModel&& other) noexcept;
     
@@ -51,7 +46,6 @@ public:
     std::vector<int> predict(const std::vector<std::vector<float>>& X) const override;
     std::vector<float> predict_raw(const std::vector<std::vector<float>>& X) const override;
     
-    // Legacy methods for backward compatibility
     void fit(const std::vector<std::vector<float>>& X, const std::vector<float>& y, 
              int n_rounds = 10, int max_depth = 3, int nthread = 4, const std::string& objective = "binary:logistic");
     std::vector<float> predict_proba(const std::vector<std::vector<float>>& X) const;
@@ -59,11 +53,9 @@ public:
     void clear() override;
     bool is_trained() const override;
     
-    // Model persistence
     void save_model(const std::string& filename) const;
     void load_model(const std::string& filename);
     
-    // Feature information
     int get_num_features() const { return n_features_; }
     void set_feature_names(const std::vector<std::string>& names);
     const std::vector<std::string>& get_feature_names() const { return feature_names_; }
@@ -75,7 +67,6 @@ private:
     XGBoostConfig config_;
     bool trained_ = false;
     
-    // Label mapping for multi-class (original_label -> xgboost_index)
     std::map<float, int> label_mapping_;
     std::map<int, float> reverse_label_mapping_;
     

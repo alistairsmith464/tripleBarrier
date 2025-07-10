@@ -64,7 +64,7 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForCl
     
     if (eventIndices.empty()) {
         std::cout << "  - ERROR: No event indices found! Cannot extract features." << std::endl;
-        return result;  // Return empty result
+        return result;
     }
     
     for (size_t i = 0; i < eventIndices.size(); ++i) {
@@ -119,7 +119,7 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
     
     if (eventIndices.empty()) {
         std::cout << "  - ERROR: No event indices found! Cannot extract features." << std::endl;
-        return result;  // Return empty result
+        return result;
     }
     
     for (size_t i = 0; i < eventIndices.size(); ++i) {
@@ -145,7 +145,6 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
         result.labels_double.push_back(labeledEvents[i].ttbm_label);
         result.returns.push_back(labeledEvents[i].exit_price - labeledEvents[i].entry_price);
         
-        // Only show debug output for first few events to avoid spam
         if (i == 3) {
             std::cout << "  - (Suppressing debug output for remaining events...)" << std::endl;
         }
@@ -201,7 +200,6 @@ std::vector<int> FeatureExtractor::findEventIndices(
         return eventIndices;
     }
     
-    // Show sample timestamps for debugging
     if (!rows.empty()) {
         std::cout << "  - First row timestamp: '" << rows[0].timestamp << "'" << std::endl;
         if (rows.size() > 1) {

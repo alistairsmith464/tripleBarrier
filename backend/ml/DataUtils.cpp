@@ -1,5 +1,5 @@
 #include "DataUtils.h"
-#include "MLPipeline.h" // For PipelineConfig
+#include "MLPipeline.h"
 #include "MLSplits.h"
 #include <stdexcept>
 #include <cmath>
@@ -11,7 +11,6 @@
 
 namespace MLPipeline {
 
-// DataProcessor implementation
 template<typename T>
 std::tuple<std::vector<std::map<std::string, double>>, std::vector<T>, std::vector<double>>
 DataProcessor::cleanData(const std::vector<std::map<std::string, double>>& X, 
@@ -32,7 +31,6 @@ DataProcessor::cleanData(const std::vector<std::map<std::string, double>>& X,
     
     size_t nan_count = 0, inf_count = 0, outlier_count = 0;
     
-    // Detect outliers if requested
     std::vector<bool> is_outlier(X.size(), false);
     if (options.remove_outliers) {
         is_outlier = detectOutliers(returns, options.outlier_threshold);
@@ -41,7 +39,6 @@ DataProcessor::cleanData(const std::vector<std::map<std::string, double>>& X,
     for (size_t i = 0; i < X.size(); ++i) {
         bool valid = true;
         
-        // Check for NaN/Inf in features
         if (options.remove_nan || options.remove_inf) {
             for (const auto& kv : X[i]) {
                 if (options.remove_nan && std::isnan(kv.second)) {
@@ -57,7 +54,6 @@ DataProcessor::cleanData(const std::vector<std::map<std::string, double>>& X,
             }
         }
         
-        // Check for NaN/Inf in returns
         if (valid && (options.remove_nan || options.remove_inf)) {
             if (options.remove_nan && std::isnan(returns[i])) {
                 valid = false;
@@ -69,7 +65,6 @@ DataProcessor::cleanData(const std::vector<std::map<std::string, double>>& X,
             }
         }
         
-        // Check for outliers
         if (valid && options.remove_outliers && is_outlier[i]) {
             valid = false;
             outlier_count++;
@@ -95,7 +90,6 @@ DataProcessor::cleanData(const std::vector<std::map<std::string, double>>& X,
         std::cout << "  Removed outliers: " << outlier_count << std::endl;
     }
     
-    // Apply normalization if requested
     if (options.normalize_features) {
         X_clean = normalizeFeatures(X_clean);
     }
@@ -110,7 +104,6 @@ DataProcessor::normalizeFeatures(const std::vector<std::map<std::string, double>
     
     std::map<std::string, std::pair<double, double>> normalization_stats = stats;
     
-    // Calculate stats if not provided
     if (normalization_stats.empty()) {
         normalization_stats = calculateNormalizationStats(X);
     }
@@ -127,7 +120,7 @@ DataProcessor::normalizeFeatures(const std::vector<std::map<std::string, double>
                 double mean = stats_it->second.first;
                 double std = stats_it->second.second;
                 
-                if (std > 1e-10) { // Avoid division by zero
+                if (std > 1e-10) {
                     value = (value - mean) / std;
                 }
             }
@@ -143,7 +136,6 @@ DataProcessor::calculateNormalizationStats(const std::vector<std::map<std::strin
     
     if (X.empty()) return stats;
     
-    // Collect all feature names
     std::set<std::string> all_features;
     for (const auto& sample : X) {
         for (const auto& feature : sample) {
@@ -151,7 +143,6 @@ DataProcessor::calculateNormalizationStats(const std::vector<std::map<std::strin
         }
     }
     
-    // Calculate mean and std for each feature
     for (const std::string& feature_name : all_features) {
         std::vector<double> values;
         values.reserve(X.size());
@@ -185,7 +176,6 @@ std::vector<bool> DataProcessor::detectOutliers(const std::vector<double>& value
     
     if (values.empty()) return is_outlier;
     
-    // Calculate mean and standard deviation
     double mean = std::accumulate(values.begin(), values.end(), 0.0) / values.size();
     
     double variance = 0.0;
@@ -195,8 +185,7 @@ std::vector<bool> DataProcessor::detectOutliers(const std::vector<double>& value
     variance /= values.size();
     double std = std::sqrt(variance);
     
-    // Mark outliers based on z-score
-    if (std > 1e-10) { // Avoid division by zero
+    if (std > 1e-10) { 
         for (size_t i = 0; i < values.size(); ++i) {
             double z_score = std::abs((values[i] - mean) / std);
             is_outlier[i] = (z_score > threshold);
@@ -217,7 +206,6 @@ DataProcessor::DataQuality DataProcessor::analyzeDataQuality(
     quality.inf_count = 0;
     quality.outlier_count = 0;
     
-    // Collect all feature names
     std::set<std::string> all_features;
     for (const auto& sample : X) {
         for (const auto& feature : sample) {
@@ -225,18 +213,15 @@ DataProcessor::DataQuality DataProcessor::analyzeDataQuality(
         }
     }
     
-    // Initialize feature completeness
     for (const std::string& feature : all_features) {
         quality.feature_completeness[feature] = 0.0;
     }
     
-    // Analyze each sample
     auto outliers = detectOutliers(returns);
     
     for (size_t i = 0; i < X.size(); ++i) {
         bool sample_valid = true;
         
-        // Check features
         for (const std::string& feature : all_features) {
             auto it = X[i].find(feature);
             if (it != X[i].end()) {
@@ -252,7 +237,6 @@ DataProcessor::DataQuality DataProcessor::analyzeDataQuality(
             }
         }
         
-        // Check returns
         if (i < returns.size()) {
             if (std::isnan(returns[i])) {
                 quality.nan_count++;
@@ -263,7 +247,6 @@ DataProcessor::DataQuality DataProcessor::analyzeDataQuality(
             }
         }
         
-        // Check outliers
         if (i < outliers.size() && outliers[i]) {
             quality.outlier_count++;
         }
@@ -273,7 +256,6 @@ DataProcessor::DataQuality DataProcessor::analyzeDataQuality(
         }
     }
     
-    // Calculate feature completeness percentages
     for (auto& pair : quality.feature_completeness) {
         pair.second = (pair.second / quality.total_samples) * 100.0;
     }
@@ -281,7 +263,6 @@ DataProcessor::DataQuality DataProcessor::analyzeDataQuality(
     return quality;
 }
 
-// Enhanced data selection with bounds checking
 template<typename T>
 std::vector<T> select_rows(const std::vector<T>& data, const std::vector<size_t>& idxs) {
     std::vector<T> result;
@@ -297,7 +278,6 @@ std::vector<T> select_rows(const std::vector<T>& data, const std::vector<size_t>
     return result;
 }
 
-// Enhanced split creation with multiple strategies
 std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
 createSplits(size_t data_size, const SplitConfig& config) {
     if (data_size == 0) {
@@ -358,7 +338,6 @@ createSplits(size_t data_size, const SplitConfig& config) {
     return std::make_tuple(std::move(train_idx), std::move(val_idx), std::move(test_idx));
 }
 
-// Backward compatibility with old PipelineConfig
 std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
 createSplits(size_t data_size, const PipelineConfig& config) {
     SplitConfig split_config;
@@ -371,18 +350,16 @@ createSplits(size_t data_size, const PipelineConfig& config) {
     return createSplits(data_size, split_config);
 }
 
-// Backward compatibility with new UnifiedPipelineConfig
 std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
 createSplits(size_t data_size, const UnifiedPipelineConfig& config) {
     SplitConfig split_config;
     split_config.test_size = config.test_size;
     split_config.val_size = config.val_size;
-    split_config.strategy = SplitStrategy::CHRONOLOGICAL; // Default for unified config
+    split_config.strategy = SplitStrategy::CHRONOLOGICAL;
     
     return createSplits(data_size, split_config);
 }
 
-// Legacy template functions for backward compatibility
 template<typename T>
 std::tuple<std::vector<std::map<std::string, double>>, std::vector<T>, std::vector<double>>
 cleanData(const std::vector<std::map<std::string, double>>& X, 
@@ -391,7 +368,6 @@ cleanData(const std::vector<std::map<std::string, double>>& X,
     return DataProcessor::cleanData(X, y, returns);
 }
 
-// Explicit template instantiations
 template std::tuple<std::vector<std::map<std::string, double>>, std::vector<int>, std::vector<double>>
 DataProcessor::cleanData(const std::vector<std::map<std::string, double>>&, const std::vector<int>&, const std::vector<double>&, const DataProcessor::CleaningOptions&);
 

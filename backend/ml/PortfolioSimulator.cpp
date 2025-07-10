@@ -22,7 +22,6 @@ PortfolioSimulation simulate_portfolio(
     std::cout << "DEBUG: Position threshold = " << portfolio_config.position_threshold << std::endl;
     std::cout << "DEBUG: Hard barrier position % = " << portfolio_config.hard_barrier_position_pct << std::endl;
     
-    // Debug: Show first 10 trading signals
     std::cout << "DEBUG: First 10 trading signals: ";
     for (size_t i = 0; i < std::min(size_t(10), trading_signals.size()); ++i) {
         std::cout << trading_signals[i] << " ";
@@ -63,7 +62,6 @@ PortfolioSimulation simulate_portfolio(
                 decision = "HOLD";
             }
             
-            // Debug first few decisions
             if (i < 5) {
                 std::cout << "DEBUG: Signal[" << i << "] = " << trading_signals[i] 
                          << " -> position_pct = " << position_pct 
@@ -151,7 +149,6 @@ BarrierDiagnostics analyzeBarriers(
             time_times.push_back(event.periods_to_exit);
         }
         
-        // Find matching row for volatility information
         for (const auto& row : rows) {
             if (row.timestamp == event.entry_time) {
                 diagnostics.avg_volatility += row.volatility;

@@ -2,7 +2,6 @@
 #include <vector>
 #include <string>
 
-// Forward declarations
 struct LabeledEvent;
 struct PreprocessedRow;
 
@@ -20,7 +19,6 @@ struct PortfolioSimulation {
     std::vector<std::string> trade_decisions;
 };
 
-// Compatibility struct for frontend interface
 struct PortfolioResults {
     double starting_capital = 100000.0;
     double final_value = 0.0;

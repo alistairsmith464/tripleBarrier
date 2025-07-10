@@ -8,7 +8,6 @@
 
 namespace MLPipeline {
 
-// Input validation
 bool MetricsCalculator::validate_inputs(const std::vector<int>& y_true, const std::vector<int>& y_pred) {
     if (y_true.empty() || y_pred.empty()) {
         throw std::invalid_argument("Input vectors cannot be empty");
@@ -123,7 +122,6 @@ double MetricsCalculator::calculateRecall(const std::vector<int>& y_true, const 
 std::vector<std::vector<int>> MetricsCalculator::calculateConfusionMatrix(const std::vector<int>& y_true, const std::vector<int>& y_pred) {
     validate_inputs(y_true, y_pred);
     
-    // Find unique classes
     std::set<int> unique_classes;
     for (int val : y_true) unique_classes.insert(val);
     for (int val : y_pred) unique_classes.insert(val);
@@ -131,16 +129,13 @@ std::vector<std::vector<int>> MetricsCalculator::calculateConfusionMatrix(const 
     std::vector<int> classes(unique_classes.begin(), unique_classes.end());
     int n_classes = classes.size();
     
-    // Initialize confusion matrix
     std::vector<std::vector<int>> matrix(n_classes, std::vector<int>(n_classes, 0));
     
-    // Build class index map
     std::map<int, int> class_to_index;
     for (int i = 0; i < n_classes; ++i) {
         class_to_index[classes[i]] = i;
     }
     
-    // Fill confusion matrix
     for (size_t i = 0; i < y_true.size(); ++i) {
         int true_idx = class_to_index[y_true[i]];
         int pred_idx = class_to_index[y_pred[i]];
@@ -153,8 +148,6 @@ std::vector<std::vector<int>> MetricsCalculator::calculateConfusionMatrix(const 
 double MetricsCalculator::calculateAUCROC(const std::vector<double>& y_true, const std::vector<double>& y_prob) {
     validate_inputs(y_true, y_prob);
     
-    // Simple AUC calculation using trapezoidal rule
-    // Sort by probability descending
     std::vector<std::pair<double, double>> prob_true_pairs;
     for (size_t i = 0; i < y_true.size(); ++i) {
         prob_true_pairs.emplace_back(y_prob[i], y_true[i]);
@@ -213,7 +206,7 @@ double MetricsCalculator::calculateMAPE(const std::vector<double>& y_true, const
     int valid_count = 0;
     
     for (size_t i = 0; i < y_true.size(); ++i) {
-        if (std::abs(y_true[i]) > 1e-10) { // Avoid division by zero
+        if (std::abs(y_true[i]) > 1e-10) {
             sum_abs_pct_error += std::abs((y_true[i] - y_pred[i]) / y_true[i]);
             valid_count++;
         }

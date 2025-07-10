@@ -6,10 +6,8 @@
 
 namespace MLPipeline {
 
-// Enhanced model utilities with comprehensive preprocessing
 class ModelUtils {
 public:
-    // Data conversion utilities with validation
     static std::vector<std::vector<float>> 
     toFloatMatrix(const std::vector<std::map<std::string, double>>& X, 
                   bool validate_input = true);
@@ -20,7 +18,6 @@ public:
     static std::vector<float> 
     toFloatVecDouble(const std::vector<double>& y, bool validate_input = true);
     
-    // Feature preprocessing utilities
     struct PreprocessingConfig {
         bool normalize_features;
         bool scale_features;
@@ -39,7 +36,7 @@ public:
     struct PreprocessingResult {
         std::vector<std::map<std::string, double>> processed_data;
         std::vector<std::string> feature_names;
-        std::map<std::string, std::pair<double, double>> scaling_params; // mean/std or min/max
+        std::map<std::string, std::pair<double, double>> scaling_params;
         std::vector<std::string> removed_features;
     };
     
@@ -51,7 +48,6 @@ public:
         const std::vector<std::map<std::string, double>>& X,
         const PreprocessingResult& preprocessing_info);
     
-    // Feature engineering utilities
     static std::vector<std::map<std::string, double>> 
     createPolynomialFeatures(const std::vector<std::map<std::string, double>>& X, 
                             int degree = 2);
@@ -60,7 +56,6 @@ public:
     createInteractionFeatures(const std::vector<std::map<std::string, double>>& X,
                              const std::vector<std::pair<std::string, std::string>>& interactions = {});
     
-    // Feature selection utilities
     static std::vector<std::string> selectFeaturesByVariance(
         const std::vector<std::map<std::string, double>>& X,
         double variance_threshold = 0.01);
@@ -69,14 +64,12 @@ public:
         const std::vector<std::map<std::string, double>>& X,
         double correlation_threshold = 0.95);
     
-    // Model validation utilities
     static bool validateModelInputs(const std::vector<std::vector<float>>& X,
                                    const std::vector<float>& y);
     
     static void checkDataConsistency(const std::vector<std::map<std::string, double>>& X_train,
                                     const std::vector<std::map<std::string, double>>& X_test);
     
-    // Feature importance utilities
     struct FeatureImportance {
         std::string feature_name;
         double importance_score;
@@ -88,7 +81,6 @@ public:
                             const std::vector<double>& y,
                             const std::string& method = "correlation");
     
-    // Data quality checks
     struct DataQualityReport {
         size_t total_features;
         size_t constant_features;
@@ -108,7 +100,6 @@ private:
                                              const std::string& feature_name);
 };
 
-// Legacy function wrappers for backward compatibility
 std::vector<std::vector<float>> 
 toFloatMatrix(const std::vector<std::map<std::string, double>>& X);
 
