@@ -9,7 +9,6 @@ namespace LabeledEventPlotter {
 void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const std::vector<LabeledEvent>& labeledEvents, PlotMode mode) {
     QChart *chart = new QChart();
     
-    // Use strategy pattern for different plot types
     std::unique_ptr<PlotStrategy> strategy;
     
     switch (mode) {
@@ -31,7 +30,6 @@ void plot(QChartView* chartView, const std::vector<PreprocessedRow>& rows, const
     strategy->createPlot(chart, rows, labeledEvents);
     chartView->setChart(chart);
     
-    // Check if any data was processed
     bool hasValidData = !rows.empty() && !labeledEvents.empty();
     if (!hasValidData) {
         QMessageBox::warning(chartView, "Chart Error", "No valid data found. Check your CSV format.");

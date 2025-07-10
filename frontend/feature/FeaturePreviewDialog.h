@@ -26,12 +26,10 @@ private slots:
     void onRunMLClicked();
     
 private:
-    // Data members
     QSet<QString> m_selectedFeatures;
     std::vector<PreprocessedRow> m_rows;
     std::vector<LabeledEvent> m_labeledEvents;
     
-    // UI components
     QPushButton* m_runMLButton;
     QLabel* m_metricsLabel;
     QLabel* m_importancesLabel;
@@ -39,7 +37,6 @@ private:
     QLabel* m_dataInfoLabel;
     QLabel* m_debugInfoLabel;
     
-    // Helper methods
     void setupUI();
     void createFeatureTable();
     void updateDataInfo();

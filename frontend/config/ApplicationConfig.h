@@ -10,7 +10,6 @@ class ApplicationConfig {
 public:
     static ApplicationConfig& instance();
     
-    // UI Configuration
     QSize defaultWindowSize() const { return m_defaultWindowSize; }
     void setDefaultWindowSize(const QSize& size);
     
@@ -20,14 +19,12 @@ public:
     QString lastUsedDataPath() const { return m_lastUsedDataPath; }
     void setLastUsedDataPath(const QString& path);
     
-    // ML Configuration
     MLPipeline::UnifiedPipelineConfig defaultMLConfig() const { return m_defaultMLConfig; }
     void setDefaultMLConfig(const MLPipeline::UnifiedPipelineConfig& config);
     
     BarrierConfig defaultBarrierConfig() const { return m_defaultBarrierConfig; }
     void setDefaultBarrierConfig(const BarrierConfig& config);
     
-    // Application Settings
     bool enableLogging() const { return m_enableLogging; }
     void setEnableLogging(bool enable);
     
@@ -41,26 +38,23 @@ public:
     void addRecentFile(const QString& filePath);
     void clearRecentFiles();
     
-    // Performance Settings
     int workerThreadCount() const { return m_workerThreadCount; }
     void setWorkerThreadCount(int count);
     
     bool enableCaching() const { return m_enableCaching; }
     void setEnableCaching(bool enable);
     
-    int maxCacheSize() const { return m_maxCacheSize; } // in MB
+    int maxCacheSize() const { return m_maxCacheSize; }
     void setMaxCacheSize(int sizeInMB);
     
-    // Persistence
     void save();
     void load();
-    void reset(); // Reset to defaults
+    void reset();
     
 private:
     ApplicationConfig();
     ~ApplicationConfig() = default;
     
-    // Prevent copying
     ApplicationConfig(const ApplicationConfig&) = delete;
     ApplicationConfig& operator=(const ApplicationConfig&) = delete;
     
@@ -68,22 +62,18 @@ private:
     void loadSettings();
     void saveSettings();
     
-    // UI Settings
     QSize m_defaultWindowSize;
     QString m_defaultDataPath;
     QString m_lastUsedDataPath;
     
-    // ML Settings  
     MLPipeline::UnifiedPipelineConfig m_defaultMLConfig;
     BarrierConfig m_defaultBarrierConfig;
     
-    // Application Settings
     bool m_enableLogging;
     QString m_logFilePath;
     int m_maxRecentFiles;
     QStringList m_recentFiles;
     
-    // Performance Settings
     int m_workerThreadCount;
     bool m_enableCaching;
     int m_maxCacheSize;

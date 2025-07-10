@@ -2,11 +2,9 @@
 #include <QString>
 
 namespace UIStrings {
-    // Application
     constexpr const char* APP_TITLE = "Triple Barrier Analysis Tool";
     constexpr const char* WINDOW_TITLE = "Triple Barrier - File Upload";
     
-    // Status Messages
     constexpr const char* LOAD_SUCCESS = "✓ Data loaded successfully!";
     constexpr const char* LOAD_FAILED = "✗ Data load failed";
     constexpr const char* PROCESSING = "Processing...";
@@ -14,7 +12,6 @@ namespace UIStrings {
     constexpr const char* LOADING_CSV = "Loading CSV data...";
     constexpr const char* LABELING_CANCELLED = "Labeling cancelled.";
     
-    // Button Labels
     constexpr const char* UPLOAD_DATA = "Upload Data";
     constexpr const char* CLEAR = "Clear";
     constexpr const char* RUN_ML = "Run ML Pipeline";
@@ -24,7 +21,6 @@ namespace UIStrings {
     constexpr const char* APPLY = "Apply";
     constexpr const char* RESET = "Reset";
     
-    // Dialog Titles
     constexpr const char* BARRIER_CONFIG_TITLE = "Barrier Configuration";
     constexpr const char* FEATURE_SELECTION_TITLE = "Feature Selection";
     constexpr const char* FEATURE_PREVIEW_TITLE = "Feature Preview";
@@ -33,7 +29,6 @@ namespace UIStrings {
     constexpr const char* WARNING_TITLE = "Warning";
     constexpr const char* INFO_TITLE = "Information";
     
-    // Labels
     constexpr const char* PROFIT_MULTIPLE = "Profit Multiple:";
     constexpr const char* STOP_MULTIPLE = "Stop Multiple:";
     constexpr const char* VERTICAL_WINDOW = "Vertical Window:";
@@ -51,7 +46,6 @@ namespace UIStrings {
     constexpr const char* USE_CUSUM = "Use CUSUM Event Detection";
     constexpr const char* AUTO_TUNE_HYPERPARAMS = "Auto-tune hyperparameters (grid search)";
     
-    // Options
     constexpr const char* HARD_BARRIER = "Hard Barrier";
     constexpr const char* TTBM_BARRIER = "TTBM (Time-to-Barrier Modification)";
     constexpr const char* TIME_SERIES = "Time Series";
@@ -59,7 +53,6 @@ namespace UIStrings {
     constexpr const char* TTBM_TIME_SERIES = "TTBM Time Series";
     constexpr const char* TTBM_DISTRIBUTION = "TTBM Distribution";
     
-    // Tooltips
     constexpr const char* PROFIT_TOOLTIP = "Multiplier for the profit-taking barrier (e.g., 2.0 = 2x volatility above entry).";
     constexpr const char* STOP_TOOLTIP = "Multiplier for the stop-loss barrier (e.g., 1.0 = 1x volatility below entry).";
     constexpr const char* VERTICAL_TOOLTIP = "Maximum holding period in bars (time steps) before exit.";
@@ -67,7 +60,6 @@ namespace UIStrings {
     constexpr const char* CUSUM_THRESHOLD_TOOLTIP = "Sensitivity for CUSUM filter (higher = fewer events).";
     constexpr const char* VOLATILITY_WINDOW_TOOLTIP = "Window size for volatility calculation (e.g., 20 = 20 bars).";
     
-    // Error Messages
     constexpr const char* NO_DATA_ERROR = "No labeled events available. Please upload and label data first.";
     constexpr const char* NO_FEATURES_ERROR = "No features selected. Please select at least one feature.";
     constexpr const char* INVALID_CONFIG_ERROR = "Invalid configuration. Please check your settings.";
@@ -75,13 +67,11 @@ namespace UIStrings {
     constexpr const char* PROCESSING_ERROR = "An error occurred during processing.";
     constexpr const char* INVALID_FILE_SELECTION = "Invalid file selection";
     
-    // Success Messages
     constexpr const char* CONFIG_SAVED = "Configuration saved successfully.";
     constexpr const char* ML_COMPLETED = "Machine learning analysis completed.";
     constexpr const char* DATA_PROCESSED = "Data processed successfully.";
     constexpr const char* CONFIG_VALIDATED = "Configuration validated successfully.";
     
-    // File Dialogs
     constexpr const char* SELECT_CSV_FILE = "Select CSV File";
     constexpr const char* EXPORT_CSV_TITLE = "Export CSV File";
     constexpr const char* CSV_FILTER = "CSV Files (*.csv)";
@@ -90,31 +80,26 @@ namespace UIStrings {
     constexpr const char* LOAD_MODEL = "Load Model";
     constexpr const char* MODEL_FILTER = "Model Files (*.model)";
     
-    // Progress Messages
     constexpr const char* EXTRACTING_FEATURES = "Extracting features...";
     constexpr const char* TRAINING_MODEL = "Training model...";
     constexpr const char* EVALUATING_MODEL = "Evaluating model...";
     constexpr const char* RUNNING_SIMULATION = "Running portfolio simulation...";
     constexpr const char* TUNING_HYPERPARAMS = "Tuning hyperparameters...";
     
-    // Sections
     constexpr const char* LABELING_CONFIG_SECTION = "Labeling Configuration";
     constexpr const char* BARRIER_PARAMS_SECTION = "Barrier Parameters";
     constexpr const char* EVENT_DETECTION_SECTION = "Event Detection";
     constexpr const char* TTBM_CONFIG_SECTION = "TTBM Configuration";
     constexpr const char* VOLATILITY_CALC_SECTION = "Volatility Calculation";
     
-    // Decay types
     constexpr const char* EXPONENTIAL_DECAY = "Exponential Decay (Fixed Parameters)";
     constexpr const char* LINEAR_DECAY = "Linear Decay (Fixed Parameters)";
     constexpr const char* HYPERBOLIC_DECAY = "Hyperbolic Decay (Fixed Parameters)";
     
-    // Processing messages
     constexpr const char* FAILED_PROCESS_CSV = "Failed to process CSV file";
     constexpr const char* CHECK_FILE_FORMAT = "Please check the file format and try again";
 }
 
-// Helper class for dynamic strings
 class UIStringHelper {
 public:
     static QString uploadSuccessMessage(const QString& filePath);

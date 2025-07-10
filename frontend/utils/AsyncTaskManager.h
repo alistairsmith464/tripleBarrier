@@ -104,7 +104,6 @@ public:
         return task;
     }
     
-    // Convenience method for simple tasks with progress dialog
     template<typename T>
     void runWithProgressDialog(
         typename AsyncTask<T>::TaskFunction task,
@@ -115,20 +114,16 @@ public:
     ) {
         auto asyncTask = createTask<T>();
         
-        // Create progress dialog
         auto progressDialog = std::make_unique<QProgressDialog>(title, "Cancel", 0, 100, parent);
         progressDialog->setWindowModality(Qt::WindowModal);
-        progressDialog->setMinimumDuration(500); // Show after 500ms
+        progressDialog->setMinimumDuration(500);
         
-        // Connect progress
         connect(asyncTask.get(), &AsyncTaskBase::progressChanged, 
                 progressDialog.get(), &QProgressDialog::setValue);
         
-        // Connect cancel
         connect(progressDialog.get(), &QProgressDialog::canceled,
                 asyncTask.get(), &AsyncTaskBase::cancel);
         
-        // Connect completion
         connect(asyncTask.get(), &AsyncTaskBase::completed, 
                 [progressDialog = std::move(progressDialog), onComplete](const QVariant& variantResult) {
                     progressDialog->close();
@@ -138,7 +133,6 @@ public:
                     }
                 });
         
-        // Connect error
         connect(asyncTask.get(), &AsyncTaskBase::error,
                 [progressDialog = progressDialog.get(), onError](const QString& error) {
                     progressDialog->close();
@@ -147,7 +141,6 @@ public:
                     }
                 });
         
-        // Connect cancelled
         connect(asyncTask.get(), &AsyncTaskBase::cancelled,
                 [progressDialog = progressDialog.get()]() {
                     progressDialog->close();
@@ -155,10 +148,8 @@ public:
         
         asyncTask->run(task);
         
-        // Keep the task alive
         m_activeTasks.push_back(std::static_pointer_cast<QObject>(asyncTask));
         
-        // Clean up completed tasks
         connect(asyncTask.get(), &AsyncTaskBase::completed,
                 this, [this, asyncTask]() { removeTask(asyncTask); });
         connect(asyncTask.get(), &AsyncTaskBase::error,

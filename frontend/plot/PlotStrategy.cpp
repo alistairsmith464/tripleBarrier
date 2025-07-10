@@ -133,7 +133,6 @@ void TimeSeriesPlotStrategy::createPlot(QChart* chart, const std::vector<Preproc
     }
     chart->addSeries(priceSeries);
     
-    // Create scatter series for different labels
     QScatterSeries *profitSeries = new QScatterSeries();
     profitSeries->setName("Profit Hit (+1)");
     profitSeries->setMarkerShape(QScatterSeries::MarkerShapeCircle);
@@ -172,7 +171,6 @@ void TimeSeriesPlotStrategy::createPlot(QChart* chart, const std::vector<Preproc
     chart->addSeries(stopSeries);
     chart->addSeries(vertSeries);
     
-    // Setup axes
     auto *axisX = new QDateTimeAxis;
     axisX->setFormat(VisualizationConfig::getDateTimeFormat());
     axisX->setTitleText("Timestamp");
@@ -245,7 +243,6 @@ void TTBMTimeSeriesPlotStrategy::createPlot(QChart* chart, const std::vector<Pre
         }
     }
     
-    // Setup axes
     auto *axisX = new QDateTimeAxis;
     axisX->setFormat(VisualizationConfig::getDateTimeFormat());
     axisX->setTitleText("Timestamp");

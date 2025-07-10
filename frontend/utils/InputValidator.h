@@ -34,26 +34,19 @@ struct ValidationResult {
 
 class InputValidator {
 public:
-    // Barrier configuration validation
     static ValidationResult validateBarrierConfig(const BarrierConfig& config);
     
-    // Feature selection validation
     static ValidationResult validateFeatureSelection(const QSet<QString>& features);
     
-    // File path validation
     static ValidationResult validateFilePath(const QString& filePath, bool mustExist = true);
     
-    // Numeric range validation
     static ValidationResult validateRange(double value, double min, double max, 
                                         const QString& fieldName);
     
-    // ML configuration validation
     static ValidationResult validateMLConfig(const MLPipeline::UnifiedPipelineConfig& config);
     
-    // Data validation
     static ValidationResult validateDataSize(size_t dataSize, size_t minRequired = 10);
     
-    // Window size validation
     static ValidationResult validateWindowSize(int windowSize, int dataSize);
     
 private:

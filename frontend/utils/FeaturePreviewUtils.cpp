@@ -120,7 +120,6 @@ QString FeaturePreviewUtils::formatModelInfo(
                         .arg(tune_enabled ? "enabled" : "disabled");
     
     if (is_ttbm) {
-        // Calculate label statistics for display
         double min_label = 1.0, max_label = -1.0, mean_label = 0.0;
         int zero_labels = 0, positive_count = 0, negative_count = 0;
         

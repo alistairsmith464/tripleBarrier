@@ -7,7 +7,7 @@
 #include "../../backend/ml/MLSplits.h"
 #include "../../backend/ml/MetricsCalculator.h"
 #include "../../backend/ml/DataUtils.h"
-#include "../../backend/ml/BarrierMLStrategy.h"  // New unified strategy
+#include "../../backend/ml/BarrierMLStrategy.h"
 #include "../config/VisualizationConfig.h"
 #include <algorithm>
 #include <cstdio>
@@ -18,20 +18,17 @@
 #include <iostream>
 #include <future>
 
-// MLServiceImpl constructor
 MLServiceImpl::MLServiceImpl() 
     : feature_service_(std::make_unique<FeatureServiceImpl>())
     , model_service_(std::make_unique<ModelServiceImpl>())
     , portfolio_service_(std::make_unique<PortfolioServiceImpl>()) {
 }
 
-// FeatureServiceImpl implementation
 FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesForClassification(
     const std::vector<PreprocessedRow>& rows,
     const std::vector<LabeledEvent>& labeledEvents,
     const QSet<QString>& selectedFeatures) {
     
-    // Validate inputs
     if (rows.empty()) {
         throw std::runtime_error("Empty rows vector provided to feature extraction");
     }
@@ -44,7 +41,6 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
         throw std::runtime_error("No features selected for extraction");
     }
     
-    // Convert QSet to std::set
     std::set<std::string> features;
     for (const QString& feature : selectedFeatures) {
         if (!feature.isEmpty()) {
@@ -57,10 +53,8 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
     }
     
     try {
-        // Use the actual backend FeatureExtractor
         auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, labeledEvents);
         
-        // Validate the result
         if (result.features.empty()) {
             throw std::runtime_error("Feature extraction returned empty feature set");
         }
@@ -76,7 +70,6 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
     const std::vector<LabeledEvent>& labeledEvents,
     const QSet<QString>& selectedFeatures) {
     
-    // Validate inputs
     if (rows.empty()) {
         throw std::runtime_error("Empty rows vector provided to feature extraction");
     }
@@ -89,7 +82,6 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
         throw std::runtime_error("No features selected for extraction");
     }
     
-    // Convert QSet to std::set
     std::set<std::string> features;
     for (const QString& feature : selectedFeatures) {
         if (!feature.isEmpty()) {
@@ -102,10 +94,8 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
     }
     
     try {
-        // Use the actual backend FeatureExtractor
         auto result = FeatureExtractor::extractFeaturesForRegression(features, rows, labeledEvents);
         
-        // Validate the result
         if (result.features.empty()) {
             throw std::runtime_error("Feature extraction returned empty feature set");
         }
@@ -117,7 +107,6 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
 }
 
 QStringList FeatureServiceImpl::getAvailableFeatures() {
-    // Get actual features from the backend feature mapping
     auto featureMapping = FeatureExtractor::getFeatureMapping();
     QStringList features;
     
@@ -146,10 +135,9 @@ QString FeatureServiceImpl::validateFeatureSelection(const QSet<QString>& featur
         return QString("Invalid features: %1").arg(invalid.join(", "));
     }
     
-    return QString(); // Empty string means valid
+    return QString(); 
 }
 
-// ModelServiceImpl implementation
 MLResults MLServiceImpl::runMLPipeline(
     const std::vector<PreprocessedRow>& rows,
     const std::vector<LabeledEvent>& labeledEvents,
@@ -158,7 +146,6 @@ MLResults MLServiceImpl::runMLPipeline(
     MLResults results;
     
     try {
-        // Validate configuration
         QString config_error = validateConfiguration(config);
         if (!config_error.isEmpty()) {
             results.errorMessage = config_error;
@@ -166,7 +153,6 @@ MLResults MLServiceImpl::runMLPipeline(
             return results;
         }
         
-        // Extract features
         try {
             if (config.useTTBM) {
                 results.features = feature_service_->extractFeaturesForRegression(
@@ -181,13 +167,11 @@ MLResults MLServiceImpl::runMLPipeline(
             return results;
         }
         
-        // Train model
         MLResults model_results = model_service_->trainModel(results.features, labeledEvents, config);
         if (!model_results.success) {
             return model_results;
         }
         
-        // Copy model results
         results.predictions = model_results.predictions;
         results.prediction_probabilities = model_results.prediction_probabilities;
         results.accuracy = model_results.accuracy;
@@ -203,10 +187,8 @@ MLResults MLServiceImpl::runMLPipeline(
         results.modelInfo = model_results.modelInfo;
         results.dataQuality = model_results.dataQuality;
         
-        // Copy portfolio results from the ML pipeline
         results.portfolioResult = model_results.portfolioResult;
         
-        // Portfolio results are already included in model_results from the ML pipeline
         std::cout << "DEBUG: Portfolio simulation completed successfully" << std::endl;
         std::cout << "DEBUG: Starting capital: $" << results.portfolioResult.starting_capital << std::endl;
         std::cout << "DEBUG: Final value: $" << results.portfolioResult.final_value << std::endl;
@@ -273,13 +255,12 @@ QString MLServiceImpl::validateConfiguration(const MLConfig& config) {
         return "Outlier threshold must be between 1.0 and 10.0";
     }
     
-    return QString(); // Valid configuration
+    return QString();
 }
 
 MLConfig MLServiceImpl::getDefaultConfiguration() {
     MLConfig config;
     
-    // Use actual feature names from the backend
     config.selectedFeatures = QSet<QString>{
         "Close-to-close return for the previous day",
         "Return over the past 5 days", 
@@ -298,7 +279,6 @@ MLConfig MLServiceImpl::getDefaultConfiguration() {
     config.outlierThreshold = 3.0;
     config.enableProgressCallbacks = false;
     
-    // Set default unified pipeline configuration
     config.pipelineConfig.test_size = 0.2;
     config.pipelineConfig.val_size = 0.2;
     config.pipelineConfig.n_rounds = 100;
@@ -321,19 +301,15 @@ MLResults MLServiceImpl::calculateDetailedMetrics(
     MLResults results;
     
     try {
-        // Create MetricsCalculator instance
         MLPipeline::MetricsCalculator metricsCalc;
         
-        // Basic classification metrics
         results.accuracy = metricsCalc.calculateAccuracy(y_true, y_pred);
         results.precision = metricsCalc.calculatePrecision(y_true, y_pred);
         results.recall = metricsCalc.calculateRecall(y_true, y_pred);
         results.f1_score = metricsCalc.calculateF1Score(y_true, y_pred);
         
-        // Confusion matrix
         results.confusion_matrix = metricsCalc.calculateConfusionMatrix(y_true, y_pred);
         
-        // AUC-ROC if probabilities are provided
         if (!y_prob.empty() && y_prob.size() == y_true.size()) {
             std::vector<double> y_true_double(y_true.begin(), y_true.end());
             results.auc_roc = metricsCalc.calculateAUCROC(y_true_double, y_prob);
@@ -356,10 +332,8 @@ MLResults MLServiceImpl::calculateRegressionMetrics(
     MLResults results;
     
     try {
-        // Create MetricsCalculator instance
         MLPipeline::MetricsCalculator metricsCalc;
         
-        // Regression metrics
         results.r2_score = metricsCalc.calculateR2Score(y_true, y_pred);
         results.mae = metricsCalc.calculateMAE(y_true, y_pred);
         results.rmse = metricsCalc.calculateRMSE(y_true, y_pred);
@@ -375,7 +349,6 @@ MLResults MLServiceImpl::calculateRegressionMetrics(
     return results;
 }
 
-// ModelServiceImpl implementation using new unified strategy
 MLResults ModelServiceImpl::trainModel(
     const FeatureExtractor::FeatureExtractionResult& features,
     const std::vector<LabeledEvent>& labeledEvents,
@@ -389,7 +362,6 @@ MLResults ModelServiceImpl::trainModel(
         std::cout << "  - Labels_double size: " << features.labels_double.size() << std::endl;
         std::cout << "  - TTBM mode: " << (config.useTTBM ? "YES" : "NO") << std::endl;
         
-        // Check for valid feature data based on the mode
         bool hasValidData = !features.features.empty() && 
                            (config.useTTBM ? !features.labels_double.empty() : !features.labels.empty());
         
@@ -401,19 +373,15 @@ MLResults ModelServiceImpl::trainModel(
             return results;
         }
         
-        // Create unified pipeline configuration
         MLPipeline::UnifiedMLPipeline::PipelineConfig pipeline_config;
         
-        // Set strategy type
         pipeline_config.strategy_type = MLPipeline::BarrierMLStrategyFactory::getStrategyType(config.useTTBM);
         
-        // Convert selected features
         pipeline_config.selected_features.clear();
         for (const QString& feature : config.selectedFeatures) {
             pipeline_config.selected_features.insert(feature.toStdString());
         }
         
-        // Set training configuration
         pipeline_config.training_config.test_size = config.pipelineConfig.test_size;
         pipeline_config.training_config.val_size = config.pipelineConfig.val_size;
         pipeline_config.training_config.n_rounds = config.pipelineConfig.n_rounds;
@@ -424,36 +392,30 @@ MLResults ModelServiceImpl::trainModel(
         pipeline_config.training_config.colsample_bytree = config.pipelineConfig.colsample_bytree;
         pipeline_config.training_config.random_seed = config.randomSeed;
         
-        // Set portfolio configuration
         pipeline_config.portfolio_config.starting_capital = 10000.0;
         pipeline_config.portfolio_config.max_position_pct = 0.1;
         pipeline_config.portfolio_config.position_threshold = 0.01;
         pipeline_config.portfolio_config.hard_barrier_position_pct = 0.05;
         
-        // Enable detailed logging
         pipeline_config.enable_detailed_logging = true;
         pipeline_config.enable_hyperparameter_tuning = config.tuneHyperparameters;
         
-        // Extract rows from features (need to reconstruct from labeled events)
         std::vector<PreprocessedRow> rows;
         for (const auto& event : labeledEvents) {
             PreprocessedRow row;
-            row.log_return = event.forward_return;  // Use appropriate return
+            row.log_return = event.forward_return;
             // Note: In a real implementation, you'd properly reconstruct rows
             // For now, we'll work with what we have
             rows.push_back(row);
         }
         
-        // Run the unified pipeline
         auto pipeline_result = MLPipeline::UnifiedMLPipeline::runPipeline(
             rows, labeledEvents, pipeline_config);
         
         if (pipeline_result.success) {
-            // Copy results from unified pipeline
             results.predictions = pipeline_result.prediction_result.predictions;
             results.prediction_probabilities = pipeline_result.prediction_result.confidence_scores;
             
-            // Copy portfolio results
             const auto& portfolio = pipeline_result.prediction_result.portfolio_result;
             results.portfolioResult.starting_capital = portfolio.starting_capital;
             results.portfolioResult.final_value = portfolio.final_capital;
@@ -464,7 +426,6 @@ MLResults ModelServiceImpl::trainModel(
             results.portfolioResult.total_trades = portfolio.total_trades;
             results.portfolioResult.win_rate = portfolio.win_rate;
             
-            // Copy performance metrics
             for (const auto& [key, value] : pipeline_result.performance_metrics) {
                 if (key == "accuracy") results.accuracy = value;
                 else if (key == "precision") results.precision = value;
@@ -530,24 +491,20 @@ std::future<MLResults> ModelServiceImpl::trainModelAsync(
 }
 
 bool ModelServiceImpl::saveModel(const QString& modelPath, const QString& configPath) {
-    // Stub implementation
     Q_UNUSED(modelPath)
     Q_UNUSED(configPath)
-    return false; // Not implemented yet
+    return false;
 }
 
 bool ModelServiceImpl::loadModel(const QString& modelPath) {
-    // Stub implementation
     Q_UNUSED(modelPath)
-    return false; // Not implemented yet
+    return false;
 }
 
 QStringList ModelServiceImpl::getAvailableModels() {
-    // Stub implementation
     return QStringList{"XGBoost", "Random Forest", "Linear Regression"};
 }
 
-// PortfolioServiceImpl implementation
 MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
     const std::vector<PreprocessedRow>& rows,
     const std::vector<LabeledEvent>& labeledEvents,
@@ -555,14 +512,11 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
     bool useTTBM) {
     
     try {
-        // Extract returns from the preprocessed rows
         std::vector<double> returns;
         for (const auto& row : rows) {
-            // Use the log_return field that's already computed in PreprocessedRow
             returns.push_back(row.log_return);
         }
         
-        // Use the actual backend portfolio simulator
         MLPipeline::PortfolioConfig config;
         config.starting_capital = 10000.0;
         config.max_position_pct = 0.1;
@@ -571,14 +525,12 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
         config.trading_days_per_year = 252.0;
         config.max_trade_decisions_logged = 100;
         
-        // Run the actual portfolio simulation
         auto simulation = MLPipeline::simulate_portfolio(
             predictions, returns, !useTTBM, config);
         
-        // Convert to PortfolioResults format
         MLPipeline::PortfolioResults results;
         results.starting_capital = simulation.starting_capital;
-        results.final_value = simulation.final_capital;  // final_capital -> final_value
+        results.final_value = simulation.final_capital; 
         results.total_return = simulation.total_return;
         results.annualized_return = simulation.annualized_return;
         results.max_drawdown = simulation.max_drawdown;
@@ -589,7 +541,6 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
         return results;
         
     } catch (const std::exception& e) {
-        // Return a results object with error indication
         MLPipeline::PortfolioResults results;
         results.starting_capital = 0.0;
         results.final_value = 0.0;
@@ -609,9 +560,7 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runBacktest(
     const std::vector<double>& predictions,
     const QString& strategy) {
     
-    // Determine strategy type from string
     bool useTTBM = strategy.contains("TTBM", Qt::CaseInsensitive);
     
-    // Use the actual simulation with the specified strategy
     return runSimulation(rows, labeledEvents, predictions, useTTBM);
 }

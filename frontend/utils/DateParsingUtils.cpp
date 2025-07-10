@@ -2,7 +2,7 @@
 #include <QDateTime>
 
 const std::vector<QString> DateParsingUtils::DATE_FORMATS = {
-    "yyyy-MM-ddTHH:mm:ss",  // ISO format as string
+    "yyyy-MM-ddTHH:mm:ss", 
     "yyyy-MM-dd HH:mm:ss",
     "yyyy/MM/dd HH:mm:ss",
     "dd/MM/yyyy HH:mm:ss",
@@ -11,13 +11,11 @@ const std::vector<QString> DateParsingUtils::DATE_FORMATS = {
 };
 
 QDateTime DateParsingUtils::parseTimestamp(const QString& timestamp) {
-    // Try ISO date first
     QDateTime dt = QDateTime::fromString(timestamp, Qt::ISODate);
     if (dt.isValid()) {
         return dt;
     }
     
-    // Try other formats
     for (const QString& format : DATE_FORMATS) {
         dt = QDateTime::fromString(timestamp, format);
         if (dt.isValid()) {
@@ -25,7 +23,7 @@ QDateTime DateParsingUtils::parseTimestamp(const QString& timestamp) {
         }
     }
     
-    return QDateTime(); // Invalid
+    return QDateTime(); 
 }
 
 std::vector<QString> DateParsingUtils::getSupportedFormats() {

@@ -61,7 +61,6 @@ private:
     void processDataWithConfig(const std::vector<DataRow>& rows, const BarrierConfig& cfg, const DataPreprocessor::Params& params);
     void processDataWithUserConfig(const std::vector<DataRow>& rows, const BarrierConfig& cfg, const DataPreprocessor::Params& params);
 
-    // UI components
     QPushButton *m_uploadDataButton;
     QPushButton *m_clearButton;
     QLabel *m_titleLabel;
@@ -72,14 +71,11 @@ private:
     QChartView *m_chartView;
     QComboBox *m_plotModeComboBox;
 
-    // UI
     MainWindowUI m_ui;
 
-    // Services
     std::unique_ptr<DataService> m_dataService;
     std::unique_ptr<MLService> m_mlService;
 
-    // Data state
     std::vector<PreprocessedRow> m_lastRows;
     std::vector<LabeledEvent> m_lastLabeledEvents;
 

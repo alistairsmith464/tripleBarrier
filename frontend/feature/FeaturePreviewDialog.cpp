@@ -26,40 +26,32 @@ FeaturePreviewDialog::FeaturePreviewDialog(
 void FeaturePreviewDialog::setupUI() {
     QVBoxLayout* vbox = new QVBoxLayout(this);
     
-    // Create and populate feature table
     createFeatureTable();
     
-    // Data info label
     m_dataInfoLabel = new QLabel(this);
     m_dataInfoLabel->setStyleSheet("color: #2c3e50; font-size: 12px; padding: 5px;");
     vbox->addWidget(m_dataInfoLabel);
     updateDataInfo();
     
-    // Barrier diagnostics label
     m_debugInfoLabel = new QLabel(this);
     m_debugInfoLabel->setStyleSheet("color: #8e44ad; font-size: 11px; padding: 5px;");
     vbox->addWidget(m_debugInfoLabel);
     updateBarrierDiagnostics();
     
-    // ML pipeline button
     m_runMLButton = new QPushButton(UIStrings::RUN_ML, this);
     vbox->addWidget(m_runMLButton);
     
-    // Results labels
     m_metricsLabel = new QLabel(this);
     m_importancesLabel = new QLabel(this);
     vbox->addWidget(m_metricsLabel);
     vbox->addWidget(m_importancesLabel);
     
-    // Hyperparameter tuning checkbox
     m_tuneHyperparamsCheckBox = new QCheckBox(UIStrings::AUTO_TUNE_HYPERPARAMS, this);
     m_tuneHyperparamsCheckBox->setToolTip("If checked, the pipeline will automatically search for the best hyperparameters (n_rounds, max_depth, nthread).");
     vbox->addWidget(m_tuneHyperparamsCheckBox);
     
-    // Connect signals
     connect(m_runMLButton, &QPushButton::clicked, this, &FeaturePreviewDialog::onRunMLClicked);
     
-    // OK button
     QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok, this);
     box->button(QDialogButtonBox::Ok)->setText(UIStrings::OK);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -67,16 +59,13 @@ void FeaturePreviewDialog::setupUI() {
 }
 
 void FeaturePreviewDialog::createFeatureTable() {
-    // Create ML service instance for feature extraction
     MLServiceImpl mlService;
     
-    // Determine TTBM mode for feature extraction
     bool is_ttbm = false;
     if (!m_labeledEvents.empty()) {
         is_ttbm = m_labeledEvents[0].is_ttbm;
     }
     
-    // Use new service-oriented approach
     FeatureExtractor::FeatureExtractionResult result;
     if (is_ttbm) {
         result = mlService.getFeatureService()->extractFeaturesForRegression(m_rows, m_labeledEvents, m_selectedFeatures);
@@ -84,17 +73,14 @@ void FeaturePreviewDialog::createFeatureTable() {
         result = mlService.getFeatureService()->extractFeaturesForClassification(m_rows, m_labeledEvents, m_selectedFeatures);
     }
     
-    // Create table widget
     QTableWidget* table = new QTableWidget(int(result.features.size()), m_selectedFeatures.size(), this);
     
-    // Set headers
     QStringList headers;
     for (const QString& feat : m_selectedFeatures) {
         headers << feat;
     }
     table->setHorizontalHeaderLabels(headers);
     
-    // Populate table
     auto featureMap = FeatureExtractor::getFeatureMapping();
     int col = 0;
     for (const QString& feat : m_selectedFeatures) {
@@ -126,13 +112,11 @@ void FeaturePreviewDialog::onRunMLClicked() {
     MLHyperparamsDialog dlg(this);
     if (dlg.exec() != QDialog::Accepted) return;
     
-    // Determine TTBM mode
     bool is_ttbm = false;
     if (!m_labeledEvents.empty()) {
         is_ttbm = m_labeledEvents[0].is_ttbm;
     }
     
-    // Configure ML pipeline
     MLConfig config;
     config.selectedFeatures = m_selectedFeatures;
     config.useTTBM = is_ttbm;
@@ -140,7 +124,6 @@ void FeaturePreviewDialog::onRunMLClicked() {
     config.randomSeed = 42;
     config.tuneHyperparameters = m_tuneHyperparamsCheckBox->isChecked();
     
-    // Run ML pipeline using service
     MLServiceImpl mlService;
     MLResults results = mlService.runMLPipeline(m_rows, m_labeledEvents, config);
     
@@ -149,11 +132,9 @@ void FeaturePreviewDialog::onRunMLClicked() {
         return;
     }
     
-    // Update data info label with model information
     QString modelInfo = FeaturePreviewUtils::formatModelInfo(is_ttbm, false, m_labeledEvents);
     m_dataInfoLabel->setText(modelInfo);
     
-    // Display results
     if (is_ttbm) {
         showMLRegressionResults(results);
     } else {
@@ -162,19 +143,16 @@ void FeaturePreviewDialog::onRunMLClicked() {
 }
 
 void FeaturePreviewDialog::showMLClassificationResults(const MLResults& results) {
-    // Display portfolio simulation results
     QString metrics = FeaturePreviewUtils::formatPortfolioResults(results.portfolioResult, false);
     m_metricsLabel->setText(metrics);
     m_importancesLabel->setText("");
 }
 
 void FeaturePreviewDialog::showMLRegressionResults(const MLResults& results) {
-    // Display portfolio simulation results 
     QString metrics = FeaturePreviewUtils::formatPortfolioResults(results.portfolioResult, true);
     m_metricsLabel->setText(metrics);
     m_importancesLabel->setText("");
     
-    // Show sample trading decisions
     QString debug = FeaturePreviewUtils::formatSampleTradingDecisions(results.predictions, true, 10);
     m_debugInfoLabel->setText(debug);
 }

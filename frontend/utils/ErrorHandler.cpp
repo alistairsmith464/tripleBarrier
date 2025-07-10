@@ -5,21 +5,17 @@
 #include <QTextStream>
 #include <QDebug>
 
-// Static member definitions
 std::map<ErrorHandler::ErrorType, ErrorHandler::RecoveryCallback> ErrorHandler::s_recoveryCallbacks;
 QString ErrorHandler::s_logFilePath;
 bool ErrorHandler::s_loggingEnabled = false;
 
 void ErrorHandler::handleError(const ErrorInfo& errorInfo, QWidget* parent) {
-    // Log the error if logging is enabled
     if (s_loggingEnabled) {
         logError(errorInfo);
     }
     
-    // Show error dialog to user
     showErrorDialog(errorInfo, parent);
     
-    // Attempt recovery if available
     attemptRecovery(errorInfo);
 }
 

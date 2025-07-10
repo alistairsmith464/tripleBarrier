@@ -36,20 +36,16 @@ public:
             : type(t), severity(s), message(msg), details(det), suggestion(sug) {}
     };
     
-    // Main error handling methods
     static void handleError(const ErrorInfo& errorInfo, QWidget* parent = nullptr);
     static void handleException(const std::exception& ex, ErrorType type, QWidget* parent = nullptr);
     
-    // Utility methods
     static QString formatError(const std::exception& ex);
     static QString getErrorTypeString(ErrorType type);
     static QString getSeverityString(Severity severity);
     
-    // Error recovery callbacks
     using RecoveryCallback = std::function<bool()>;
     static void setRecoveryCallback(ErrorType type, RecoveryCallback callback);
     
-    // Logging
     static void enableLogging(const QString& logFilePath);
     static void logError(const ErrorInfo& errorInfo);
     

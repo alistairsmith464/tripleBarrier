@@ -27,10 +27,8 @@ void ApplicationConfig::initializeDefaults() {
     m_defaultDataPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     m_lastUsedDataPath = m_defaultDataPath;
     
-    // Initialize default ML config
     m_defaultMLConfig = MLPipeline::UnifiedPipelineConfig{};
     
-    // Initialize default barrier config
     m_defaultBarrierConfig = BarrierConfig{};
     m_defaultBarrierConfig.profit_multiple = 2.0;
     m_defaultBarrierConfig.stop_multiple = 1.0;
@@ -42,7 +40,7 @@ void ApplicationConfig::initializeDefaults() {
     
     m_workerThreadCount = std::max(1, static_cast<int>(QThread::idealThreadCount()) - 1);
     m_enableCaching = true;
-    m_maxCacheSize = 500; // 500 MB
+    m_maxCacheSize = 500;
 }
 
 void ApplicationConfig::setDefaultWindowSize(const QSize& size) {
@@ -78,10 +76,9 @@ void ApplicationConfig::setMaxRecentFiles(int count) {
 }
 
 void ApplicationConfig::addRecentFile(const QString& filePath) {
-    m_recentFiles.removeAll(filePath); // Remove if already exists
+    m_recentFiles.removeAll(filePath);
     m_recentFiles.prepend(filePath);
     
-    // Limit to max recent files
     while (m_recentFiles.size() > m_maxRecentFiles) {
         m_recentFiles.removeLast();
     }
@@ -124,7 +121,6 @@ void ApplicationConfig::loadSettings() {
     m_settings->endGroup();
     
     m_settings->beginGroup("ML");
-    // Load ML config values
     m_defaultMLConfig.test_size = m_settings->value("testSize", m_defaultMLConfig.test_size).toDouble();
     m_defaultMLConfig.val_size = m_settings->value("valSize", m_defaultMLConfig.val_size).toDouble();
     m_defaultMLConfig.n_rounds = m_settings->value("nRounds", m_defaultMLConfig.n_rounds).toInt();

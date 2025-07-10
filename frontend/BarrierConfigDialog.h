@@ -16,7 +16,6 @@ public:
     int volatilityWindow() const;
 
 private:
-    // UI Controls
     QComboBox* labelingTypeBox;
     QDoubleSpinBox* profitBox;
     QDoubleSpinBox* stopBox;

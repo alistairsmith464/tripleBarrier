@@ -4,7 +4,6 @@
 #include <cmath>
 
 ValidationResult InputValidator::validateBarrierConfig(const BarrierConfig& config) {
-    // Validate profit multiple
     if (config.profit_multiple <= 0) {
         return ValidationResult::error(
             "Profit multiple must be positive",
@@ -19,7 +18,6 @@ ValidationResult InputValidator::validateBarrierConfig(const BarrierConfig& conf
         );
     }
     
-    // Validate stop multiple
     if (config.stop_multiple <= 0) {
         return ValidationResult::error(
             "Stop multiple must be positive",
@@ -27,7 +25,6 @@ ValidationResult InputValidator::validateBarrierConfig(const BarrierConfig& conf
         );
     }
     
-    // Validate vertical window
     if (config.vertical_window <= 0) {
         return ValidationResult::error(
             "Vertical window must be positive",
@@ -42,7 +39,6 @@ ValidationResult InputValidator::validateBarrierConfig(const BarrierConfig& conf
         );
     }
     
-    // Validate CUSUM threshold if enabled
     if (config.use_cusum && config.cusum_threshold <= 0) {
         return ValidationResult::error(
             "CUSUM threshold must be positive when CUSUM is enabled",
@@ -50,7 +46,6 @@ ValidationResult InputValidator::validateBarrierConfig(const BarrierConfig& conf
         );
     }
     
-    // Validate ratio between profit and stop
     if (config.profit_multiple < config.stop_multiple) {
         return ValidationResult::warning(
             "Profit multiple is smaller than stop multiple - this may result in poor risk/reward ratio",
@@ -76,7 +71,6 @@ ValidationResult InputValidator::validateFeatureSelection(const QSet<QString>& f
         );
     }
     
-    // Check for valid features
     QStringList availableFeatures = getAvailableFeatures();
     QStringList invalidFeatures;
     
@@ -127,7 +121,6 @@ ValidationResult InputValidator::validateFilePath(const QString& filePath, bool 
         );
     }
     
-    // Check file extension for CSV files
     if (fileInfo.suffix().toLower() != "csv") {
         return ValidationResult::warning(
             "File does not have .csv extension",
@@ -165,19 +158,16 @@ ValidationResult InputValidator::validateRange(double value, double min, double 
 }
 
 ValidationResult InputValidator::validateMLConfig(const MLPipeline::UnifiedPipelineConfig& config) {
-    // Validate test size
     auto testSizeResult = validateRange(config.test_size, 0.05, 0.5, "Test size");
     if (!testSizeResult.isValid) {
         return testSizeResult;
     }
     
-    // Validate validation size
     auto valSizeResult = validateRange(config.val_size, 0.0, 0.5, "Validation size");
     if (!valSizeResult.isValid) {
         return valSizeResult;
     }
     
-    // Check total size
     if (config.test_size + config.val_size >= 1.0) {
         return ValidationResult::error(
             "Test size + Validation size must be less than 1.0",
@@ -185,7 +175,6 @@ ValidationResult InputValidator::validateMLConfig(const MLPipeline::UnifiedPipel
         );
     }
     
-    // Validate n_rounds
     if (config.n_rounds <= 0) {
         return ValidationResult::error(
             "Number of rounds must be positive",
@@ -200,13 +189,11 @@ ValidationResult InputValidator::validateMLConfig(const MLPipeline::UnifiedPipel
         );
     }
     
-    // Validate max_depth
     auto depthResult = validateRange(config.max_depth, 1, 20, "Max depth");
     if (!depthResult.isValid) {
         return depthResult;
     }
     
-    // Validate learning rate
     auto lrResult = validateRange(config.learning_rate, 0.001, 1.0, "Learning rate");
     if (!lrResult.isValid) {
         return lrResult;
@@ -261,7 +248,6 @@ ValidationResult InputValidator::validateWindowSize(int windowSize, int dataSize
 }
 
 QStringList InputValidator::getAvailableFeatures() {
-    // Return list of known valid features
     return {
         "returns", "volatility", "volume", "price", "sma_10", "sma_20", "sma_50",
         "ema_10", "ema_20", "rsi", "macd", "bollinger_upper", "bollinger_lower",

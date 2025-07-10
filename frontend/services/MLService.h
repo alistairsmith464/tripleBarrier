@@ -8,16 +8,13 @@
 #include <functional>
 #include <future>
 
-// Forward declarations
 struct PreprocessedRow;
 struct LabeledEvent;
 
-// Re-use the existing FeatureExtractor result structure
 #include "../backend/data/FeatureExtractor.h"
 #include "../backend/ml/PortfolioSimulator.h"
 #include "../backend/ml/MLPipeline.h"
 
-// Enhanced ML configuration using unified backend config
 struct MLConfig {
     QSet<QString> selectedFeatures;
     bool useTTBM = false;
@@ -25,35 +22,27 @@ struct MLConfig {
     int randomSeed = 42;
     bool tuneHyperparameters = false;
     
-    // Unified configuration parameters
     MLPipeline::UnifiedPipelineConfig pipelineConfig;
     
-    // Model persistence options
     QString modelSavePath;
     QString modelLoadPath;
     bool saveModel = false;
     bool loadModel = false;
     
-    // Feature preprocessing options
     bool preprocessFeatures = true;
     bool normalizeFeatures = false;
     bool removeOutliers = false;
     double outlierThreshold = 3.0;
     
-    // Progress tracking
     bool enableProgressCallbacks = false;
 };
 
-// Comprehensive ML results with detailed metrics
 struct MLResults {
-    // Feature extraction results
     FeatureExtractor::FeatureExtractionResult features;
     
-    // Model predictions
     std::vector<double> predictions;
     std::vector<double> prediction_probabilities;
     
-    // Classification metrics
     double accuracy = 0.0;
     double precision = 0.0;
     double recall = 0.0;
@@ -61,27 +50,22 @@ struct MLResults {
     double auc_roc = 0.0;
     std::vector<std::vector<int>> confusion_matrix;
     
-    // Regression metrics
     double r2_score = 0.0;
     double mae = 0.0;
     double rmse = 0.0;
     double mape = 0.0;
     
-    // Model information
     QString modelInfo;
     QString modelVersion;
     QString trainingTime;
     std::vector<QString> featureImportance;
     
-    // Portfolio results
     MLPipeline::PortfolioResults portfolioResult;
     
-    // Status and error handling
     bool success = false;
     QString errorMessage;
     QString warningMessage;
     
-    // Data quality report
     struct DataQuality {
         size_t total_samples;
         size_t valid_samples;
@@ -90,7 +74,6 @@ struct MLResults {
     } dataQuality;
 };
 
-// Progress callback for async operations
 struct MLProgress {
     enum Stage {
         FEATURE_EXTRACTION,
@@ -110,7 +93,6 @@ struct MLProgress {
 
 using MLProgressCallback = std::function<void(const MLProgress&)>;
 
-// Feature extraction service interface
 class FeatureService {
 public:
     virtual ~FeatureService() = default;
@@ -129,7 +111,6 @@ public:
     virtual QString validateFeatureSelection(const QSet<QString>& features) = 0;
 };
 
-// Model training service interface
 class ModelService {
 public:
     virtual ~ModelService() = default;
@@ -150,7 +131,6 @@ public:
     virtual QStringList getAvailableModels() = 0;
 };
 
-// Portfolio simulation service interface  
 class PortfolioService {
 public:
     virtual ~PortfolioService() = default;
@@ -168,14 +148,12 @@ public:
         const QString& strategy) = 0;
 };
 
-// Main ML service interface (orchestrates other services)
 class MLService : public QObject {
     Q_OBJECT
     
 public:
     virtual ~MLService() = default;
     
-    // High-level ML pipeline operations
     virtual MLResults runMLPipeline(
         const std::vector<PreprocessedRow>& rows,
         const std::vector<LabeledEvent>& labeledEvents,
@@ -187,12 +165,10 @@ public:
         const MLConfig& config,
         MLProgressCallback callback = nullptr) = 0;
     
-    // Service component access
     virtual FeatureService* getFeatureService() = 0;
     virtual ModelService* getModelService() = 0;
     virtual PortfolioService* getPortfolioService() = 0;
     
-    // Configuration validation
     virtual QString validateConfiguration(const MLConfig& config) = 0;
     virtual MLConfig getDefaultConfiguration() = 0;
 
@@ -202,7 +178,6 @@ signals:
     void errorOccurred(const QString& error);
 };
 
-// Concrete implementations
 class FeatureServiceImpl : public FeatureService {
 public:
     FeatureExtractor::FeatureExtractionResult extractFeaturesForClassification(

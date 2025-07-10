@@ -11,7 +11,6 @@ BarrierConfigDialog::BarrierConfigDialog(QWidget* parent)
     
     QVBoxLayout* layout = new QVBoxLayout(this);
     
-    // Simple form layout
     profitBox = new QDoubleSpinBox(this);
     profitBox->setRange(0.01, 10.0);
     profitBox->setValue(2.0);
@@ -46,7 +45,6 @@ BarrierConfigDialog::BarrierConfigDialog(QWidget* parent)
     volWinBox->setRange(1, 1000);
     volWinBox->setValue(20);
     
-    // Add widgets to layout
     layout->addWidget(new QLabel("Profit Multiple:"));
     layout->addWidget(profitBox);
     layout->addWidget(new QLabel("Stop Multiple:"));
@@ -63,7 +61,6 @@ BarrierConfigDialog::BarrierConfigDialog(QWidget* parent)
     layout->addWidget(new QLabel("Volatility Window:"));
     layout->addWidget(volWinBox);
     
-    // Buttons
     QDialogButtonBox* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     layout->addWidget(buttonBox);
     
@@ -83,13 +80,11 @@ BarrierConfig BarrierConfigDialog::getConfig() const {
     cfg.use_cusum = cusumCheck->isChecked();
     cfg.cusum_threshold = cusumThresholdBox->value();
     
-    // Set labeling type
     cfg.labeling_type = (labelingTypeBox->currentIndex() == 0) ? 
                        BarrierConfig::Hard : BarrierConfig::TTBM;
     
     cfg.ttbm_decay_type = static_cast<BarrierConfig::TTBMDecayType>(ttbmDecayTypeBox->currentIndex());
     
-    // Use fixed parameters for TTBM
     cfg.ttbm_lambda = 2.0;
     cfg.ttbm_alpha = 0.8;
     cfg.ttbm_beta = 3.0;

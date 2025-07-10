@@ -50,14 +50,12 @@ std::vector<LabeledEvent> DataServiceImpl::generateLabeledEvents(
     std::cout << "[DEBUG] DataServiceImpl::generateLabeledEvents called" << std::endl;
     std::cout << "  - Processed data size: " << processedData.size() << std::endl;
     
-    // Generate event indices first
     std::vector<size_t> eventIndices = selectEventIndices(processedData);
     
     std::cout << "  - Event indices found: " << eventIndices.size() << std::endl;
     
     if (eventIndices.empty()) {
         std::cout << "  - WARNING: No event indices found in processed data!" << std::endl;
-        // Let's check the is_event flag distribution
         int event_count = 0;
         for (const auto& row : processedData) {
             if (row.is_event) event_count++;
@@ -65,7 +63,6 @@ std::vector<LabeledEvent> DataServiceImpl::generateLabeledEvents(
         std::cout << "  - Events marked in data: " << event_count << std::endl;
     }
     
-    // Then label the events
     auto labeled_events = labelEvents(processedData, eventIndices, config);
     
     std::cout << "  - Final labeled events: " << labeled_events.size() << std::endl;

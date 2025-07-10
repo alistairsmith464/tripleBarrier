@@ -6,10 +6,8 @@
 
 class DateParsingUtils {
 public:
-    // Parse timestamp with multiple format attempts
     static QDateTime parseTimestamp(const QString& timestamp);
-    
-    // Get all supported date formats
+
     static std::vector<QString> getSupportedFormats();
     
 private:

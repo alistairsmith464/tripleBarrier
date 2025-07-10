@@ -43,12 +43,10 @@ MainWindow::MainWindow(QWidget *parent)
     
     setWindowTitle(UIStrings::APP_TITLE);
     
-    // Apply saved window size
     auto& config = ApplicationConfig::instance();
     resize(config.defaultWindowSize());
     setMinimumSize(600, 400);
     
-    // Setup application shutdown handling
     connect(qApp, &QApplication::aboutToQuit, this, &MainWindow::onApplicationShutdown);
 }
 
@@ -101,7 +99,6 @@ void MainWindow::onSelectCSVFile() {
         return;
     }
     
-    // Validate file path
     ValidationResult fileValidation = InputValidator::validateFilePath(fileName, true);
     if (!fileValidation.isValid) {
         ErrorHandler::ErrorInfo errorInfo(
@@ -114,18 +111,14 @@ void MainWindow::onSelectCSVFile() {
         return;
     }
     
-    // Update last used path
     auto& config = ApplicationConfig::instance();
     config.setLastUsedDataPath(fileName);
     config.addRecentFile(fileName);
     
-    // Disable UI during processing
     m_uploadDataButton->setEnabled(false);
     m_statusLabel->setText(UIStrings::LOADING_CSV);
     
-    // Try a step-by-step synchronous approach to isolate the crash
     try {
-        // Step 1: Load CSV
         CSVDataSource src;
         std::vector<DataRow> rows = src.loadData(fileName.toStdString());
         
@@ -174,18 +167,15 @@ void MainWindow::processDataWithConfig(const std::vector<DataRow>& rows,
                                      const BarrierConfig& cfg, 
                                      const DataPreprocessor::Params& params) {
     try {
-        // Try processing with the user-provided configuration
         auto processed = DataPreprocessor::preprocess(rows, params);
         
         if (processed.empty()) {
             throw std::runtime_error("Data preprocessing returned empty result");
         }
         
-        // Try generating labeled events
         DataServiceImpl dataService;
         auto labeled = dataService.generateLabeledEvents(processed, cfg);
         
-        // If we get here, display the results
         plotLabeledEvents(processed, labeled);
         showUploadSuccess(QString::fromStdString("Processing completed with %1 events").arg(labeled.size()));
         
@@ -240,14 +230,11 @@ void MainWindow::onMLButtonClicked() {
 void MainWindow::setupErrorHandling() {
     auto& config = ApplicationConfig::instance();
     
-    // Enable error logging if configured
     if (config.enableLogging()) {
         ErrorHandler::enableLogging(config.logFilePath());
     }
     
-    // Setup recovery callbacks
     ErrorHandler::setRecoveryCallback(ErrorHandler::ErrorType::DataLoad, [this]() {
-        // Try to reload the last used file
         auto& appConfig = ApplicationConfig::instance();
         QString lastPath = appConfig.lastUsedDataPath();
         if (!lastPath.isEmpty()) {
@@ -258,7 +245,6 @@ void MainWindow::setupErrorHandling() {
     });
     
     ErrorHandler::setRecoveryCallback(ErrorHandler::ErrorType::UI, [this]() {
-        // Reset UI to default state
         m_statusLabel->setText(UIStrings::READY);
         m_progressBar->setVisible(false);
         m_uploadDataButton->setEnabled(true);
@@ -270,29 +256,19 @@ void MainWindow::loadApplicationConfig() {
     auto& config = ApplicationConfig::instance();
     config.load();
     
-    // Apply configuration to UI
-    // This will be called during setupUI
 }
 
 void MainWindow::saveApplicationConfig() {
     auto& config = ApplicationConfig::instance();
     
-    // Save current window size
     config.setDefaultWindowSize(size());
-    
-    // Save last used data path if available
-    if (!m_lastRows.empty()) {
-        // Could save the path here if we track it
-    }
     
     config.save();
 }
 
 void MainWindow::onApplicationShutdown() {
-    // Cancel any running tasks
     AsyncTaskManager::instance().cancelAllTasks();
     
-    // Save configuration
     saveApplicationConfig();
 }
 
@@ -307,21 +283,17 @@ void MainWindow::processDataWithUserConfig(const std::vector<DataRow>& rows,
             throw std::runtime_error("No input data rows");
         }
         
-        // Validate the config
         BarrierConfig testCfg = cfg;
         testCfg.validate();
         
-        // Preprocess the data
         auto processed = DataPreprocessor::preprocess(rows, params);
         if (processed.empty()) {
             throw std::runtime_error("Data preprocessing returned empty result");
         }
         
-        // Generate labeled events
         DataServiceImpl dataService;
         auto labeled = dataService.generateLabeledEvents(processed, cfg);
         
-        // Display results
         plotLabeledEvents(processed, labeled);
         m_statusLabel->setText(QString("Success! Processed %1 rows, found %2 events").arg(processed.size()).arg(labeled.size()));
         m_uploadDataButton->setEnabled(true);
