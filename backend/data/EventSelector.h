@@ -14,4 +14,13 @@ public:
     static std::vector<Event> selectEvents(const std::vector<DataRow>& rows, int interval);
     static std::vector<Event> selectCUSUMEvents(const std::vector<DataRow>& rows, const std::vector<double>& volatility, double threshold);
     static std::vector<Event> selectDynamicEvents(const std::vector<DataRow>& rows, int vertical_barrier);
+    
+    static std::vector<Event> selectEventsWithGap(const std::vector<DataRow>& rows, int interval, int min_gap);
+    static std::vector<Event> selectCUSUMEventsWithGap(const std::vector<DataRow>& rows, 
+                                                       const std::vector<double>& volatility, 
+                                                       double threshold, int min_gap);
+
+private:
+    static std::vector<Event> enforceMinimumGap(const std::vector<Event>& events, int min_gap);
+    static void logGapEnforcementStats(const std::vector<Event>& original, const std::vector<Event>& filtered);
 };

@@ -24,6 +24,10 @@ add_library(backend
     data/PreprocessedRow.h
     data/EventSelector.cpp
     data/EventSelector.h
+    data/OverlapPurger.cpp
+    data/OverlapPurger.h
+    data/SampleIndependenceValidator.cpp
+    data/SampleIndependenceValidator.h
     data/VolatilityCalculator.h
     data/DataCleaningUtils.h
     data/Constants.h

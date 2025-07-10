@@ -1,5 +1,6 @@
 #include "CUSUMFilter.h"
 #include <cmath>
+#include <algorithm>
 
 std::vector<size_t> CUSUMFilter::detect(const std::vector<double>& prices, const std::vector<double>& volatility, double threshold) {
     std::vector<size_t> events;
@@ -22,4 +23,35 @@ std::vector<size_t> CUSUMFilter::detect(const std::vector<double>& prices, const
         }
     }
     return events;
+}
+
+std::vector<size_t> CUSUMFilter::detectWithGap(const std::vector<double>& prices, 
+                                               const std::vector<double>& volatility, 
+                                               double threshold, int min_gap) {
+    std::vector<size_t> events = detect(prices, volatility, threshold);
+    return enforceMinimumGap(events, min_gap);
+}
+
+std::vector<size_t> CUSUMFilter::enforceMinimumGap(const std::vector<size_t>& events, int min_gap) {
+    if (events.empty() || min_gap <= 0) return events;
+    
+    std::vector<size_t> filtered;
+    filtered.reserve(events.size());
+    
+    for (size_t event : events) {
+        bool valid = true;
+        
+        for (size_t existing : filtered) {
+            if (abs(static_cast<int>(event) - static_cast<int>(existing)) < min_gap) {
+                valid = false;
+                break;
+            }
+        }
+        
+        if (valid) {
+            filtered.push_back(event);
+        }
+    }
+    
+    return filtered;
 }

@@ -1,7 +1,9 @@
 #include "TTBMLabeler.h"
+#include "OverlapPurger.h"
 #include "Constants.h"
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 TTBMLabeler::TTBMLabeler(BarrierConfig::TTBMDecayType decay_type,
                          double lambda, double alpha, double beta)
@@ -20,7 +22,14 @@ std::vector<LabeledEvent> TTBMLabeler::label(
 ) const {
     std::vector<LabeledEvent> results;
     
-    for (size_t event_idx : event_indices) {
+    std::vector<size_t> purged_indices = OverlapPurger::purgeOverlappingEvents(event_indices, vertical_barrier);
+    
+    std::cout << "[INFO] TTBM labeling with overlap prevention:" << std::endl;
+    std::cout << "  - Original events: " << event_indices.size() << std::endl;
+    std::cout << "  - Purged events: " << purged_indices.size() << std::endl;
+    std::cout << "  - Removed overlaps: " << (event_indices.size() - purged_indices.size()) << std::endl;
+    
+    for (size_t event_idx : purged_indices) {
         if (event_idx >= data.size()) continue;
         
         const auto& entry = data[event_idx];

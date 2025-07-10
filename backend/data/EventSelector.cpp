@@ -1,5 +1,7 @@
 #include "EventSelector.h"
 #include <algorithm>
+#include <iostream>
+#include <cmath>
 
 std::vector<Event> EventSelector::selectEvents(const std::vector<DataRow>& rows, int interval) {
     std::vector<Event> events;
@@ -27,4 +29,52 @@ std::vector<Event> EventSelector::selectDynamicEvents(const std::vector<DataRow>
         events.push_back(Event{i, rows[i].timestamp});
     }
     return events;
+}
+
+std::vector<Event> EventSelector::selectEventsWithGap(const std::vector<DataRow>& rows, int interval, int min_gap) {
+    std::vector<Event> events = selectEvents(rows, interval);
+    return enforceMinimumGap(events, min_gap);
+}
+
+std::vector<Event> EventSelector::selectCUSUMEventsWithGap(const std::vector<DataRow>& rows, 
+                                                           const std::vector<double>& volatility, 
+                                                           double threshold, int min_gap) {
+    std::vector<Event> events = selectCUSUMEvents(rows, volatility, threshold);
+    return enforceMinimumGap(events, min_gap);
+}
+
+std::vector<Event> EventSelector::enforceMinimumGap(const std::vector<Event>& events, int min_gap) {
+    if (events.empty() || min_gap <= 0) return events;
+    
+    std::vector<Event> filtered;
+    filtered.reserve(events.size());
+    
+    for (const auto& event : events) {
+        bool valid = true;
+        
+        for (const auto& existing : filtered) {
+            if (abs(static_cast<int>(event.index) - static_cast<int>(existing.index)) < min_gap) {
+                valid = false;
+                break;
+            }
+        }
+        
+        if (valid) {
+            filtered.push_back(event);
+        }
+    }
+    
+    logGapEnforcementStats(events, filtered);
+    return filtered;
+}
+
+void EventSelector::logGapEnforcementStats(const std::vector<Event>& original, const std::vector<Event>& filtered) {
+    if (original.size() != filtered.size()) {
+        std::cout << "[INFO] Event gap enforcement statistics:" << std::endl;
+        std::cout << "  - Original events: " << original.size() << std::endl;
+        std::cout << "  - Gap-filtered events: " << filtered.size() << std::endl;
+        std::cout << "  - Gap violation removal rate: " 
+                  << (100.0 * (original.size() - filtered.size()) / original.size()) 
+                  << "%" << std::endl;
+    }
 }
