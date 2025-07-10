@@ -117,7 +117,7 @@ void FeaturePreviewDialog::updateDataInfo() {
 }
 
 void FeaturePreviewDialog::updateBarrierDiagnostics() {
-    auto diagnostics = PortfolioSimulator::analyzeBarriers(m_labeledEvents, m_rows);
+    auto diagnostics = MLPipeline::analyzeBarriers(m_labeledEvents, m_rows);
     QString text = FeaturePreviewUtils::formatBarrierDiagnostics(diagnostics, m_labeledEvents);
     m_debugInfoLabel->setText(text);
 }

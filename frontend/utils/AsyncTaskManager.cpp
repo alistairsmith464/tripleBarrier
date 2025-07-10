@@ -8,15 +8,9 @@ AsyncTaskManager& AsyncTaskManager::instance() {
 
 void AsyncTaskManager::cancelAllTasks() {
     for (auto& taskObj : m_activeTasks) {
-        // Try to cast to different task types and cancel
-        if (auto task = std::dynamic_pointer_cast<AsyncTask<int>>(taskObj)) {
-            task->cancel();
-        } else if (auto task = std::dynamic_pointer_cast<AsyncTask<double>>(taskObj)) {
-            task->cancel();
-        } else if (auto task = std::dynamic_pointer_cast<AsyncTask<QString>>(taskObj)) {
+        if (auto task = std::dynamic_pointer_cast<AsyncTaskBase>(taskObj)) {
             task->cancel();
         }
-        // Add more types as needed
     }
     
     m_activeTasks.clear();

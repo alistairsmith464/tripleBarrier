@@ -1,5 +1,6 @@
 #include "MLHyperparamsDialog.h"
 #include "ui/UIStrings.h"
+#include <QPushButton>
 
 MLHyperparamsDialog::MLHyperparamsDialog(QWidget* parent) : QDialog(parent) {
     setWindowTitle(UIStrings::ML_HYPERPARAMS_TITLE);

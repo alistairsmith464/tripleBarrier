@@ -28,6 +28,9 @@
 #include <QDateTime>
 #include "FeatureSelectionDialog.h"
 #include "ui/MainWindowUI.h"
+#include "../backend/data/DataRow.h"
+#include "../backend/data/BarrierConfig.h"
+#include "../backend/data/DataPreprocessor.h"
 
 QT_BEGIN_NAMESPACE
 QT_END_NAMESPACE
@@ -54,7 +57,9 @@ private:
     void showUploadSuccess(const QString& filePath);
     void showUploadError(const QString& error);
     void plotLabeledEvents(const std::vector<PreprocessedRow>& rows, const std::vector<LabeledEvent>& labeledEvents);
-    void processCSVFileAsync(const QString& fileName);
+    void showBarrierConfigurationDialog(const std::vector<DataRow>& rows);
+    void processDataWithConfig(const std::vector<DataRow>& rows, const BarrierConfig& cfg, const DataPreprocessor::Params& params);
+    void processDataWithUserConfig(const std::vector<DataRow>& rows, const BarrierConfig& cfg, const DataPreprocessor::Params& params);
 
     // UI components
     QPushButton *m_uploadDataButton;

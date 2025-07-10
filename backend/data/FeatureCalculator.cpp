@@ -4,6 +4,7 @@
 #include <numeric>
 #include <stdexcept>
 #include <ctime>
+#include <iostream>
 
 const std::string FeatureCalculator::CLOSE_TO_CLOSE_RETURN_1D = "close_to_close_return_1d";
 const std::string FeatureCalculator::RETURN_5D = "return_5d";
@@ -32,23 +33,45 @@ std::map<std::string, double> FeatureCalculator::calculateFeatures(
 ) {
     std::map<std::string, double> features;
     int idx = eventIndices[eventIdx];
+    
+    std::cout << "[DEBUG] FeatureCalculator::calculateFeatures:" << std::endl;
+    std::cout << "  - Event index: " << eventIdx << ", Price index: " << idx << std::endl;
+    std::cout << "  - Total prices: " << prices.size() << std::endl;
+    std::cout << "  - Selected features: " << selectedFeatures.size() << std::endl;
+    
+    if (idx >= 0 && idx < (int)prices.size()) {
+        std::cout << "  - Current price: " << prices[idx] << std::endl;
+        if (idx > 0) {
+            std::cout << "  - Previous price: " << prices[idx-1] << std::endl;
+        }
+    }
+    
     for (const auto& feat : selectedFeatures) {
-        if (feat == CLOSE_TO_CLOSE_RETURN_1D) features[feat] = closeToCloseReturn1D(prices, idx);
-        else if (feat == RETURN_5D) features[feat] = returnND(prices, idx, 5);
-        else if (feat == RETURN_10D) features[feat] = returnND(prices, idx, 10);
-        else if (feat == ROLLING_STD_5D) features[feat] = rollingStdND(prices, idx, 5);
-        else if (feat == EWMA_VOL_10D) features[feat] = ewmaVolND(prices, idx, 10);
-        else if (feat == SMA_5D) features[feat] = smaND(prices, idx, 5);
-        else if (feat == SMA_10D) features[feat] = smaND(prices, idx, 10);
-        else if (feat == SMA_20D) features[feat] = smaND(prices, idx, 20);
-        else if (feat == DIST_TO_SMA_5D) features[feat] = distToSMA(prices, idx, 5);
-        else if (feat == ROC_5D) features[feat] = rocND(prices, idx, 5);
-        else if (feat == RSI_14D) features[feat] = rsiND(prices, idx, 14);
-        else if (feat == PRICE_RANGE_5D) features[feat] = priceRangeND(prices, idx, 5);
-        else if (feat == CLOSE_OVER_HIGH_5D) features[feat] = closeOverHighND(prices, idx, 5);
-        else if (feat == SLOPE_LR_10D) features[feat] = slopeLRND(prices, idx, 10);
-        else if (feat == DAY_OF_WEEK) features[feat] = dayOfWeek(timestamps, idx);
-        else if (feat == DAYS_SINCE_LAST_EVENT && eventStarts) features[feat] = daysSinceLastEvent(*eventStarts, eventIdx);
+        double value = NAN;
+        if (feat == CLOSE_TO_CLOSE_RETURN_1D) value = closeToCloseReturn1D(prices, idx);
+        else if (feat == RETURN_5D) value = returnND(prices, idx, 5);
+        else if (feat == RETURN_10D) value = returnND(prices, idx, 10);
+        else if (feat == ROLLING_STD_5D) value = rollingStdND(prices, idx, 5);
+        else if (feat == EWMA_VOL_10D) value = ewmaVolND(prices, idx, 10);
+        else if (feat == SMA_5D) value = smaND(prices, idx, 5);
+        else if (feat == SMA_10D) value = smaND(prices, idx, 10);
+        else if (feat == SMA_20D) value = smaND(prices, idx, 20);
+        else if (feat == DIST_TO_SMA_5D) value = distToSMA(prices, idx, 5);
+        else if (feat == ROC_5D) value = rocND(prices, idx, 5);
+        else if (feat == RSI_14D) value = rsiND(prices, idx, 14);
+        else if (feat == PRICE_RANGE_5D) value = priceRangeND(prices, idx, 5);
+        else if (feat == CLOSE_OVER_HIGH_5D) value = closeOverHighND(prices, idx, 5);
+        else if (feat == SLOPE_LR_10D) value = slopeLRND(prices, idx, 10);
+        else if (feat == DAY_OF_WEEK) value = dayOfWeek(timestamps, idx);
+        else if (feat == DAYS_SINCE_LAST_EVENT && eventStarts) value = daysSinceLastEvent(*eventStarts, eventIdx);
+        
+        features[feat] = value;
+        
+        if (std::isnan(value)) {
+            std::cout << "  - WARNING: Feature '" << feat << "' returned NaN (idx=" << idx << ")" << std::endl;
+        } else {
+            std::cout << "  - Feature '" << feat << "' = " << value << std::endl;
+        }
     }
     return features;
 }

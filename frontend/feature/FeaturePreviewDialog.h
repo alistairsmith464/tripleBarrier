@@ -9,7 +9,7 @@
 #include "../backend/data/PreprocessedRow.h"
 #include "../backend/data/LabeledEvent.h"
 #include "../backend/data/FeatureExtractor.h"
-#include "../backend/data/PortfolioSimulator.h"
+#include "../backend/ml/PortfolioSimulator.h"
 #include "../backend/ml/MLPipeline.h"
 #include "../services/MLService.h"
 #include <memory>

@@ -1,11 +1,11 @@
 #pragma once
-#include <QString>
 #include <QSet>
 #include <vector>
 #include <string>
 #include <set>
 #include "../backend/data/FeatureExtractor.h"
-#include "../backend/data/PortfolioSimulator.h"
+#include "../backend/data/LabeledEvent.h"
+#include "../backend/ml/PortfolioSimulator.h"
 
 // Utility class for formatting display text in feature preview dialogs
 class FeaturePreviewUtils {
@@ -15,13 +15,13 @@ public:
     
     // Generate formatted display text for barrier diagnostics
     static QString formatBarrierDiagnostics(
-        const BarrierDiagnostics& diagnostics,
+        const MLPipeline::BarrierDiagnostics& diagnostics,
         const std::vector<LabeledEvent>& labeledEvents
     );
     
     // Generate formatted display text for portfolio results
     static QString formatPortfolioResults(
-        const PortfolioResults& results,
+        const MLPipeline::PortfolioResults& results,
         bool is_ttbm
     );
     

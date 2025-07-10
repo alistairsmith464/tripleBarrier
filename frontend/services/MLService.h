@@ -2,11 +2,11 @@
 
 #include <QSet>
 #include <QString>
-#include <QFuture>
 #include <QObject>
 #include <vector>
 #include <memory>
 #include <functional>
+#include <future>
 
 // Forward declarations
 struct PreprocessedRow;
@@ -14,7 +14,7 @@ struct LabeledEvent;
 
 // Re-use the existing FeatureExtractor result structure
 #include "../backend/data/FeatureExtractor.h"
-#include "../backend/data/PortfolioSimulator.h"
+#include "../backend/ml/PortfolioSimulator.h"
 #include "../backend/ml/MLPipeline.h"
 
 // Enhanced ML configuration using unified backend config
@@ -74,7 +74,7 @@ struct MLResults {
     std::vector<QString> featureImportance;
     
     // Portfolio results
-    PortfolioResults portfolioResult;
+    MLPipeline::PortfolioResults portfolioResult;
     
     // Status and error handling
     bool success = false;
@@ -139,7 +139,7 @@ public:
         const std::vector<LabeledEvent>& labeledEvents,
         const MLConfig& config) = 0;
     
-    virtual QFuture<MLResults> trainModelAsync(
+    virtual std::future<MLResults> trainModelAsync(
         const FeatureExtractor::FeatureExtractionResult& features,
         const std::vector<LabeledEvent>& labeledEvents,
         const MLConfig& config,
@@ -155,13 +155,13 @@ class PortfolioService {
 public:
     virtual ~PortfolioService() = default;
     
-    virtual PortfolioResults runSimulation(
+    virtual MLPipeline::PortfolioResults runSimulation(
         const std::vector<PreprocessedRow>& rows,
         const std::vector<LabeledEvent>& labeledEvents,
         const std::vector<double>& predictions,
         bool useTTBM) = 0;
         
-    virtual PortfolioResults runBacktest(
+    virtual MLPipeline::PortfolioResults runBacktest(
         const std::vector<PreprocessedRow>& rows,
         const std::vector<LabeledEvent>& labeledEvents,
         const std::vector<double>& predictions,
@@ -181,7 +181,7 @@ public:
         const std::vector<LabeledEvent>& labeledEvents,
         const MLConfig& config) = 0;
     
-    virtual QFuture<MLResults> runMLPipelineAsync(
+    virtual std::future<MLResults> runMLPipelineAsync(
         const std::vector<PreprocessedRow>& rows,
         const std::vector<LabeledEvent>& labeledEvents,
         const MLConfig& config,
@@ -226,7 +226,7 @@ public:
         const std::vector<LabeledEvent>& labeledEvents,
         const MLConfig& config) override;
     
-    QFuture<MLResults> trainModelAsync(
+    std::future<MLResults> trainModelAsync(
         const FeatureExtractor::FeatureExtractionResult& features,
         const std::vector<LabeledEvent>& labeledEvents,
         const MLConfig& config,
@@ -239,13 +239,13 @@ public:
 
 class PortfolioServiceImpl : public PortfolioService {
 public:
-    PortfolioResults runSimulation(
+    MLPipeline::PortfolioResults runSimulation(
         const std::vector<PreprocessedRow>& rows,
         const std::vector<LabeledEvent>& labeledEvents,
         const std::vector<double>& predictions,
         bool useTTBM) override;
         
-    PortfolioResults runBacktest(
+    MLPipeline::PortfolioResults runBacktest(
         const std::vector<PreprocessedRow>& rows,
         const std::vector<LabeledEvent>& labeledEvents,
         const std::vector<double>& predictions,
@@ -261,7 +261,7 @@ public:
         const std::vector<LabeledEvent>& labeledEvents,
         const MLConfig& config) override;
     
-    QFuture<MLResults> runMLPipelineAsync(
+    std::future<MLResults> runMLPipelineAsync(
         const std::vector<PreprocessedRow>& rows,
         const std::vector<LabeledEvent>& labeledEvents,
         const MLConfig& config,

@@ -24,6 +24,7 @@
 #include "utils/DialogUtils.h"
 #include "utils/FileDialogUtils.h"
 #include "utils/UserInputUtils.h"
+#include "utils/InputValidator.h"
 #include "services/DataService.h"
 #include "services/MLService.h"
 #include "utils/ErrorHandler.h"
@@ -122,8 +123,81 @@ void MainWindow::onSelectCSVFile() {
     m_uploadDataButton->setEnabled(false);
     m_statusLabel->setText(UIStrings::LOADING_CSV);
     
-    // Process file asynchronously
-    processCSVFileAsync(fileName);
+    // Try a step-by-step synchronous approach to isolate the crash
+    try {
+        // Step 1: Load CSV
+        CSVDataSource src;
+        std::vector<DataRow> rows = src.loadData(fileName.toStdString());
+        
+        if (rows.empty()) {
+            throw std::runtime_error("No data loaded from CSV file");
+        }
+        
+        m_statusLabel->setText(QString("Loaded %1 rows successfully").arg(rows.size()));
+        qApp->processEvents();
+        
+        showBarrierConfigurationDialog(rows);
+        
+    } catch (const std::exception& e) {
+        ErrorHandler::ErrorInfo errorInfo(
+            ErrorHandler::ErrorType::DataLoad,
+            ErrorHandler::Severity::Error,
+            "CSV Loading Failed",
+            QString::fromStdString(e.what())
+        );
+        ErrorHandler::handleError(errorInfo, this);
+        m_uploadDataButton->setEnabled(true);
+    }
+}
+
+void MainWindow::showBarrierConfigurationDialog(const std::vector<DataRow>& rows) {
+    BarrierConfigDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        BarrierConfig cfg = dialog.getConfig();
+        
+        DataPreprocessor::Params params;
+        params.volatility_window = dialog.volatilityWindow();
+        params.barrier_multiple = cfg.profit_multiple;
+        params.vertical_barrier = cfg.vertical_window;
+        params.use_cusum = cfg.use_cusum;
+        params.cusum_threshold = cfg.cusum_threshold;
+        params.barrier_config = cfg;
+        
+        processDataWithUserConfig(rows, cfg, params);
+    } else {
+        m_statusLabel->setText("Configuration cancelled by user");
+        m_uploadDataButton->setEnabled(true);
+    }
+}
+
+void MainWindow::processDataWithConfig(const std::vector<DataRow>& rows, 
+                                     const BarrierConfig& cfg, 
+                                     const DataPreprocessor::Params& params) {
+    try {
+        // Try processing with the user-provided configuration
+        auto processed = DataPreprocessor::preprocess(rows, params);
+        
+        if (processed.empty()) {
+            throw std::runtime_error("Data preprocessing returned empty result");
+        }
+        
+        // Try generating labeled events
+        DataServiceImpl dataService;
+        auto labeled = dataService.generateLabeledEvents(processed, cfg);
+        
+        // If we get here, display the results
+        plotLabeledEvents(processed, labeled);
+        showUploadSuccess(QString::fromStdString("Processing completed with %1 events").arg(labeled.size()));
+        
+    } catch (const std::exception& e) {
+        ErrorHandler::ErrorInfo errorInfo(
+            ErrorHandler::ErrorType::DataLoad,
+            ErrorHandler::Severity::Error,
+            "Data Processing Failed",
+            QString::fromStdString(e.what())
+        );
+        ErrorHandler::handleError(errorInfo, this);
+    }
 }
 
 void MainWindow::onClearButtonClicked()
@@ -222,50 +296,44 @@ void MainWindow::onApplicationShutdown() {
     saveApplicationConfig();
 }
 
-void MainWindow::processCSVFileAsync(const QString& fileName) {
-    auto& taskManager = AsyncTaskManager::instance();
-    
-    // Define the async task
-    auto task = [fileName]() -> std::pair<std::vector<PreprocessedRow>, std::vector<LabeledEvent>> {
-        CSVDataSource src;
-        std::vector<DataRow> rows = src.loadData(fileName.toStdString());
+void MainWindow::processDataWithUserConfig(const std::vector<DataRow>& rows, 
+                                          const BarrierConfig& cfg, 
+                                          const DataPreprocessor::Params& params) {
+    try {
+        m_statusLabel->setText("Processing data...");
+        qApp->processEvents();
         
-        BarrierConfig cfg;
-        DataPreprocessor::Params params;
-        
-        // For async processing, we'll use default config for now
-        // In a real implementation, you'd pass these as parameters
-        auto processed = DataPreprocessor::preprocess(rows, params);
-        
-        DataServiceImpl dataService;
-        std::vector<LabeledEvent> labeled = dataService.generateLabeledEvents(processed, cfg);
-        
-        return std::make_pair(processed, labeled);
-    };
-    
-    // Run with progress dialog
-    taskManager.runWithProgressDialog<std::pair<std::vector<PreprocessedRow>, std::vector<LabeledEvent>>>(
-        task,
-        UIStrings::PROCESSING,
-        this,
-        [this, fileName](const auto& result) {
-            // Success callback
-            showUploadSuccess(fileName);
-            plotLabeledEvents(result.first, result.second);
-            m_statusLabel->setText(UIStrings::LOAD_SUCCESS);
-            m_uploadDataButton->setEnabled(true);
-        },
-        [this](const QString& error) {
-            // Error callback
-            ErrorHandler::ErrorInfo errorInfo(
-                ErrorHandler::ErrorType::DataLoad,
-                ErrorHandler::Severity::Error,
-                UIStrings::FAILED_PROCESS_CSV,
-                error,
-                UIStrings::CHECK_FILE_FORMAT
-            );
-            ErrorHandler::handleError(errorInfo, this);
-            m_uploadDataButton->setEnabled(true);
+        if (rows.empty()) {
+            throw std::runtime_error("No input data rows");
         }
-    );
+        
+        // Validate the config
+        BarrierConfig testCfg = cfg;
+        testCfg.validate();
+        
+        // Preprocess the data
+        auto processed = DataPreprocessor::preprocess(rows, params);
+        if (processed.empty()) {
+            throw std::runtime_error("Data preprocessing returned empty result");
+        }
+        
+        // Generate labeled events
+        DataServiceImpl dataService;
+        auto labeled = dataService.generateLabeledEvents(processed, cfg);
+        
+        // Display results
+        plotLabeledEvents(processed, labeled);
+        m_statusLabel->setText(QString("Success! Processed %1 rows, found %2 events").arg(processed.size()).arg(labeled.size()));
+        m_uploadDataButton->setEnabled(true);
+        
+    } catch (const std::exception& e) {
+        ErrorHandler::ErrorInfo errorInfo(
+            ErrorHandler::ErrorType::DataLoad,
+            ErrorHandler::Severity::Error,
+            "Data Processing Failed",
+            QString::fromStdString(e.what())
+        );
+        ErrorHandler::handleError(errorInfo, this);
+        m_uploadDataButton->setEnabled(true);
+    }
 }

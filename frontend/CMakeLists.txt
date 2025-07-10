@@ -30,7 +30,6 @@ add_executable(TripleBarrierApp
     plot/PlotStrategy.cpp
     feature/FeaturePreviewDialog.cpp
     ui/MainWindowUI.cpp
-    ui/BaseDialog.cpp
     ui/UIStrings.cpp
     ../backend/data/HardBarrierLabeler.cpp
 )

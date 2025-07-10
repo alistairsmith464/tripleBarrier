@@ -1,4 +1,5 @@
 #include "CSVDataSource.h"
+#include "Constants.h"
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
@@ -61,7 +62,8 @@ std::vector<DataRow> CSVDataSource::loadData(const std::string& filename) {
 
 namespace {
     void checkFileExtension(const std::string& filename) {
-        if (filename.size() < 4 || filename.substr(filename.size() - 4) != ".csv") {
+        if (filename.size() < Constants::CSV::EXTENSION_LENGTH || 
+            filename.substr(filename.size() - Constants::CSV::EXTENSION_LENGTH) != Constants::CSV::EXTENSION) {
             throw std::runtime_error("File is not a CSV: " + filename);
         }
     }

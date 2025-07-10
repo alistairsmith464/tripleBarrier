@@ -9,6 +9,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <iostream>
+#include <iomanip>
 
 namespace MLPipeline {
 
@@ -36,7 +37,19 @@ ResultType runPipelineTemplate(
 ) {
     validatePipelineInputs(X, y, returns);
     
-    auto [X_clean, y_clean, returns_clean] = cleanData(X, y, returns);
+    std::cout << "[DEBUG] ML Pipeline: Starting with " << X.size() << " samples" << std::endl;
+    
+    // Add explicit cleaning options
+    DataProcessor::CleaningOptions cleaningOpts;
+    cleaningOpts.remove_nan = true;
+    cleaningOpts.remove_inf = true;
+    cleaningOpts.remove_outliers = true;
+    cleaningOpts.log_cleaning = true;
+    
+    auto [X_clean, y_clean, returns_clean] = DataProcessor::cleanData(X, y, returns, cleaningOpts);
+    
+    std::cout << "[DEBUG] After cleaning: " << X_clean.size() << " samples" << std::endl;
+    
     auto [train_idx, val_idx, test_idx] = createSplits(X_clean.size(), config);
 
     auto X_train_f = toFloatMatrix(select_rows(X_clean, train_idx));
@@ -61,11 +74,11 @@ ResultType runPipelineTemplate(
     model_config.subsample = config.subsample;
     model_config.colsample_bytree = config.colsample_bytree;
 
-    XGBoostModel model(model_config);
+    XGBoostModel model;
     
     if constexpr (std::is_same_v<T, int>) {
         auto y_train_f = toFloatVecInt(select_rows(y_clean, train_idx));
-        model.fit(X_train_f, y_train_f);
+        model.fit(X_train_f, y_train_f, model_config);
         
         auto y_pred = model.predict(X_eval_f);
         auto y_prob = model.predict_proba(X_eval_f);
@@ -84,10 +97,64 @@ ResultType runPipelineTemplate(
         return ResultType{y_pred, y_prob_d, portfolio};
     } else {
         auto y_train_f = toFloatVecDouble(select_rows(y_clean, train_idx));
-        model.fit(X_train_f, y_train_f);
         
-        auto y_pred_f = model.predict(X_eval_f);
+        // Debug: Check training labels
+        std::cout << "DEBUG: Training labels before model fit:" << std::endl;
+        std::cout << "  - Training samples: " << y_train_f.size() << std::endl;
+        if (!y_train_f.empty()) {
+            float min_train = *std::min_element(y_train_f.begin(), y_train_f.end());
+            float max_train = *std::max_element(y_train_f.begin(), y_train_f.end());
+            float sum_train = std::accumulate(y_train_f.begin(), y_train_f.end(), 0.0f);
+            float mean_train = sum_train / y_train_f.size();
+            std::cout << "  - Training label range: [" << min_train << ", " << max_train << "]" << std::endl;
+            std::cout << "  - Training label mean: " << mean_train << std::endl;
+            std::cout << "  - First 5 training labels: ";
+            for (size_t i = 0; i < std::min(size_t(5), y_train_f.size()); ++i) {
+                std::cout << y_train_f[i] << " ";
+            }
+            std::cout << std::endl;
+        }
+        
+        model.fit(X_train_f, y_train_f, model_config);
+        
+        std::cout << "DEBUG: Making predictions on " << X_eval_f.size() << " evaluation samples" << std::endl;
+        auto y_pred_f = model.predict_raw(X_eval_f);  // Use predict_raw for regression
+        
+        // Debug: Check raw predictions from model
+        std::cout << "DEBUG: Raw model predictions (float vector):" << std::endl;
+        std::cout << "  - Raw predictions size: " << y_pred_f.size() << std::endl;
+        if (!y_pred_f.empty()) {
+            float min_raw = *std::min_element(y_pred_f.begin(), y_pred_f.end());
+            float max_raw = *std::max_element(y_pred_f.begin(), y_pred_f.end());
+            float sum_raw = std::accumulate(y_pred_f.begin(), y_pred_f.end(), 0.0f);
+            float mean_raw = sum_raw / y_pred_f.size();
+            std::cout << "  - Raw prediction range: [" << min_raw << ", " << max_raw << "]" << std::endl;
+            std::cout << "  - Raw prediction mean: " << mean_raw << std::endl;
+            std::cout << "  - First 10 raw predictions: ";
+            for (size_t i = 0; i < std::min(size_t(10), y_pred_f.size()); ++i) {
+                std::cout << std::fixed << std::setprecision(6) << y_pred_f[i] << " ";
+            }
+            std::cout << std::endl;
+        }
+        
         std::vector<double> y_pred(y_pred_f.begin(), y_pred_f.end());
+        
+        // Debug: Show prediction statistics
+        std::cout << "DEBUG: Regression predictions for portfolio simulation:" << std::endl;
+        std::cout << "  - Number of predictions: " << y_pred.size() << std::endl;
+        if (!y_pred.empty()) {
+            double min_pred = *std::min_element(y_pred.begin(), y_pred.end());
+            double max_pred = *std::max_element(y_pred.begin(), y_pred.end());
+            double sum_pred = std::accumulate(y_pred.begin(), y_pred.end(), 0.0);
+            double mean_pred = sum_pred / y_pred.size();
+            std::cout << "  - Prediction range: [" << min_pred << ", " << max_pred << "]" << std::endl;
+            std::cout << "  - Mean prediction: " << mean_pred << std::endl;
+            std::cout << "  - First 10 predictions: ";
+            for (size_t i = 0; i < std::min(size_t(10), y_pred.size()); ++i) {
+                std::cout << y_pred[i] << " ";
+            }
+            std::cout << std::endl;
+        }
         
         PortfolioSimulation portfolio = simulate_portfolio(y_pred, returns_eval, false);
         
@@ -105,7 +172,7 @@ ResultType runPipelineWithTuningTemplate(
 ) {
     validatePipelineInputs(X, y, returns);
     
-    auto [X_clean, y_clean, returns_clean] = cleanData(X, y, returns);
+    auto [X_clean, y_clean, returns_clean] = DataProcessor::cleanData(X, y, returns);
     auto [train_idx, val_idx, test_idx] = createSplits(X_clean.size(), config);
 
     if (val_idx.empty()) {
@@ -150,18 +217,18 @@ ResultType runPipelineWithTuningTemplate(
                         model_config.colsample_bytree = colsample;
 
                         try {
-                            XGBoostModel model(model_config);
+                            XGBoostModel model;
                             
                             double score;
                             MetricsCalculator metricsCalc;
                             if constexpr (std::is_same_v<T, int>) {
                                 auto y_train_f = toFloatVecInt(select_rows(y_clean, train_idx));
-                                model.fit(X_train_f, y_train_f);
+                                model.fit(X_train_f, y_train_f, model_config);
                                 auto y_pred_val = model.predict(X_val_f);
                                 score = metricsCalc.calculateF1Score(y_val, y_pred_val);
                             } else {
                                 auto y_train_f = toFloatVecDouble(select_rows(y_clean, train_idx));
-                                model.fit(X_train_f, y_train_f);
+                                model.fit(X_train_f, y_train_f, model_config);
                                 auto y_pred_val_f = model.predict(X_val_f);
                                 std::vector<double> y_pred_val(y_pred_val_f.begin(), y_pred_val_f.end());
                                 score = metricsCalc.calculateR2Score(y_val, y_pred_val);
@@ -273,6 +340,42 @@ PipelineResult runPipelineWithTuning(
     unified_config.barrier_type = (config.objective == "binary:logistic") ? BarrierType::HARD : BarrierType::SOFT;
     
     return runPipelineWithTuning(X, y, returns, unified_config);
+}
+
+RegressionPipelineResult runPipelineRegression(
+    const std::vector<std::map<std::string, double>>& X,
+    const std::vector<double>& y,
+    const std::vector<double>& returns,
+    const PipelineConfig& config
+) {
+    UnifiedPipelineConfig unified_config;
+    unified_config.test_size = config.test_size;
+    unified_config.val_size = config.val_size;
+    unified_config.n_rounds = config.n_rounds;
+    unified_config.max_depth = config.max_depth;
+    unified_config.nthread = config.nthread;
+    unified_config.objective = config.objective;
+    unified_config.barrier_type = BarrierType::SOFT; // Default for regression
+    
+    return runPipelineRegression(X, y, returns, unified_config);
+}
+
+RegressionPipelineResult runPipelineRegressionWithTuning(
+    const std::vector<std::map<std::string, double>>& X,
+    const std::vector<double>& y,
+    const std::vector<double>& returns,
+    const PipelineConfig& config
+) {
+    UnifiedPipelineConfig unified_config;
+    unified_config.test_size = config.test_size;
+    unified_config.val_size = config.val_size;
+    unified_config.n_rounds = config.n_rounds;
+    unified_config.max_depth = config.max_depth;
+    unified_config.nthread = config.nthread;
+    unified_config.objective = config.objective;
+    unified_config.barrier_type = BarrierType::SOFT; // Default for regression
+    
+    return runPipelineRegressionWithTuning(X, y, returns, unified_config);
 }
 
 }

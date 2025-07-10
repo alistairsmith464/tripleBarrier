@@ -21,13 +21,25 @@ add_library(backend
     data/BarrierConfig.h
     data/FeatureExtractor.cpp
     data/FeatureExtractor.h
-    data/PortfolioSimulator.cpp
-    data/PortfolioSimulator.h
+    data/PreprocessedRow.h
+    data/EventSelector.cpp
+    data/EventSelector.h
+    data/VolatilityCalculator.h
+    data/DataCleaningUtils.h
+    data/Constants.h
     ml/MLPipeline.cpp
+    ml/MLPipeline.h
     ml/MLSplits.h
     ml/XGBoostModel.cpp
     ml/XGBoostModel.h
-    data/DataCleaningUtils.h
+    ml/PortfolioSimulator.cpp
+    ml/PortfolioSimulator.h
+    ml/DataUtils.cpp
+    ml/DataUtils.h
+    ml/ModelUtils.cpp
+    ml/ModelUtils.h
+    ml/MetricsCalculator.cpp
+    ml/MetricsCalculator.h
 )
 
 target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "${CMAKE_SOURCE_DIR}/xgboost/include")

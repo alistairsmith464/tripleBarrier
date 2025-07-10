@@ -2,6 +2,7 @@
 #include "ui/UIStrings.h"
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
+#include <QPushButton>
 
 FeatureSelectionDialog::FeatureSelectionDialog(QWidget* parent)
     : QDialog(parent)

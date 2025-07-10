@@ -7,6 +7,7 @@
 #include <random>
 #include <numeric>
 #include <iostream>
+#include <set>
 
 namespace MLPipeline {
 

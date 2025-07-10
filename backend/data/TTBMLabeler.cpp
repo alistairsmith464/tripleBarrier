@@ -1,4 +1,5 @@
 #include "TTBMLabeler.h"
+#include "Constants.h"
 #include <algorithm>
 #include <cmath>
 
@@ -119,8 +120,7 @@ double TTBMLabeler::linearDecay(double time_ratio) const {
 }
 
 double TTBMLabeler::hyperbolicDecay(double time_ratio) const {
-    const double epsilon = 1e-12;
-    if (std::abs(beta_ * time_ratio) > 1e6) {
+    if (std::abs(beta_ * time_ratio) > Constants::Validation::MAX_HYPERBOLIC_BETA_TIME) {
         return 0.0;
     }
     return 1.0 / (1.0 + beta_ * time_ratio);

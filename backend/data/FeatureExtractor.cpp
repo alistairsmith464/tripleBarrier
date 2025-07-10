@@ -34,13 +34,22 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForCl
 ) {
     FeatureExtractionResult result;
     
+    std::cout << "[DEBUG] Starting feature extraction for classification:" << std::endl;
+    std::cout << "  - Selected features: " << selectedFeatures.size() << std::endl;
+    std::cout << "  - Input rows: " << rows.size() << std::endl;
+    std::cout << "  - Labeled events: " << labeledEvents.size() << std::endl;
+    
     auto featureMap = getFeatureMapping();
     std::set<std::string> backendFeatures;
     for (const std::string& feat : selectedFeatures) {
         if (featureMap.count(feat)) {
             backendFeatures.insert(featureMap[feat]);
+        } else {
+            std::cout << "  - WARNING: Feature '" << feat << "' not found in mapping!" << std::endl;
         }
     }
+    
+    std::cout << "  - Backend features mapped: " << backendFeatures.size() << std::endl;
     
     std::vector<double> prices;
     std::vector<std::string> timestamps;
@@ -50,6 +59,13 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForCl
     }
     
     std::vector<int> eventIndices = findEventIndices(rows, labeledEvents);
+    
+    std::cout << "  - Event indices found: " << eventIndices.size() << std::endl;
+    
+    if (eventIndices.empty()) {
+        std::cout << "  - ERROR: No event indices found! Cannot extract features." << std::endl;
+        return result;  // Return empty result
+    }
     
     for (size_t i = 0; i < eventIndices.size(); ++i) {
         auto features = FeatureCalculator::calculateFeatures(
@@ -61,6 +77,8 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForCl
         result.returns.push_back(labeledEvents[i].exit_price - labeledEvents[i].entry_price);
     }
     
+    std::cout << "  - Final result: " << result.features.size() << " feature rows extracted" << std::endl;
+    
     return result;
 }
 
@@ -71,13 +89,22 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
 ) {
     FeatureExtractionResult result;
     
+    std::cout << "[DEBUG] Starting feature extraction for regression:" << std::endl;
+    std::cout << "  - Selected features: " << selectedFeatures.size() << std::endl;
+    std::cout << "  - Input rows: " << rows.size() << std::endl;
+    std::cout << "  - Labeled events: " << labeledEvents.size() << std::endl;
+    
     auto featureMap = getFeatureMapping();
     std::set<std::string> backendFeatures;
     for (const std::string& feat : selectedFeatures) {
         if (featureMap.count(feat)) {
             backendFeatures.insert(featureMap[feat]);
+        } else {
+            std::cout << "  - WARNING: Feature '" << feat << "' not found in mapping!" << std::endl;
         }
     }
+    
+    std::cout << "  - Backend features mapped: " << backendFeatures.size() << std::endl;
     
     std::vector<double> prices;
     std::vector<std::string> timestamps;
@@ -88,18 +115,42 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
     
     std::vector<int> eventIndices = findEventIndices(rows, labeledEvents);
     
+    std::cout << "  - Event indices found: " << eventIndices.size() << std::endl;
+    
+    if (eventIndices.empty()) {
+        std::cout << "  - ERROR: No event indices found! Cannot extract features." << std::endl;
+        return result;  // Return empty result
+    }
+    
     for (size_t i = 0; i < eventIndices.size(); ++i) {
+        if (i < 3) {
+            std::cout << "[DEBUG] Processing event " << i << " at price index " << eventIndices[i] << std::endl;
+        }
+        
         auto baseFeatures = FeatureCalculator::calculateFeatures(
             prices, timestamps, eventIndices, int(i), backendFeatures
         );
         
+        if (i < 3) {
+            std::cout << "  - Base features calculated: " << baseFeatures.size() << std::endl;
+        }
+        
         auto enhancedFeatures = enhanceFeatures(baseFeatures, rows[eventIndices[i]]);
+        
+        if (i < 3) {
+            std::cout << "  - Enhanced features: " << enhancedFeatures.size() << std::endl;
+        }
         
         result.features.push_back(enhancedFeatures);
         result.labels_double.push_back(labeledEvents[i].ttbm_label);
         result.returns.push_back(labeledEvents[i].exit_price - labeledEvents[i].entry_price);
+        
+        // Only show debug output for first few events to avoid spam
+        if (i == 3) {
+            std::cout << "  - (Suppressing debug output for remaining events...)" << std::endl;
+        }
     }
-    
+
     for (auto& featureRow : result.features) {
         for (auto& kv : featureRow) {
             if (std::isnan(kv.second) || std::isinf(kv.second)) {
@@ -130,6 +181,8 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
                   << "Zero: " << zero_count << " (" << (100.0*zero_count/result.labels_double.size()) << "%)" << std::endl;
     }
     
+    std::cout << "  - Final result: " << result.features.size() << " feature rows extracted" << std::endl;
+    
     return result;
 }
 
@@ -138,13 +191,41 @@ std::vector<int> FeatureExtractor::findEventIndices(
     const std::vector<LabeledEvent>& labeledEvents
 ) {
     std::vector<int> eventIndices;
-    for (const auto& event : labeledEvents) {
+    
+    std::cout << "[DEBUG] Finding event indices:" << std::endl;
+    std::cout << "  - Total rows: " << rows.size() << std::endl;
+    std::cout << "  - Total labeled events: " << labeledEvents.size() << std::endl;
+    
+    if (rows.empty() || labeledEvents.empty()) {
+        std::cout << "  - WARNING: Empty input data!" << std::endl;
+        return eventIndices;
+    }
+    
+    // Show sample timestamps for debugging
+    if (!rows.empty()) {
+        std::cout << "  - First row timestamp: '" << rows[0].timestamp << "'" << std::endl;
+        if (rows.size() > 1) {
+            std::cout << "  - Last row timestamp: '" << rows.back().timestamp << "'" << std::endl;
+        }
+    }
+    
+    int found_count = 0;
+    for (size_t i = 0; i < labeledEvents.size(); ++i) {
+        const auto& event = labeledEvents[i];
         auto it = std::find_if(rows.begin(), rows.end(), 
             [&](const PreprocessedRow& r) { return r.timestamp == event.entry_time; });
         if (it != rows.end()) {
             eventIndices.push_back(int(std::distance(rows.begin(), it)));
+            found_count++;
+        } else {
+            std::cout << "  - Event " << i << " with entry_time '" << event.entry_time 
+                     << "' not found in rows!" << std::endl;
         }
     }
+    
+    std::cout << "  - Found " << found_count << " matching events out of " 
+              << labeledEvents.size() << " total events" << std::endl;
+    
     return eventIndices;
 }
 

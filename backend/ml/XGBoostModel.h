@@ -2,11 +2,7 @@
 #include <vector>
 #include <string>
 #include <memory>
-
-// Forward declarations for XGBoost C API
-struct BoosterImpl;
-typedef struct BoosterImpl* BoosterHandle;
-typedef unsigned long bst_ulong;
+#include <map>
 
 namespace MLPipeline {
 
@@ -23,6 +19,7 @@ struct XGBoostConfig {
     double reg_lambda = 1.0;
     double min_child_weight = 1.0;
     double binary_threshold = 0.5;
+    int num_class = 0;  // For multi-class objectives
 };
 
 // Abstract ML model interface
@@ -72,11 +69,15 @@ public:
     const std::vector<std::string>& get_feature_names() const { return feature_names_; }
     
 private:
-    BoosterHandle booster_ = nullptr;
+    void* booster_ = nullptr;
     int n_features_ = 0;
     std::vector<std::string> feature_names_;
     XGBoostConfig config_;
     bool trained_ = false;
+    
+    // Label mapping for multi-class (original_label -> xgboost_index)
+    std::map<float, int> label_mapping_;
+    std::map<int, float> reverse_label_mapping_;
     
     void free_booster();
     void validate_input_dimensions(const std::vector<std::vector<float>>& X) const;

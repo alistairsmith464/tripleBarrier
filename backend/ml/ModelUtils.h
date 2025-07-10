@@ -22,13 +22,18 @@ public:
     
     // Feature preprocessing utilities
     struct PreprocessingConfig {
-        bool normalize_features = false;
-        bool scale_features = false;
-        bool encode_categorical = false;
-        bool remove_constant_features = false;
-        bool remove_correlated_features = false;
-        double correlation_threshold = 0.95;
-        std::string scaling_method = "standard"; // "standard", "minmax", "robust"
+        bool normalize_features;
+        bool scale_features;
+        bool encode_categorical;
+        bool remove_constant_features;
+        bool remove_correlated_features;
+        double correlation_threshold;
+        std::string scaling_method;
+        
+        PreprocessingConfig() : normalize_features(false), scale_features(false), 
+                               encode_categorical(false), remove_constant_features(false),
+                               remove_correlated_features(false), correlation_threshold(0.95),
+                               scaling_method("standard") {}
     };
     
     struct PreprocessingResult {

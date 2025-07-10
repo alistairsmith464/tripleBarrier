@@ -1,10 +1,13 @@
 #include "XGBoostModel.h"
+#include <xgboost/c_api.h>
 #include <cassert>
 #include <cstring>
 #include <sstream>
 #include <iostream>
-#include <stdexcept>
 #include <fstream>
+#include <cmath>
+#include <algorithm>
+#include <set>
 
 namespace MLPipeline {
 
@@ -17,6 +20,7 @@ XGBoostModel::~XGBoostModel() {
 XGBoostModel::XGBoostModel(XGBoostModel&& other) noexcept 
     : booster_(other.booster_), n_features_(other.n_features_), 
       feature_names_(std::move(other.feature_names_)), config_(other.config_), trained_(other.trained_) {
+    other.booster_ = nullptr;
     other.booster_ = nullptr;
     other.n_features_ = 0;
     other.trained_ = false;
@@ -43,11 +47,13 @@ void XGBoostModel::clear() {
     trained_ = false;
     n_features_ = 0;
     feature_names_.clear();
+    label_mapping_.clear();
+    reverse_label_mapping_.clear();
 }
 
 void XGBoostModel::free_booster() {
     if (booster_) {
-        XGBoosterFree(booster_);
+        XGBoosterFree(static_cast<BoosterHandle>(booster_));
         booster_ = nullptr;
     }
 }
@@ -74,32 +80,38 @@ void XGBoostModel::validate_input_dimensions(const std::vector<std::vector<float
 void XGBoostModel::set_xgboost_parameters(const XGBoostConfig& config) {
     int ret;
     
-    ret = XGBoosterSetParam(booster_, "objective", config.objective.c_str());
+    ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "objective", config.objective.c_str());
     if (ret != 0) throw std::runtime_error("Failed to set objective parameter");
     
-    ret = XGBoosterSetParam(booster_, "max_depth", std::to_string(config.max_depth).c_str());
+    ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "max_depth", std::to_string(config.max_depth).c_str());
     if (ret != 0) throw std::runtime_error("Failed to set max_depth parameter");
     
-    ret = XGBoosterSetParam(booster_, "nthread", std::to_string(config.nthread).c_str());
+    ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "nthread", std::to_string(config.nthread).c_str());
     if (ret != 0) throw std::runtime_error("Failed to set nthread parameter");
     
-    ret = XGBoosterSetParam(booster_, "learning_rate", std::to_string(config.learning_rate).c_str());
+    ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "learning_rate", std::to_string(config.learning_rate).c_str());
     if (ret != 0) throw std::runtime_error("Failed to set learning_rate parameter");
     
-    ret = XGBoosterSetParam(booster_, "subsample", std::to_string(config.subsample).c_str());
+    ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "subsample", std::to_string(config.subsample).c_str());
     if (ret != 0) throw std::runtime_error("Failed to set subsample parameter");
     
-    ret = XGBoosterSetParam(booster_, "colsample_bytree", std::to_string(config.colsample_bytree).c_str());
+    ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "colsample_bytree", std::to_string(config.colsample_bytree).c_str());
     if (ret != 0) throw std::runtime_error("Failed to set colsample_bytree parameter");
     
-    ret = XGBoosterSetParam(booster_, "reg_alpha", std::to_string(config.reg_alpha).c_str());
+    ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "reg_alpha", std::to_string(config.reg_alpha).c_str());
     if (ret != 0) throw std::runtime_error("Failed to set reg_alpha parameter");
     
-    ret = XGBoosterSetParam(booster_, "reg_lambda", std::to_string(config.reg_lambda).c_str());
+    ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "reg_lambda", std::to_string(config.reg_lambda).c_str());
     if (ret != 0) throw std::runtime_error("Failed to set reg_lambda parameter");
     
-    ret = XGBoosterSetParam(booster_, "min_child_weight", std::to_string(config.min_child_weight).c_str());
+    ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "min_child_weight", std::to_string(config.min_child_weight).c_str());
     if (ret != 0) throw std::runtime_error("Failed to set min_child_weight parameter");
+    
+    // Set num_class for multi-class objectives
+    if (config.num_class > 0 && (config.objective.find("multi:") == 0)) {
+        ret = XGBoosterSetParam(static_cast<BoosterHandle>(booster_), "num_class", std::to_string(config.num_class).c_str());
+        if (ret != 0) throw std::runtime_error("Failed to set num_class parameter");
+    }
 }
 
 void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vector<float>& y, const XGBoostConfig& config) {
@@ -111,11 +123,86 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
         throw std::invalid_argument("Feature matrix and target vector must have the same number of samples");
     }
     
-    clear();
+    std::cout << "[DEBUG] XGBoostModel::fit called" << std::endl;
+    std::cout << "  - Samples: " << X.size() << std::endl;
+    std::cout << "  - Features: " << (X.empty() ? 0 : X[0].size()) << std::endl;
+    std::cout << "  - Objective: " << config.objective << std::endl;
+    std::cout << "  - n_rounds: " << config.n_rounds << std::endl;
+    
+    int nan_count = 0, inf_count = 0;
+    for (size_t i = 0; i < X.size(); ++i) {
+        for (size_t j = 0; j < X[i].size(); ++j) {
+            if (std::isnan(X[i][j])) nan_count++;
+            if (std::isinf(X[i][j])) inf_count++;
+        }
+        if (std::isnan(y[i]) || std::isinf(y[i])) {
+            std::cout << "  - WARNING: Invalid label at index " << i << ": " << y[i] << std::endl;
+        }
+    }
+    
+    std::cout << "  - NaN features: " << nan_count << std::endl;
+    std::cout << "  - Inf features: " << inf_count << std::endl;
+    
+    // Debug label values
+    std::cout << "  - Label range check:" << std::endl;
+    float min_label = *std::min_element(y.begin(), y.end());
+    float max_label = *std::max_element(y.begin(), y.end());
+    std::cout << "    Min label: " << min_label << std::endl;
+    std::cout << "    Max label: " << max_label << std::endl;
+    
+    // Count unique labels
+    std::set<float> unique_labels(y.begin(), y.end());
+    std::cout << "    Unique labels: ";
+    for (float label : unique_labels) {
+        std::cout << label << " ";
+    }
+    std::cout << std::endl;
+    
+    // Check if we need to adjust the objective for multi-class
+    XGBoostConfig adjusted_config = config;
+    std::vector<float> adjusted_y = y;
+    
+    if (unique_labels.size() > 2 && config.objective == "binary:logistic") {
+        adjusted_config.objective = "multi:softmax";
+        std::cout << "  - WARNING: Detected " << unique_labels.size() << " classes but objective is binary:logistic" << std::endl;
+        std::cout << "  - Switching to multi:softmax objective" << std::endl;
+        
+        // For multi-class, XGBoost expects labels to be 0, 1, 2, ...
+        // Map our labels to 0-indexed, but we'll map back in predictions
+        std::vector<float> sorted_labels(unique_labels.begin(), unique_labels.end());
+        std::sort(sorted_labels.begin(), sorted_labels.end());
+        
+        std::cout << "  - Internal mapping: ";
+        for (size_t i = 0; i < sorted_labels.size(); ++i) {
+            std::cout << sorted_labels[i] << "->" << i << " ";
+        }
+        std::cout << std::endl;
+        
+        label_mapping_.clear();
+        reverse_label_mapping_.clear();
+        for (size_t i = 0; i < sorted_labels.size(); ++i) {
+            label_mapping_[sorted_labels[i]] = i;
+            reverse_label_mapping_[i] = sorted_labels[i];
+        }
+        
+        for (size_t i = 0; i < adjusted_y.size(); ++i) {
+            adjusted_y[i] = label_mapping_[y[i]];
+        }
+        
+        adjusted_config.num_class = static_cast<int>(unique_labels.size());
+    }
+    
+    std::cout << "  - Using objective: " << adjusted_config.objective << std::endl;
+    std::cout << "  - Starting XGBoost training..." << std::endl;
+    
+    free_booster();
+    trained_ = false;
+    n_features_ = 0;
+    feature_names_.clear();
     
     int n_samples = static_cast<int>(X.size());
     n_features_ = static_cast<int>(X[0].size());
-    config_ = config;
+    config_ = adjusted_config;  // Use adjusted config
     
     // Validate feature dimensions are consistent
     for (const auto& row : X) {
@@ -124,7 +211,6 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
         }
     }
     
-    // Flatten feature matrix
     std::vector<float> flat_X;
     flat_X.reserve(n_samples * n_features_);
     for (const auto& row : X) {
@@ -139,21 +225,31 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
     }
     
     try {
-        ret = XGDMatrixSetFloatInfo(dtrain, "label", y.data(), n_samples);
+        ret = XGDMatrixSetFloatInfo(dtrain, "label", adjusted_y.data(), n_samples);  // Use adjusted labels
         if (ret != 0) throw std::runtime_error("Failed to set labels");
         
-        ret = XGBoosterCreate(&dtrain, 1, &booster_);
+        BoosterHandle temp_booster;
+        ret = XGBoosterCreate(&dtrain, 1, &temp_booster);
         if (ret != 0) throw std::runtime_error("Failed to create XGBoost booster");
+        booster_ = temp_booster;
         
-        set_xgboost_parameters(config);
+        set_xgboost_parameters(adjusted_config);  // Use adjusted config
+        
+        std::cout << "  - Starting XGBoost training..." << std::endl;
         
         // Train the model
         for (int iter = 0; iter < config.n_rounds; ++iter) {
-            ret = XGBoosterUpdateOneIter(booster_, iter, dtrain);
+            ret = XGBoosterUpdateOneIter(static_cast<BoosterHandle>(booster_), iter, dtrain);
             if (ret != 0) {
-                throw std::runtime_error("Training failed at iteration " + std::to_string(iter));
+                const char* error_msg = XGBGetLastError();
+                std::string full_error = "Training failed at iteration " + std::to_string(iter) + 
+                                       ". XGBoost error: " + std::string(error_msg);
+                std::cout << "  - ERROR: " << full_error << std::endl;
+                throw std::runtime_error(full_error);
             }
         }
+        
+        std::cout << "  - Training completed successfully!" << std::endl;
         
         trained_ = true;
         
@@ -174,8 +270,23 @@ std::vector<int> XGBoostModel::predict(const std::vector<std::vector<float>>& X)
     std::vector<int> predictions;
     predictions.reserve(raw_predictions.size());
     
-    for (float prob : raw_predictions) {
-        predictions.push_back((prob > config_.binary_threshold) ? 1 : 0);
+    // Handle different objectives
+    if (config_.objective == "multi:softmax") {
+        // Multi-class: map XGBoost indices back to original labels
+        for (float pred : raw_predictions) {
+            int xgb_index = static_cast<int>(pred);
+            if (reverse_label_mapping_.count(xgb_index)) {
+                predictions.push_back(static_cast<int>(reverse_label_mapping_.at(xgb_index)));
+            } else {
+                // Fallback if mapping not found
+                predictions.push_back(xgb_index);
+            }
+        }
+    } else {
+        // Binary classification logic
+        for (float prob : raw_predictions) {
+            predictions.push_back((prob > config_.binary_threshold) ? 1 : 0);
+        }
     }
     
     return predictions;
@@ -208,7 +319,7 @@ std::vector<float> XGBoostModel::predict_raw(const std::vector<std::vector<float
         bst_ulong out_len;
         const float* out_result;
         
-        ret = XGBoosterPredict(booster_, dtest, 0, 0, 0, &out_len, &out_result);
+        ret = XGBoosterPredict(static_cast<BoosterHandle>(booster_), dtest, 0, 0, 0, &out_len, &out_result);
         if (ret != 0) {
             throw std::runtime_error("Prediction failed");
         }
@@ -229,7 +340,7 @@ void XGBoostModel::save_model(const std::string& filename) const {
         throw std::runtime_error("Cannot save untrained model");
     }
     
-    int ret = XGBoosterSaveModel(booster_, filename.c_str());
+    int ret = XGBoosterSaveModel(static_cast<BoosterHandle>(booster_), filename.c_str());
     if (ret != 0) {
         throw std::runtime_error("Failed to save model to " + filename);
     }
@@ -245,12 +356,14 @@ void XGBoostModel::load_model(const std::string& filename) {
     }
     file.close();
     
-    int ret = XGBoosterCreate(nullptr, 0, &booster_);
+    BoosterHandle temp_booster;
+    int ret = XGBoosterCreate(nullptr, 0, &temp_booster);
     if (ret != 0) {
         throw std::runtime_error("Failed to create booster for loading");
     }
+    booster_ = temp_booster;
     
-    ret = XGBoosterLoadModel(booster_, filename.c_str());
+    ret = XGBoosterLoadModel(static_cast<BoosterHandle>(booster_), filename.c_str());
     if (ret != 0) {
         free_booster();
         throw std::runtime_error("Failed to load model from " + filename);

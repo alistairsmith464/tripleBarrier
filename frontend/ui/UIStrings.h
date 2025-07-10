@@ -27,6 +27,7 @@ namespace UIStrings {
     // Dialog Titles
     constexpr const char* BARRIER_CONFIG_TITLE = "Barrier Configuration";
     constexpr const char* FEATURE_SELECTION_TITLE = "Feature Selection";
+    constexpr const char* FEATURE_PREVIEW_TITLE = "Feature Preview";
     constexpr const char* ML_HYPERPARAMS_TITLE = "ML Hyperparameters";
     constexpr const char* ERROR_TITLE = "Error";
     constexpr const char* WARNING_TITLE = "Warning";
@@ -82,6 +83,7 @@ namespace UIStrings {
     
     // File Dialogs
     constexpr const char* SELECT_CSV_FILE = "Select CSV File";
+    constexpr const char* EXPORT_CSV_TITLE = "Export CSV File";
     constexpr const char* CSV_FILTER = "CSV Files (*.csv)";
     constexpr const char* ALL_FILES_FILTER = "All Files (*)";
     constexpr const char* SAVE_MODEL = "Save Model";

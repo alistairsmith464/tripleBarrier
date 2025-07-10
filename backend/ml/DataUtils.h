@@ -13,17 +13,18 @@ struct UnifiedPipelineConfig;
 // Data cleaning and preprocessing utilities
 class DataProcessor {
 public:
-    // Data cleaning options
     struct CleaningOptions {
-        bool remove_nan = true;
-        bool remove_inf = true;
-        bool remove_outliers = false;
-        double outlier_threshold = 3.0; // z-score threshold
-        bool normalize_features = false;
-        bool log_cleaning = false;
+        bool remove_nan;
+        bool remove_inf;
+        bool remove_outliers;
+        double outlier_threshold;
+        bool normalize_features;
+        bool log_cleaning;
+        
+        CleaningOptions() : remove_nan(true), remove_inf(true), remove_outliers(false), 
+                           outlier_threshold(3.0), normalize_features(false), log_cleaning(false) {}
     };
     
-    // Data cleaning with comprehensive validation
     template<typename T>
     static std::tuple<std::vector<std::map<std::string, double>>, std::vector<T>, std::vector<double>>
     cleanData(const std::vector<std::map<std::string, double>>& X, 

@@ -14,16 +14,35 @@ ModelUtils::toFloatMatrix(const std::vector<std::map<std::string, double>>& X, b
         throw std::invalid_argument("Input matrix cannot be empty");
     }
     
+    if (X.empty()) {
+        return {};
+    }
+    
+    // Collect all unique feature names in a consistent order
+    std::set<std::string> feature_names_set;
+    for (const auto& row : X) {
+        for (const auto& [key, value] : row) {
+            feature_names_set.insert(key);
+        }
+    }
+    
+    // Convert to vector for consistent ordering
+    std::vector<std::string> feature_names(feature_names_set.begin(), feature_names_set.end());
+    
     std::vector<std::vector<float>> result;
     result.reserve(X.size());
     
     for (const auto& row : X) {
         std::vector<float> float_row;
-        float_row.reserve(row.size());
+        float_row.reserve(feature_names.size());
         
-        for (const auto& [key, value] : row) {
+        // Add features in consistent order, use 0.0 for missing features
+        for (const std::string& feature_name : feature_names) {
+            auto it = row.find(feature_name);
+            double value = (it != row.end()) ? it->second : 0.0;
+            
             if (validate_input && (std::isnan(value) || std::isinf(value))) {
-                throw std::invalid_argument("Input contains NaN or Inf values");
+                throw std::invalid_argument("Input contains NaN or Inf values in feature: " + feature_name);
             }
             float_row.push_back(static_cast<float>(value));
         }
@@ -463,7 +482,7 @@ void ModelUtils::checkDataConsistency(const std::vector<std::map<std::string, do
         for (const auto& feature : missing_in_train) {
             error_msg += feature + " ";
         }
-        std::invalid_argument(error_msg);
+        throw std::invalid_argument(error_msg);
     }
 }
 

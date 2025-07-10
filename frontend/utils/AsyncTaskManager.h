@@ -1,85 +1,92 @@
 #pragma once
 #include <QObject>
-#include <QFuture>
-#include <QFutureWatcher>
-#include <QtConcurrent>
-#include <QProgressDialog>
 #include <QTimer>
+#include <QProgressDialog>
+#include <QVariant>
+#include <QMetaObject>
 #include <functional>
 #include <memory>
+#include <thread>
+#include <future>
+#include <atomic>
+#include <chrono>
 
-template<typename T>
-class AsyncTask : public QObject {
+class AsyncTaskBase : public QObject {
     Q_OBJECT
     
+public:
+    AsyncTaskBase(QObject* parent = nullptr) : QObject(parent) {}
+    virtual ~AsyncTaskBase() = default;
+    
+public slots:
+    virtual void cancel() = 0;
+    
+signals:
+    void progressChanged(int progress);
+    void cancelled();
+    void completed(const QVariant& result);
+    void error(const QString& message);
+    
+protected slots:
+    void onProgressChanged(int progress) {
+        emit progressChanged(progress);
+    }
+};
+
+template<typename T>
+class AsyncTask : public AsyncTaskBase {
 public:
     using TaskFunction = std::function<T()>;
     using ProgressCallback = std::function<void(int)>;
     using CompletionCallback = std::function<void(const T&)>;
     using ErrorCallback = std::function<void(const QString&)>;
     
-    AsyncTask(QObject* parent = nullptr) : QObject(parent) {
-        m_watcher = std::make_unique<QFutureWatcher<T>>();
-        connect(m_watcher.get(), &QFutureWatcher<T>::finished, this, &AsyncTask::onFinished);
-        connect(m_watcher.get(), &QFutureWatcher<T>::progressValueChanged, this, &AsyncTask::onProgressChanged);
-    }
+    AsyncTask(QObject* parent = nullptr) : AsyncTaskBase(parent), m_running(false) {}
     
     void run(TaskFunction task) {
-        m_future = QtConcurrent::run(task);
-        m_watcher->setFuture(m_future);
+        if (m_running) return;
+        
+        m_running = true;
+        m_future = std::async(std::launch::async, [this, task]() {
+            try {
+                T result = task();
+                QMetaObject::invokeMethod(this, [this, result]() {
+                    m_running = false;
+                    emit completed(QVariant::fromValue(result));
+                    if (m_completionCallback) {
+                        m_completionCallback(result);
+                    }
+                }, Qt::QueuedConnection);
+                return result;
+            } catch (const std::exception& e) {
+                QMetaObject::invokeMethod(this, [this, e]() {
+                    m_running = false;
+                    QString errorMsg = QString::fromStdString(e.what());
+                    emit error(errorMsg);
+                    if (m_errorCallback) {
+                        m_errorCallback(errorMsg);
+                    }
+                }, Qt::QueuedConnection);
+                throw;
+            }
+        });
     }
     
     void setProgressCallback(ProgressCallback callback) { m_progressCallback = callback; }
     void setCompletionCallback(CompletionCallback callback) { m_completionCallback = callback; }
     void setErrorCallback(ErrorCallback callback) { m_errorCallback = callback; }
     
-    void cancel() {
-        if (m_future.isRunning()) {
-            m_future.cancel();
-        }
+    void cancel() override {
+        m_running = false;
+        emit cancelled();
     }
     
-    bool isRunning() const { return m_future.isRunning(); }
-    bool isFinished() const { return m_future.isFinished(); }
-    
-signals:
-    void progressChanged(int percentage);
-    void completed(const T& result);
-    void error(const QString& message);
-    void cancelled();
-    
-private slots:
-    void onFinished() {
-        if (m_future.isCanceled()) {
-            emit cancelled();
-            return;
-        }
-        
-        try {
-            T result = m_future.result();
-            if (m_completionCallback) {
-                m_completionCallback(result);
-            }
-            emit completed(result);
-        } catch (const std::exception& ex) {
-            QString errorMsg = QString("Task failed: %1").arg(ex.what());
-            if (m_errorCallback) {
-                m_errorCallback(errorMsg);
-            }
-            emit error(errorMsg);
-        }
-    }
-    
-    void onProgressChanged(int progress) {
-        if (m_progressCallback) {
-            m_progressCallback(progress);
-        }
-        emit progressChanged(progress);
-    }
+    bool isRunning() const { return m_running; }
+    bool isFinished() const { return m_future.valid() && m_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready; }
     
 private:
-    QFuture<T> m_future;
-    std::unique_ptr<QFutureWatcher<T>> m_watcher;
+    std::future<T> m_future;
+    std::atomic<bool> m_running;
     ProgressCallback m_progressCallback;
     CompletionCallback m_completionCallback;
     ErrorCallback m_errorCallback;
@@ -114,24 +121,25 @@ public:
         progressDialog->setMinimumDuration(500); // Show after 500ms
         
         // Connect progress
-        connect(asyncTask.get(), &AsyncTask<T>::progressChanged, 
+        connect(asyncTask.get(), &AsyncTaskBase::progressChanged, 
                 progressDialog.get(), &QProgressDialog::setValue);
         
         // Connect cancel
         connect(progressDialog.get(), &QProgressDialog::canceled,
-                asyncTask.get(), &AsyncTask<T>::cancel);
+                asyncTask.get(), &AsyncTaskBase::cancel);
         
         // Connect completion
-        connect(asyncTask.get(), &AsyncTask<T>::completed, 
-                [progressDialog = std::move(progressDialog), onComplete](const T& result) {
+        connect(asyncTask.get(), &AsyncTaskBase::completed, 
+                [progressDialog = std::move(progressDialog), onComplete](const QVariant& variantResult) {
                     progressDialog->close();
                     if (onComplete) {
+                        T result = variantResult.value<T>();
                         onComplete(result);
                     }
                 });
         
         // Connect error
-        connect(asyncTask.get(), &AsyncTask<T>::error,
+        connect(asyncTask.get(), &AsyncTaskBase::error,
                 [progressDialog = progressDialog.get(), onError](const QString& error) {
                     progressDialog->close();
                     if (onError) {
@@ -140,7 +148,7 @@ public:
                 });
         
         // Connect cancelled
-        connect(asyncTask.get(), &AsyncTask<T>::cancelled,
+        connect(asyncTask.get(), &AsyncTaskBase::cancelled,
                 [progressDialog = progressDialog.get()]() {
                     progressDialog->close();
                 });
@@ -151,11 +159,11 @@ public:
         m_activeTasks.push_back(std::static_pointer_cast<QObject>(asyncTask));
         
         // Clean up completed tasks
-        connect(asyncTask.get(), &AsyncTask<T>::completed,
+        connect(asyncTask.get(), &AsyncTaskBase::completed,
                 this, [this, asyncTask]() { removeTask(asyncTask); });
-        connect(asyncTask.get(), &AsyncTask<T>::error,
+        connect(asyncTask.get(), &AsyncTaskBase::error,
                 this, [this, asyncTask]() { removeTask(asyncTask); });
-        connect(asyncTask.get(), &AsyncTask<T>::cancelled,
+        connect(asyncTask.get(), &AsyncTaskBase::cancelled,
                 this, [this, asyncTask]() { removeTask(asyncTask); });
     }
     
@@ -172,5 +180,3 @@ private:
     
     std::vector<std::shared_ptr<QObject>> m_activeTasks;
 };
-
-#include "AsyncTaskManager.moc"

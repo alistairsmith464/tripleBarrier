@@ -1,20 +1,38 @@
 #include "PortfolioSimulator.h"
+#include "../data/LabeledEvent.h"
+#include "../data/PreprocessedRow.h"
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include <iostream>
+#include <numeric>
 
 namespace MLPipeline {
 
 PortfolioSimulation simulate_portfolio(
-    const std::vector<double>& signals,
+    const std::vector<double>& trading_signals,
     const std::vector<double>& returns,
     bool is_hard_barrier,
     const PortfolioConfig& portfolio_config
 ) {
-    if (signals.empty() || returns.empty()) {
+    std::cout << "DEBUG: simulate_portfolio called with " << trading_signals.size() 
+              << " signals and " << returns.size() << " returns" << std::endl;
+    std::cout << "DEBUG: is_hard_barrier = " << (is_hard_barrier ? "true" : "false") << std::endl;
+    std::cout << "DEBUG: Starting capital = " << portfolio_config.starting_capital << std::endl;
+    std::cout << "DEBUG: Position threshold = " << portfolio_config.position_threshold << std::endl;
+    std::cout << "DEBUG: Hard barrier position % = " << portfolio_config.hard_barrier_position_pct << std::endl;
+    
+    // Debug: Show first 10 trading signals
+    std::cout << "DEBUG: First 10 trading signals: ";
+    for (size_t i = 0; i < std::min(size_t(10), trading_signals.size()); ++i) {
+        std::cout << trading_signals[i] << " ";
+    }
+    std::cout << std::endl;
+    
+    if (trading_signals.empty() || returns.empty()) {
         throw std::invalid_argument("Signals and returns cannot be empty");
     }
-    if (signals.size() != returns.size()) {
+    if (trading_signals.size() != returns.size()) {
         throw std::invalid_argument("Signals and returns must have the same size");
     }
     
@@ -29,24 +47,31 @@ PortfolioSimulation simulate_portfolio(
     double total_pnl = 0;
     std::vector<std::string> trade_decisions;
     
-    for (size_t i = 0; i < signals.size(); ++i) {
+    for (size_t i = 0; i < trading_signals.size(); ++i) {
         double position_pct = 0;
         std::string decision;
         
         if (is_hard_barrier) {
-            if (signals[i] > 0.5) {
+            if (trading_signals[i] > 0.5) {
                 position_pct = portfolio_config.hard_barrier_position_pct;
                 decision = "BUY " + std::to_string(portfolio_config.hard_barrier_position_pct * 100) + "%";
-            } else if (signals[i] < -0.5) {
+            } else if (trading_signals[i] < -0.5) {
                 position_pct = -portfolio_config.hard_barrier_position_pct;
                 decision = "SELL " + std::to_string(portfolio_config.hard_barrier_position_pct * 100) + "%";
             } else {
                 position_pct = 0;
                 decision = "HOLD";
             }
+            
+            // Debug first few decisions
+            if (i < 5) {
+                std::cout << "DEBUG: Signal[" << i << "] = " << trading_signals[i] 
+                         << " -> position_pct = " << position_pct 
+                         << " (threshold = 0.5)" << std::endl;
+            }
         } else {
-            position_pct = std::min(std::abs(signals[i]) * portfolio_config.max_position_pct, portfolio_config.max_position_pct);
-            if (signals[i] < 0) position_pct = -position_pct;
+            position_pct = std::min(std::abs(trading_signals[i]) * portfolio_config.max_position_pct, portfolio_config.max_position_pct);
+            if (trading_signals[i] < 0) position_pct = -position_pct;
             
             if (position_pct > portfolio_config.position_threshold) {
                 decision = "BUY " + std::to_string(position_pct * 100) + "%";
@@ -77,9 +102,9 @@ PortfolioSimulation simulate_portfolio(
     double total_return = (capital - portfolio_config.starting_capital) / portfolio_config.starting_capital;
     double max_drawdown = (max_capital - min_capital) / max_capital;
     
-    double annualized_return = total_return * portfolio_config.trading_days_per_year / signals.size();
+    double annualized_return = total_return * portfolio_config.trading_days_per_year / trading_signals.size();
     
-    double avg_daily_return = total_return / signals.size();
+    double avg_daily_return = total_return / trading_signals.size();
     double daily_variance = 0;
     if (capital_history.size() > 1) {
         for (size_t i = 1; i < capital_history.size(); ++i) {
@@ -93,8 +118,89 @@ PortfolioSimulation simulate_portfolio(
     
     double win_rate = total_trades > 0 ? winning_trades / static_cast<double>(total_trades) : 0;
     
+    std::cout << "DEBUG: Portfolio simulation completed:" << std::endl;
+    std::cout << "  Total trades: " << total_trades << std::endl;
+    std::cout << "  Win rate: " << win_rate << std::endl;
+    std::cout << "  Final capital: " << capital << std::endl;
+    std::cout << "  Total return: " << total_return << std::endl;
+    
     return {portfolio_config.starting_capital, capital, total_return, annualized_return, max_drawdown, 
             sharpe_ratio, total_trades, win_rate, trade_decisions};
+}
+
+BarrierDiagnostics analyzeBarriers(
+    const std::vector<LabeledEvent>& labeledEvents,
+    const std::vector<PreprocessedRow>& rows
+) {
+    BarrierDiagnostics diagnostics;
+    
+    if (labeledEvents.empty()) return diagnostics;
+    
+    std::vector<double> entry_prices, profit_barriers, stop_barriers;
+    std::vector<int> profit_times, stop_times, time_times;
+    
+    for (const auto& event : labeledEvents) {
+        if (event.label == 1) {
+            diagnostics.profit_hits++;
+            profit_times.push_back(event.periods_to_exit);
+        } else if (event.label == -1) {
+            diagnostics.stop_hits++;
+            stop_times.push_back(event.periods_to_exit);
+        } else {
+            diagnostics.time_hits++;
+            time_times.push_back(event.periods_to_exit);
+        }
+        
+        // Find matching row for volatility information
+        for (const auto& row : rows) {
+            if (row.timestamp == event.entry_time) {
+                diagnostics.avg_volatility += row.volatility;
+                diagnostics.max_volatility = std::max(diagnostics.max_volatility, row.volatility);
+                
+                if (diagnostics.min_volatility == 0.0) {
+                    diagnostics.min_volatility = row.volatility;
+                } else {
+                    diagnostics.min_volatility = std::min(diagnostics.min_volatility, row.volatility);
+                }
+                
+                double entry_price = row.price;
+                double exit_price = event.exit_price;
+                double price_move = std::abs(exit_price - entry_price);
+                double volatility = row.volatility;
+                
+                double estimated_multiple = volatility > 0 ? price_move / volatility : 0.0;
+                double profit_barrier = entry_price + estimated_multiple * volatility;
+                double stop_barrier = entry_price - estimated_multiple * volatility;
+                
+                entry_prices.push_back(entry_price);
+                profit_barriers.push_back(profit_barrier);
+                stop_barriers.push_back(stop_barrier);
+                break;
+            }
+        }
+    }
+    
+    diagnostics.avg_volatility /= labeledEvents.size();
+    
+    if (!entry_prices.empty()) {
+        diagnostics.avg_entry_price = std::accumulate(entry_prices.begin(), entry_prices.end(), 0.0) / entry_prices.size();
+        diagnostics.avg_profit_barrier = std::accumulate(profit_barriers.begin(), profit_barriers.end(), 0.0) / profit_barriers.size();
+        diagnostics.avg_stop_barrier = std::accumulate(stop_barriers.begin(), stop_barriers.end(), 0.0) / stop_barriers.size();
+        
+        diagnostics.barrier_width_pct = ((diagnostics.avg_profit_barrier - diagnostics.avg_stop_barrier) / diagnostics.avg_entry_price) * 100.0;
+        diagnostics.profit_distance_pct = ((diagnostics.avg_profit_barrier - diagnostics.avg_entry_price) / diagnostics.avg_entry_price) * 100.0;
+        diagnostics.stop_distance_pct = ((diagnostics.avg_entry_price - diagnostics.avg_stop_barrier) / diagnostics.avg_entry_price) * 100.0;
+    }
+    
+    auto calc_avg = [](const std::vector<int>& vec) -> double {
+        return vec.empty() ? 0.0 : std::accumulate(vec.begin(), vec.end(), 0.0) / vec.size();
+    };
+    
+    diagnostics.avg_profit_time = calc_avg(profit_times);
+    diagnostics.avg_stop_time = calc_avg(stop_times);
+    diagnostics.avg_time_time = calc_avg(time_times);
+    
+    return diagnostics;
 }
 
 } // namespace MLPipeline

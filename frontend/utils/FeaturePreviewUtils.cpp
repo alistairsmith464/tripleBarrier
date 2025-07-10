@@ -12,9 +12,8 @@ std::set<std::string> FeaturePreviewUtils::convertQSetToStdSet(const QSet<QStrin
 }
 
 QString FeaturePreviewUtils::formatBarrierDiagnostics(
-    const BarrierDiagnostics& diagnostics,
-    const std::vector<LabeledEvent>& labeledEvents
-) {
+    const MLPipeline::BarrierDiagnostics& diagnostics,
+    const std::vector<LabeledEvent>& labeledEvents) {
     if (labeledEvents.empty()) {
         return "<b>Barrier Diagnostics:</b> No events to analyze";
     }
@@ -48,7 +47,7 @@ QString FeaturePreviewUtils::formatBarrierDiagnostics(
 }
 
 QString FeaturePreviewUtils::formatPortfolioResults(
-    const PortfolioResults& results,
+    const MLPipeline::PortfolioResults& results,
     bool is_ttbm
 ) {
     QString title = is_ttbm ? "<b>TTBM Regression - Portfolio Simulation:</b><br><br>" 

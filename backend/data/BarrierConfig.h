@@ -31,13 +31,13 @@ struct BarrierConfig {
         }
         if (labeling_type == TTBM) {
             if (ttbm_lambda <= 0.0) {
-                throw std::invalid_argument("BarrierConfig: ttbm_lambda must be positive (fixed at 2.0)");
+                throw std::invalid_argument("BarrierConfig: ttbm_lambda must be positive");
             }
             if (ttbm_alpha < 0.0 || ttbm_alpha > 1.0) {
-                throw std::invalid_argument("BarrierConfig: ttbm_alpha must be in [0, 1] (fixed at 0.8)");
+                throw std::invalid_argument("BarrierConfig: ttbm_alpha must be in [0, 1]");
             }
             if (ttbm_beta <= 0.0) {
-                throw std::invalid_argument("BarrierConfig: ttbm_beta must be positive (fixed at 3.0)");
+                throw std::invalid_argument("BarrierConfig: ttbm_beta must be positive");
             }
         }
         
