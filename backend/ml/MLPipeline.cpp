@@ -199,15 +199,17 @@ PipelineResult runPipeline(
 
     auto X_train_f = to_float_matrix(select_rows(X_clean, train_idx));
     auto y_train_f = to_float_vec(select_rows(y_clean, train_idx));
-    auto X_test_f = to_float_matrix(select_rows(X_clean, test_idx));
-    auto y_test = select_rows(y_clean, test_idx);
-    auto returns_test = select_rows(returns_clean, test_idx);
+    
+    // Use validation set for predictions instead of test set
+    auto X_pred_f = val_idx.empty() ? to_float_matrix(select_rows(X_clean, test_idx)) : to_float_matrix(select_rows(X_clean, val_idx));
+    auto y_pred_true = val_idx.empty() ? select_rows(y_clean, test_idx) : select_rows(y_clean, val_idx);
+    auto returns_pred = val_idx.empty() ? select_rows(returns_clean, test_idx) : select_rows(returns_clean, val_idx);
 
     XGBoostModel model;
     model.fit(X_train_f, y_train_f, config.n_rounds, config.max_depth, config.nthread, config.objective);
 
-    std::vector<int> y_pred = model.predict(X_test_f);
-    std::vector<float> y_prob = model.predict_proba(X_test_f);
+    std::vector<int> y_pred = model.predict(X_pred_f);
+    std::vector<float> y_prob = model.predict_proba(X_pred_f);
 
     std::vector<double> signals;
     bool is_hard_barrier = (config.objective == "binary:logistic");
@@ -222,7 +224,7 @@ PipelineResult runPipeline(
         }
     }
     
-    PortfolioSimulation portfolio = simulate_portfolio(signals, returns_test, is_hard_barrier);
+    PortfolioSimulation portfolio = simulate_portfolio(signals, returns_pred, is_hard_barrier);
 
     std::vector<double> y_prob_d(y_prob.begin(), y_prob.end());
     std::map<std::string, double> empty_importances;
@@ -384,17 +386,19 @@ RegressionPipelineResult runPipelineRegression(
 
     auto X_train_f = to_float_matrix(select_rows(X_clean, train_idx));
     auto y_train_f = to_float_vec_double(select_rows(y_clean, train_idx));
-    auto X_test_f = to_float_matrix(select_rows(X_clean, test_idx));
-    auto y_test = select_rows(y_clean, test_idx);
-    auto returns_test = select_rows(returns_clean, test_idx);
+    
+    // Use validation set for predictions instead of test set
+    auto X_pred_f = val_idx.empty() ? to_float_matrix(select_rows(X_clean, test_idx)) : to_float_matrix(select_rows(X_clean, val_idx));
+    auto y_pred_true = val_idx.empty() ? select_rows(y_clean, test_idx) : select_rows(y_clean, val_idx);
+    auto returns_pred = val_idx.empty() ? select_rows(returns_clean, test_idx) : select_rows(returns_clean, val_idx);
 
     XGBoostModel model;
     model.fit(X_train_f, y_train_f, config.n_rounds, config.max_depth, config.nthread, config.objective);
 
-    std::vector<float> y_pred_f = model.predict_proba(X_test_f);
+    std::vector<float> y_pred_f = model.predict_proba(X_pred_f);
     std::vector<double> y_pred_double(y_pred_f.begin(), y_pred_f.end());
 
-    PortfolioSimulation portfolio = simulate_portfolio(y_pred_double, returns_test, false);
+    PortfolioSimulation portfolio = simulate_portfolio(y_pred_double, returns_pred, false);
     
     std::vector<double> uncertainties(y_pred_double.size(), 0.0);
     std::map<std::string, double> empty_importances;

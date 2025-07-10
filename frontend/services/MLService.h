@@ -19,6 +19,10 @@ struct MLConfig {
     bool useTTBM = false;
     double crossValidationRatio = 0.2;
     int randomSeed = 42;
+    bool tuneHyperparameters = false;
+    int nRounds = 20;
+    int maxDepth = 3;
+    int nThreads = 4;
 };
 
 // ML results data transfer object
@@ -43,7 +47,8 @@ public:
     virtual FeatureExtractor::FeatureExtractionResult extractFeatures(
         const std::vector<PreprocessedRow>& rows,
         const std::vector<LabeledEvent>& labeledEvents,
-        const QSet<QString>& selectedFeatures) = 0;
+        const QSet<QString>& selectedFeatures,
+        bool useTTBM = false) = 0;
     
     // Run ML pipeline
     virtual MLResults runMLPipeline(
@@ -65,7 +70,8 @@ public:
     FeatureExtractor::FeatureExtractionResult extractFeatures(
         const std::vector<PreprocessedRow>& rows,
         const std::vector<LabeledEvent>& labeledEvents,
-        const QSet<QString>& selectedFeatures) override;
+        const QSet<QString>& selectedFeatures,
+        bool useTTBM = false) override;
     
     MLResults runMLPipeline(
         const std::vector<PreprocessedRow>& rows,

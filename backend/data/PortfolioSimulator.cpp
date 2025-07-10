@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <numeric>
 #include <cmath>
+#include <cstdio>
 
 PortfolioResults PortfolioSimulator::runSimulation(
     const std::vector<double>& predictions,
@@ -11,6 +12,24 @@ PortfolioResults PortfolioSimulator::runSimulation(
     PortfolioResults results;
     double portfolio_value = results.starting_capital;
     results.portfolio_values.push_back(portfolio_value);
+    
+    // Debug output
+    printf("DEBUG: Portfolio simulation started - %zu predictions, %zu events, is_ttbm=%s\n", 
+           predictions.size(), events.size(), is_ttbm ? "true" : "false");
+    
+    if (!predictions.empty()) {
+        double min_pred = *std::min_element(predictions.begin(), predictions.end());
+        double max_pred = *std::max_element(predictions.begin(), predictions.end());
+        printf("DEBUG: Prediction range: [%.4f, %.4f]\n", min_pred, max_pred);
+        
+        printf("DEBUG: First 10 predictions: ");
+        for (size_t i = 0; i < std::min(size_t(10), predictions.size()); ++i) {
+            printf("%.4f ", predictions[i]);
+        }
+        printf("\n");
+    }
+    
+    int trade_count = 0;
     
     for (size_t i = 0; i < predictions.size() && i < events.size(); ++i) {
         double prediction = predictions[i];
@@ -22,9 +41,16 @@ PortfolioResults PortfolioSimulator::runSimulation(
         portfolio_value *= (1.0 + trade_return);
         results.portfolio_values.push_back(portfolio_value);
         
-        if (std::abs(position_size) > 0.001) {
+        // Count trades with a smaller threshold to catch more trades
+        if (std::abs(position_size) > 0.0001) { // Lowered from 0.001
+            trade_count++;
             results.total_trades++;
             results.trade_returns.push_back(trade_return);
+            
+            if (trade_count <= 5) {
+                printf("DEBUG: Trade %d - prediction=%.4f, position_size=%.4f, actual_return=%.4f, trade_return=%.4f\n",
+                       trade_count, prediction, position_size, actual_return, trade_return);
+            }
             
             if (trade_return > 0) {
                 results.winning_trades++;
@@ -36,6 +62,8 @@ PortfolioResults PortfolioSimulator::runSimulation(
             results.worst_trade = std::min(results.worst_trade, trade_return);
         }
     }
+    
+    printf("DEBUG: Portfolio simulation completed - %d total trades generated\n", results.total_trades);
     
     results.final_value = portfolio_value;
     results.total_return = (results.final_value - results.starting_capital) / results.starting_capital;
@@ -171,17 +199,52 @@ double PortfolioSimulator::calculateMaxDrawdown(const std::vector<double>& portf
 }
 
 double PortfolioSimulator::calculatePositionSize(double prediction, bool is_ttbm) {
+    // Debug output
+    static int debug_count = 0;
+    if (debug_count < 10) {
+        printf("DEBUG: calculatePositionSize - prediction=%.4f, is_ttbm=%s\n", 
+               prediction, is_ttbm ? "true" : "false");
+        debug_count++;
+    }
+    
     if (is_ttbm) {
+        // For TTBM regression, predictions are continuous in range [-1, 1]
+        // Trade only when signal strength is reasonably strong
         double signal_strength = std::abs(prediction);
-        if (signal_strength > 0.1) {
+        
+        if (signal_strength > 0.2) {  // Lowered from 0.3 to 0.2
+            // Scale position size based on signal strength, max 3% of capital
             double position_size = std::min(signal_strength * 0.03, 0.03);
-            return prediction < 0 ? -position_size : position_size;
+            double result = prediction < 0 ? -position_size : position_size;
+            if (debug_count <= 10) {
+                printf("DEBUG: TTBM trade - signal_strength=%.4f, position_size=%.4f\n", 
+                       signal_strength, result);
+            }
+            return result;
+        } else {
+            if (debug_count <= 10) {
+                printf("DEBUG: TTBM no trade - signal_strength=%.4f <= 0.3\n", signal_strength);
+            }
         }
     } else {
+        // For hard barrier classification, predictions should be exactly -1, 0, or 1
         if (std::abs(prediction - 1.0) < 0.1) {
-            return 0.02;  // Long position
-        } else if (std::abs(prediction + 1.0) < 0.1) {
-            return -0.02;  // Short position
+            // Long position for +1 prediction
+            if (debug_count <= 10) {
+                printf("DEBUG: Hard barrier LONG trade - prediction=%.4f\n", prediction);
+            }
+            return 0.02;  // 2% long position
+        } else if (std::abs(prediction - (-1.0)) < 0.1) {
+            // Short position for -1 prediction
+            if (debug_count <= 10) {
+                printf("DEBUG: Hard barrier SHORT trade - prediction=%.4f\n", prediction);
+            }
+            return -0.02; // 2% short position
+        } else {
+            // No position for 0 or other values
+            if (debug_count <= 10) {
+                printf("DEBUG: Hard barrier no trade - prediction=%.4f (not close to -1 or +1)\n", prediction);
+            }
         }
     }
     return 0.0;  // No position

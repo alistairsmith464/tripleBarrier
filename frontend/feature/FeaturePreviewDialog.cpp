@@ -67,7 +67,14 @@ void FeaturePreviewDialog::setupUI() {
 void FeaturePreviewDialog::createFeatureTable() {
     // Create ML service instance for feature extraction
     MLServiceImpl mlService;
-    auto result = mlService.extractFeatures(m_rows, m_labeledEvents, m_selectedFeatures);
+    
+    // Determine TTBM mode for feature extraction
+    bool is_ttbm = false;
+    if (!m_labeledEvents.empty()) {
+        is_ttbm = m_labeledEvents[0].is_ttbm;
+    }
+    
+    auto result = mlService.extractFeatures(m_rows, m_labeledEvents, m_selectedFeatures, is_ttbm);
     
     // Create table widget
     QTableWidget* table = new QTableWidget(int(result.features.size()), m_selectedFeatures.size(), this);
@@ -123,6 +130,7 @@ void FeaturePreviewDialog::onRunMLClicked() {
     config.useTTBM = is_ttbm;
     config.crossValidationRatio = 0.2;
     config.randomSeed = 42;
+    config.tuneHyperparameters = m_tuneHyperparamsCheckBox->isChecked();
     
     // Run ML pipeline using service
     MLServiceImpl mlService;
