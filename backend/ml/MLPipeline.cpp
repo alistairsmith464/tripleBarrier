@@ -41,9 +41,12 @@ ResultType runPipelineTemplate(
 
     auto X_train_f = toFloatMatrix(select_rows(X_clean, train_idx));
     
-    std::vector<size_t> eval_idx = val_idx.empty() ? test_idx : val_idx;
+    std::vector<size_t> eval_idx;
     if (val_idx.empty()) {
+        eval_idx = test_idx;
         std::cerr << "Warning: No validation set available, using test set for evaluation (potential data leakage)" << std::endl;
+    } else {
+        eval_idx = val_idx;
     }
     
     auto X_eval_f = toFloatMatrix(select_rows(X_clean, eval_idx));
@@ -124,10 +127,16 @@ ResultType runPipelineWithTuningTemplate(
     std::cout << "Starting hyperparameter search with " << total_combinations << " combinations..." << std::endl;
     
     size_t combination_count = 0;
+    bool early_stop = false;
+    
     for (int n_rounds : grid.n_rounds) {
+        if (early_stop) break;
         for (int max_depth : grid.max_depth) {
+            if (early_stop) break;
             for (double lr : grid.learning_rate) {
+                if (early_stop) break;
                 for (double subsample : grid.subsample) {
+                    if (early_stop) break;
                     for (double colsample : grid.colsample_bytree) {
                         combination_count++;
                         
@@ -172,6 +181,7 @@ ResultType runPipelineWithTuningTemplate(
                             
                             if ((is_classification && score > 0.95) || (!is_classification && score > 0.99)) {
                                 std::cout << "Early stopping due to excellent performance" << std::endl;
+                                early_stop = true;
                                 break;
                             }
                             
@@ -180,6 +190,8 @@ ResultType runPipelineWithTuningTemplate(
                                      << ": " << e.what() << std::endl;
                             continue;
                         }
+                        
+                        if (early_stop) break;
                     }
                 }
             }

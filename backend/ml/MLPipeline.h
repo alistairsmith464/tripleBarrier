@@ -22,8 +22,20 @@ namespace MLPipeline {
         PurgedKFold
     };
 
-    // Unified configuration structure
+    enum class BarrierType {
+        HARD,
+        SOFT
+    };
+
+    // Original pipeline configuration structure (deprecated, use UnifiedPipelineConfig)
     struct PipelineConfig {
+        double test_size = 0.2;
+        double val_size = 0.2;
+        int n_rounds = 100;
+        int max_depth = 6;
+        int nthread = 4;
+        std::string objective = "binary:logistic";
+        
         SplitType split_type = Chronological;
         int n_splits = 5;
         int embargo = 0;
@@ -39,6 +51,28 @@ namespace MLPipeline {
             return std::abs(total - 1.0) < 1e-6 && 
                    train_ratio > 0 && val_ratio >= 0 && test_ratio >= 0;
         }
+    };
+
+    struct HyperparameterGrid {
+        std::vector<int> n_rounds = {50, 100, 200};
+        std::vector<int> max_depth = {3, 5, 7};
+        std::vector<double> learning_rate = {0.01, 0.1, 0.3};
+        std::vector<double> subsample = {0.8, 1.0};
+        std::vector<double> colsample_bytree = {0.8, 1.0};
+    };
+
+    struct UnifiedPipelineConfig {
+        double test_size = 0.2;
+        double val_size = 0.2;
+        int n_rounds = 100;
+        int max_depth = 6;
+        int nthread = 4;
+        std::string objective = "binary:logistic";
+        double learning_rate = 0.1;
+        double subsample = 1.0;
+        double colsample_bytree = 1.0;
+        BarrierType barrier_type = BarrierType::HARD;
+        HyperparameterGrid hyperparameter_grid;
     };
 
     // Template-based pipeline to reduce code duplication
@@ -88,22 +122,32 @@ namespace MLPipeline {
         const PipelineConfig& config
     );
 
-    // Hyperparameter tuning configuration
-    struct HyperparameterGrid {
-        std::vector<int> n_rounds = {50, 100, 200};
-        std::vector<int> max_depth = {3, 5, 7};
-        std::vector<int> nthread = {2, 4};
-        std::vector<double> learning_rate = {0.01, 0.1, 0.3};
-        std::vector<std::string> objective = {"binary:logistic"};
-        int max_evals = 20; // Early stopping for grid search
-    };
-
-    // Enhanced tuning function with early stopping
-    PipelineResult runPipelineWithAdvancedTuning(
+    // UnifiedPipelineConfig overloads
+    PipelineResult runPipeline(
         const std::vector<std::map<std::string, double>>& X,
         const std::vector<int>& y,
         const std::vector<double>& returns,
-        const PipelineConfig& config,
-        const HyperparameterGrid& grid
+        const UnifiedPipelineConfig& config
+    );
+
+    PipelineResult runPipelineWithTuning(
+        const std::vector<std::map<std::string, double>>& X,
+        const std::vector<int>& y,
+        const std::vector<double>& returns,
+        UnifiedPipelineConfig config
+    );
+
+    RegressionPipelineResult runPipelineRegression(
+        const std::vector<std::map<std::string, double>>& X,
+        const std::vector<double>& y,
+        const std::vector<double>& returns,
+        const UnifiedPipelineConfig& config
+    );
+
+    RegressionPipelineResult runPipelineRegressionWithTuning(
+        const std::vector<std::map<std::string, double>>& X,
+        const std::vector<double>& y,
+        const std::vector<double>& returns,
+        UnifiedPipelineConfig config
     );
 }

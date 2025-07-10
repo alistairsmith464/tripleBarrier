@@ -81,12 +81,15 @@ PortfolioSimulation simulate_portfolio(
     
     double avg_daily_return = total_return / signals.size();
     double daily_variance = 0;
-    for (size_t i = 1; i < capital_history.size(); ++i) {
-        double daily_ret = (capital_history[i] - capital_history[i-1]) / capital_history[i-1];
-        daily_variance += (daily_ret - avg_daily_return) * (daily_ret - avg_daily_return);
+    if (capital_history.size() > 1) {
+        for (size_t i = 1; i < capital_history.size(); ++i) {
+            double daily_ret = (capital_history[i] - capital_history[i-1]) / capital_history[i-1];
+            daily_variance += (daily_ret - avg_daily_return) * (daily_ret - avg_daily_return);
+        }
+        daily_variance /= (capital_history.size() - 1);
     }
-    double daily_std = std::sqrt(daily_variance / (capital_history.size() - 1));
-    double sharpe_ratio = daily_std > 0 ? avg_daily_return / daily_std * std::sqrt(portfolio_config.trading_days_per_year) : 0;
+    double daily_std = std::sqrt(daily_variance);
+    double sharpe_ratio = (daily_std > 1e-10) ? avg_daily_return / daily_std * std::sqrt(portfolio_config.trading_days_per_year) : 0;
     
     double win_rate = total_trades > 0 ? winning_trades / static_cast<double>(total_trades) : 0;
     

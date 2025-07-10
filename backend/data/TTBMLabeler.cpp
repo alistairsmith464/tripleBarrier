@@ -51,18 +51,28 @@ std::vector<LabeledEvent> TTBMLabeler::label(
             if (profit_hit != SIZE_MAX && stop_hit != SIZE_MAX) break;
         }
         
-        if (profit_hit < stop_hit) {
+        if (profit_hit != SIZE_MAX && stop_hit != SIZE_MAX) {
+            if (profit_hit < stop_hit) {
+                hard_label = +1;
+                exit_idx = profit_hit;
+                barrier_hit_time = profit_hit - event_idx;
+            } else if (stop_hit < profit_hit) {
+                hard_label = -1;
+                exit_idx = stop_hit;
+                barrier_hit_time = stop_hit - event_idx;
+            } else {
+                hard_label = +1;
+                exit_idx = profit_hit;
+                barrier_hit_time = profit_hit - event_idx;
+            }
+        } else if (profit_hit != SIZE_MAX) {
             hard_label = +1;
             exit_idx = profit_hit;
             barrier_hit_time = profit_hit - event_idx;
-        } else if (stop_hit < profit_hit) {
+        } else if (stop_hit != SIZE_MAX) {
             hard_label = -1;
             exit_idx = stop_hit;
             barrier_hit_time = stop_hit - event_idx;
-        } else if (profit_hit == stop_hit && profit_hit != SIZE_MAX) {
-            hard_label = +1;
-            exit_idx = profit_hit;
-            barrier_hit_time = profit_hit - event_idx;
         } else {
             hard_label = 0;
             exit_idx = end_idx;
