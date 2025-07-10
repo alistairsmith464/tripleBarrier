@@ -74,7 +74,13 @@ void FeaturePreviewDialog::createFeatureTable() {
         is_ttbm = m_labeledEvents[0].is_ttbm;
     }
     
-    auto result = mlService.extractFeatures(m_rows, m_labeledEvents, m_selectedFeatures, is_ttbm);
+    // Use new service-oriented approach
+    FeatureExtractor::FeatureExtractionResult result;
+    if (is_ttbm) {
+        result = mlService.getFeatureService()->extractFeaturesForRegression(m_rows, m_labeledEvents, m_selectedFeatures);
+    } else {
+        result = mlService.getFeatureService()->extractFeaturesForClassification(m_rows, m_labeledEvents, m_selectedFeatures);
+    }
     
     // Create table widget
     QTableWidget* table = new QTableWidget(int(result.features.size()), m_selectedFeatures.size(), this);

@@ -4,7 +4,7 @@
 std::vector<size_t> CUSUMFilter::detect(const std::vector<double>& prices, const std::vector<double>& volatility, double threshold) {
     std::vector<size_t> events;
     if (prices.size() < 2 || prices.size() != volatility.size()) return events;
-    if (threshold <= 0) return events; // Validate threshold parameter
+    if (threshold <= 0) return events;
     double s_pos = 0.0, s_neg = 0.0;
     for (size_t i = 1; i < prices.size(); ++i) {
         double diff = prices[i] - prices[i-1];

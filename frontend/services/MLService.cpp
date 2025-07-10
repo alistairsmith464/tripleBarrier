@@ -5,15 +5,23 @@
 #include "../../backend/data/PortfolioSimulator.h"
 #include "../../backend/ml/MLPipeline.h"
 #include "../../backend/ml/MLSplits.h"
+#include "../../backend/ml/MetricsCalculator.h"
+#include "../../backend/ml/DataUtils.h"
 #include "../config/VisualizationConfig.h"
 #include <algorithm>
 #include <cstdio>
+#include <QFutureWatcher>
+#include <QtConcurrent>
+#include <QStandardPaths>
+#include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
 
-FeatureExtractor::FeatureExtractionResult MLServiceImpl::extractFeatures(
+// FeatureServiceImpl implementation
+FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesForClassification(
     const std::vector<PreprocessedRow>& rows,
     const std::vector<LabeledEvent>& labeledEvents,
-    const QSet<QString>& selectedFeatures,
-    bool useTTBM) {
+    const QSet<QString>& selectedFeatures) {
     
     // Validate inputs
     if (rows.empty()) {
@@ -41,15 +49,80 @@ FeatureExtractor::FeatureExtractionResult MLServiceImpl::extractFeatures(
     }
     
     try {
-        if (useTTBM) {
-            return FeatureExtractor::extractFeaturesForRegression(features, rows, labeledEvents);
-        } else {
-            return FeatureExtractor::extractFeaturesForClassification(features, rows, labeledEvents);
-        }
+        return FeatureExtractor::extractFeaturesForClassification(features, rows, labeledEvents);
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("Feature extraction failed: ") + e.what());
     }
 }
+
+FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesForRegression(
+    const std::vector<PreprocessedRow>& rows,
+    const std::vector<LabeledEvent>& labeledEvents,
+    const QSet<QString>& selectedFeatures) {
+    
+    // Validate inputs
+    if (rows.empty()) {
+        throw std::runtime_error("Empty rows vector provided to feature extraction");
+    }
+    
+    if (labeledEvents.empty()) {
+        throw std::runtime_error("Empty labeled events provided to feature extraction");
+    }
+    
+    if (selectedFeatures.empty()) {
+        throw std::runtime_error("No features selected for extraction");
+    }
+    
+    // Convert QSet to std::set
+    std::set<std::string> features;
+    for (const QString& feature : selectedFeatures) {
+        if (!feature.isEmpty()) {
+            features.insert(feature.toStdString());
+        }
+    }
+    
+    if (features.empty()) {
+        throw std::runtime_error("No valid features after conversion");
+    }
+    
+    try {
+        return FeatureExtractor::extractFeaturesForRegression(features, rows, labeledEvents);
+    } catch (const std::exception& e) {
+        throw std::runtime_error(std::string("Feature extraction failed: ") + e.what());
+    }
+}
+
+QStringList FeatureServiceImpl::getAvailableFeatures() {
+    // This would be populated from a feature registry
+    return QStringList{
+        "price_change", "volume_change", "volatility", "momentum",
+        "rsi", "macd", "bollinger_bands", "moving_average_crossover",
+        "volume_profile", "order_flow", "bid_ask_spread"
+    };
+}
+
+QString FeatureServiceImpl::validateFeatureSelection(const QSet<QString>& features) {
+    if (features.empty()) {
+        return "No features selected";
+    }
+    
+    QStringList available = getAvailableFeatures();
+    QStringList invalid;
+    
+    for (const QString& feature : features) {
+        if (!available.contains(feature)) {
+            invalid.append(feature);
+        }
+    }
+    
+    if (!invalid.empty()) {
+        return QString("Invalid features: %1").arg(invalid.join(", "));
+    }
+    
+    return QString(); // Empty string means valid
+}
+
+// ModelServiceImpl implementation
 
 MLResults MLServiceImpl::runMLPipeline(
     const std::vector<PreprocessedRow>& rows,
@@ -59,234 +132,55 @@ MLResults MLServiceImpl::runMLPipeline(
     MLResults results;
     
     try {
-        // Validate inputs
-        if (rows.empty()) {
-            results.errorMessage = "No price data available for ML training";
-            results.success = false;
-            return results;
-        }
-        
-        if (labeledEvents.empty()) {
-            results.errorMessage = "No labeled events available for ML training";
-            results.success = false;
-            return results;
-        }
-        
-        if (config.selectedFeatures.empty()) {
-            results.errorMessage = "No features selected for ML training";
+        // Validate configuration
+        QString config_error = validateConfiguration(config);
+        if (!config_error.isEmpty()) {
+            results.errorMessage = config_error;
             results.success = false;
             return results;
         }
         
         // Extract features
         try {
-            results.features = extractFeatures(rows, labeledEvents, config.selectedFeatures, config.useTTBM);
+            if (config.useTTBM) {
+                results.features = feature_service_->extractFeaturesForRegression(
+                    rows, labeledEvents, config.selectedFeatures);
+            } else {
+                results.features = feature_service_->extractFeaturesForClassification(
+                    rows, labeledEvents, config.selectedFeatures);
+            }
         } catch (const std::exception& e) {
             results.errorMessage = QString("Feature extraction failed: %1").arg(e.what());
             results.success = false;
             return results;
         }
         
-        if (results.features.features.empty()) {
-            results.errorMessage = "No features extracted for ML training";
-            results.success = false;
-            return results;
+        // Train model
+        MLResults model_results = model_service_->trainModel(results.features, labeledEvents, config);
+        if (!model_results.success) {
+            return model_results;
         }
         
-        // Validate labeled events
-        if (labeledEvents.empty()) {
-            results.errorMessage = "No labeled events available for training";
-            results.success = false;
-            return results;
-        }
-        
-        // Configure splits - validate data types for TTBM mode
-        std::vector<int> labels;
-        if (config.useTTBM) {
-            if (results.features.labels_double.empty()) {
-                results.errorMessage = "No TTBM labels available in extracted features";
-                results.success = false;
-                return results;
-            }
-            // Convert double labels to int for chronological split (which expects int labels)
-            labels.reserve(results.features.labels_double.size());
-            for (double label : results.features.labels_double) {
-                labels.push_back(static_cast<int>(std::round(label)));
-            }
-        } else {
-            if (results.features.labels.empty()) {
-                results.errorMessage = "No classification labels available in extracted features";
-                results.success = false;
-                return results;
-            }
-            labels = results.features.labels;
-        }
-            
-        auto splitResult = MLSplitUtils::chronologicalSplit(
-            results.features.features, 
-            labels, 
-            1.0 - config.crossValidationRatio, 
-            config.crossValidationRatio, 
-            0.0);
-            
-        // Validate split results
-        if (splitResult.X_train.empty() || splitResult.y_train.empty()) {
-            results.errorMessage = "Data split produced empty training set";
-            results.success = false;
-            return results;
-        }
-        
-        if (splitResult.X_val.empty() || splitResult.y_val.empty()) {
-            results.errorMessage = "Data split produced empty validation set";
-            results.success = false;
-            return results;
-        }
-        
-        // Configure ML pipeline
-        MLPipeline::PipelineConfig pipelineConfig;
-        pipelineConfig.split_type = MLPipeline::Chronological;
-        // Configure ML pipeline - use larger validation set for portfolio simulation
-        pipelineConfig.train_ratio = 0.6;  // Use 60% for training
-        pipelineConfig.val_ratio = 0.4;    // Use 40% for validation/predictions (larger for portfolio sim)
-        pipelineConfig.test_ratio = 0.0;   // No separate test set
-        pipelineConfig.random_seed = config.randomSeed;
-        
-        // Configure hyperparameters
-        if (config.tuneHyperparameters) {
-            // Use broader search ranges for hyperparameter tuning
-            pipelineConfig.n_rounds = 50;
-            pipelineConfig.max_depth = 6;
-            pipelineConfig.nthread = 4;
-        } else {
-            // Use default values
-            pipelineConfig.n_rounds = config.nRounds;
-            pipelineConfig.max_depth = config.maxDepth;
-            pipelineConfig.nthread = config.nThreads;
-        }
-        
-        // Validate input data before ML pipeline
-        if (results.features.features.empty()) {
-            results.errorMessage = "No feature data available for ML pipeline";
-            results.success = false;
-            return results;
-        }
-        
-        // Create returns vector based on labeled events
-        std::vector<double> returns;
-        for (const auto& event : labeledEvents) {
-            double return_value = (event.exit_price - event.entry_price) / event.entry_price;
-            returns.push_back(return_value);
-        }
-        
-        // Ensure returns vector has same size as features
-        if (returns.size() != results.features.features.size()) {
-            returns.resize(results.features.features.size(), 0.0);
-        }
-        
-        // Validate data consistency before ML pipeline
-        size_t expectedSize = results.features.features.size();
-        size_t labelSize = config.useTTBM ? results.features.labels_double.size() : results.features.labels.size();
-        
-        if (expectedSize == 0) {
-            results.errorMessage = "No feature data available - features vector is empty";
-            results.success = false;
-            return results;
-        }
-        
-        if (labelSize == 0) {
-            results.errorMessage = config.useTTBM ? "No TTBM labels available" : "No classification labels available";
-            results.success = false;
-            return results;
-        }
-        
-        if (labelSize != expectedSize) {
-            results.errorMessage = QString("Data size mismatch: Features=%1, Labels=%2, Returns=%3")
-                                  .arg(expectedSize).arg(labelSize).arg(returns.size());
-            results.success = false;
-            return results;
-        }
-        
-        // Run ML pipeline
-        printf("DEBUG: MLService - About to call ML pipeline\n");
-        printf("DEBUG: MLService - Features: %zu, Events: %zu, TTBM=%s\n", 
-               results.features.features.size(), labeledEvents.size(), config.useTTBM ? "true" : "false");
-        printf("DEBUG: MLService - Pipeline config: train=%.1f%%, val=%.1f%%, test=%.1f%%\n",
-               pipelineConfig.train_ratio * 100, pipelineConfig.val_ratio * 100, pipelineConfig.test_ratio * 100);
-        
-        try {
-            if (config.useTTBM) {
-                // Validate TTBM labels
-                if (results.features.labels_double.empty()) {
-                    results.errorMessage = "No TTBM labels available for regression";
-                    results.success = false;
-                    return results;
-                }
-                
-                std::vector<double> ttbmLabels(results.features.labels_double);
-                
-                // Use appropriate pipeline function based on hyperparameter tuning setting
-                if (config.tuneHyperparameters) {
-                    auto pipelineResult = MLPipeline::runPipelineRegressionWithTuning(
-                        results.features.features, ttbmLabels, returns, pipelineConfig);
-                    results.predictions = pipelineResult.predictions;
-                    results.modelInfo = "TTBM Regression Model (with hyperparameter tuning)";
-                } else {
-                    auto pipelineResult = MLPipeline::runPipelineRegression(
-                        results.features.features, ttbmLabels, returns, pipelineConfig);
-                    results.predictions = pipelineResult.predictions;
-                    results.modelInfo = "TTBM Regression Model";
-                }
-                
-                // Debug output
-                printf("DEBUG: ML Pipeline generated %zu predictions for %zu features\n", 
-                       results.predictions.size(), results.features.features.size());
-                results.accuracy = 0.0; // No accuracy for regression
-            } else {
-                // Validate classification labels
-                if (results.features.labels.empty()) {
-                    results.errorMessage = "No classification labels available";
-                    results.success = false;
-                    return results;
-                }
-                
-                // Use appropriate pipeline function based on hyperparameter tuning setting
-                if (config.tuneHyperparameters) {
-                    auto pipelineResult = MLPipeline::runPipelineWithTuning(
-                        results.features.features, results.features.labels, returns, pipelineConfig);
-                    results.predictions.assign(pipelineResult.predictions.begin(), pipelineResult.predictions.end());
-                    results.modelInfo = "Classification Model (with hyperparameter tuning)";
-                } else {
-                    auto pipelineResult = MLPipeline::runPipeline(
-                        results.features.features, results.features.labels, returns, pipelineConfig);
-                    results.predictions.assign(pipelineResult.predictions.begin(), pipelineResult.predictions.end());
-                    results.modelInfo = "Classification Model";
-                }
-                
-                // Debug output
-                printf("DEBUG: ML Pipeline generated %zu predictions for %zu features\n", 
-                       results.predictions.size(), results.features.features.size());
-                
-                results.accuracy = 0.0; // Calculate from predictions if needed
-            }
-        } catch (const std::exception& e) {
-            results.errorMessage = QString("ML Pipeline execution failed: %1").arg(e.what());
-            results.success = false;
-            return results;
-        }
-        
-        // Validate predictions before portfolio simulation
-        if (results.predictions.empty()) {
-            results.errorMessage = QString("ML pipeline produced no predictions. Features: %1, Labels: %2, Returns: %3")
-                                  .arg(results.features.features.size())
-                                  .arg(config.useTTBM ? results.features.labels_double.size() : results.features.labels.size())
-                                  .arg(returns.size());
-            results.success = false;
-            return results;
-        }
+        // Copy model results
+        results.predictions = model_results.predictions;
+        results.prediction_probabilities = model_results.prediction_probabilities;
+        results.accuracy = model_results.accuracy;
+        results.precision = model_results.precision;
+        results.recall = model_results.recall;
+        results.f1_score = model_results.f1_score;
+        results.auc_roc = model_results.auc_roc;
+        results.confusion_matrix = model_results.confusion_matrix;
+        results.r2_score = model_results.r2_score;
+        results.mae = model_results.mae;
+        results.rmse = model_results.rmse;
+        results.mape = model_results.mape;
+        results.modelInfo = model_results.modelInfo;
+        results.dataQuality = model_results.dataQuality;
         
         // Run portfolio simulation
         try {
-            results.portfolioResult = runPortfolioSimulation(rows, labeledEvents, results.predictions, config.useTTBM);
+            results.portfolioResult = portfolio_service_->runSimulation(
+                rows, labeledEvents, results.predictions, config.useTTBM);
         } catch (const std::exception& e) {
             results.errorMessage = QString("Portfolio simulation error: %1").arg(e.what());
             results.success = false;
@@ -303,29 +197,147 @@ MLResults MLServiceImpl::runMLPipeline(
     return results;
 }
 
-PortfolioResults MLServiceImpl::runPortfolioSimulation(
+QFuture<MLResults> MLServiceImpl::runMLPipelineAsync(
     const std::vector<PreprocessedRow>& rows,
     const std::vector<LabeledEvent>& labeledEvents,
-    const std::vector<double>& predictions,
-    bool useTTBM) {
+    const MLConfig& config,
+    MLProgressCallback callback) {
     
-    // Validate inputs
-    if (predictions.empty()) {
-        throw std::runtime_error("Empty predictions vector provided to portfolio simulation");
+    return QtConcurrent::run([this, rows, labeledEvents, config, callback]() {
+        if (callback) {
+            MLProgress progress;
+            progress.current_stage = MLProgress::FEATURE_EXTRACTION;
+            progress.progress_percentage = 0.0;
+            progress.status_message = "Starting feature extraction...";
+            callback(progress);
+        }
+        
+        auto result = runMLPipeline(rows, labeledEvents, config);
+        
+        if (callback) {
+            MLProgress progress;
+            progress.current_stage = MLProgress::COMPLETE;
+            progress.progress_percentage = 100.0;
+            progress.status_message = result.success ? "Pipeline completed successfully" : "Pipeline failed";
+            callback(progress);
+        }
+        
+        return result;
+    });
+}
+
+QString MLServiceImpl::validateConfiguration(const MLConfig& config) {
+    if (config.selectedFeatures.empty()) {
+        return "No features selected";
     }
     
-    if (labeledEvents.empty()) {
-        throw std::runtime_error("Empty labeled events provided to portfolio simulation");
+    if (config.crossValidationRatio < 0.0 || config.crossValidationRatio > 0.5) {
+        return "Cross-validation ratio must be between 0.0 and 0.5";
     }
     
-    // Ensure predictions and events are compatible
-    if (predictions.size() > labeledEvents.size()) {
-        throw std::runtime_error("More predictions than labeled events available");
+    if (config.pipelineConfig.n_rounds < 1 || config.pipelineConfig.n_rounds > 10000) {
+        return "Number of rounds must be between 1 and 10000";
     }
+    
+    if (config.pipelineConfig.max_depth < 1 || config.pipelineConfig.max_depth > 20) {
+        return "Max depth must be between 1 and 20";
+    }
+    
+    if (config.outlierThreshold < 1.0 || config.outlierThreshold > 10.0) {
+        return "Outlier threshold must be between 1.0 and 10.0";
+    }
+    
+    return QString(); // Valid configuration
+}
+
+MLConfig MLServiceImpl::getDefaultConfiguration() {
+    MLConfig config;
+    config.selectedFeatures = QSet<QString>{"price_change", "volume_change", "volatility"};
+    config.useTTBM = false;
+    config.crossValidationRatio = 0.2;
+    config.randomSeed = 42;
+    config.tuneHyperparameters = false;
+    config.saveModel = false;
+    config.loadModel = false;
+    config.preprocessFeatures = true;
+    config.normalizeFeatures = false;
+    config.removeOutliers = false;
+    config.outlierThreshold = 3.0;
+    config.enableProgressCallbacks = false;
+    
+    // Set default unified pipeline configuration
+    config.pipelineConfig.test_size = 0.2;
+    config.pipelineConfig.val_size = 0.2;
+    config.pipelineConfig.n_rounds = 100;
+    config.pipelineConfig.max_depth = 5;
+    config.pipelineConfig.nthread = 4;
+    config.pipelineConfig.objective = "binary:logistic";
+    config.pipelineConfig.learning_rate = 0.1;
+    config.pipelineConfig.subsample = 0.8;
+    config.pipelineConfig.colsample_bytree = 0.8;
+    config.pipelineConfig.barrier_type = MLPipeline::BarrierType::HARD;
+    
+    return config;
+}
+
+MLResults MLServiceImpl::calculateDetailedMetrics(
+    const std::vector<int>& y_true,
+    const std::vector<int>& y_pred,
+    const std::vector<double>& y_prob) {
+    
+    MLResults results;
     
     try {
-        return PortfolioSimulator::runSimulation(predictions, labeledEvents, useTTBM);
+        // Create MetricsCalculator instance
+        MLPipeline::MetricsCalculator metricsCalc;
+        
+        // Basic classification metrics
+        results.accuracy = metricsCalc.calculateAccuracy(y_true, y_pred);
+        results.precision = metricsCalc.calculatePrecision(y_true, y_pred);
+        results.recall = metricsCalc.calculateRecall(y_true, y_pred);
+        results.f1_score = metricsCalc.calculateF1Score(y_true, y_pred);
+        
+        // Confusion matrix
+        results.confusion_matrix = metricsCalc.calculateConfusionMatrix(y_true, y_pred);
+        
+        // AUC-ROC if probabilities are provided
+        if (!y_prob.empty() && y_prob.size() == y_true.size()) {
+            std::vector<double> y_true_double(y_true.begin(), y_true.end());
+            results.auc_roc = metricsCalc.calculateAUCROC(y_true_double, y_prob);
+        }
+        
+        results.success = true;
+        
     } catch (const std::exception& e) {
-        throw std::runtime_error(std::string("Portfolio simulation failed: ") + e.what());
+        results.errorMessage = QString("Metrics calculation failed: %1").arg(e.what());
+        results.success = false;
     }
+    
+    return results;
+}
+
+MLResults MLServiceImpl::calculateRegressionMetrics(
+    const std::vector<double>& y_true,
+    const std::vector<double>& y_pred) {
+    
+    MLResults results;
+    
+    try {
+        // Create MetricsCalculator instance
+        MLPipeline::MetricsCalculator metricsCalc;
+        
+        // Regression metrics
+        results.r2_score = metricsCalc.calculateR2Score(y_true, y_pred);
+        results.mae = metricsCalc.calculateMAE(y_true, y_pred);
+        results.rmse = metricsCalc.calculateRMSE(y_true, y_pred);
+        results.mape = metricsCalc.calculateMAPE(y_true, y_pred);
+        
+        results.success = true;
+        
+    } catch (const std::exception& e) {
+        results.errorMessage = QString("Regression metrics calculation failed: %1").arg(e.what());
+        results.success = false;
+    }
+    
+    return results;
 }

@@ -13,7 +13,6 @@ PortfolioResults PortfolioSimulator::runSimulation(
     double portfolio_value = results.starting_capital;
     results.portfolio_values.push_back(portfolio_value);
     
-    // Debug output
     printf("DEBUG: Portfolio simulation started - %zu predictions, %zu events, is_ttbm=%s\n", 
            predictions.size(), events.size(), is_ttbm ? "true" : "false");
     
@@ -41,8 +40,7 @@ PortfolioResults PortfolioSimulator::runSimulation(
         portfolio_value *= (1.0 + trade_return);
         results.portfolio_values.push_back(portfolio_value);
         
-        // Count trades with a smaller threshold to catch more trades
-        if (std::abs(position_size) > 0.0001) { // Lowered from 0.001
+        if (std::abs(position_size) > 0.0001) {
             trade_count++;
             results.total_trades++;
             results.trade_returns.push_back(trade_return);
@@ -96,7 +94,6 @@ BarrierDiagnostics PortfolioSimulator::analyzeBarriers(
     std::vector<int> profit_times, stop_times, time_times;
     
     for (const auto& event : labeledEvents) {
-        // Count label types
         if (event.label == 1) {
             diagnostics.profit_hits++;
             profit_times.push_back(event.periods_to_exit);
@@ -108,7 +105,6 @@ BarrierDiagnostics PortfolioSimulator::analyzeBarriers(
             time_times.push_back(event.periods_to_exit);
         }
         
-        // Find corresponding row for volatility analysis
         auto it = std::find_if(rows.begin(), rows.end(), 
             [&](const PreprocessedRow& r) { return r.timestamp == event.entry_time; });
         
@@ -122,7 +118,6 @@ BarrierDiagnostics PortfolioSimulator::analyzeBarriers(
                 diagnostics.min_volatility = std::min(diagnostics.min_volatility, it->volatility);
             }
             
-            // Calculate estimated barriers
             double entry_price = it->price;
             double exit_price = event.exit_price;
             double price_move = std::abs(exit_price - entry_price);
@@ -140,7 +135,6 @@ BarrierDiagnostics PortfolioSimulator::analyzeBarriers(
     
     diagnostics.avg_volatility /= labeledEvents.size();
     
-    // Calculate barrier statistics
     if (!entry_prices.empty()) {
         diagnostics.avg_entry_price = std::accumulate(entry_prices.begin(), entry_prices.end(), 0.0) / entry_prices.size();
         diagnostics.avg_profit_barrier = std::accumulate(profit_barriers.begin(), profit_barriers.end(), 0.0) / profit_barriers.size();
@@ -151,7 +145,6 @@ BarrierDiagnostics PortfolioSimulator::analyzeBarriers(
         diagnostics.stop_distance_pct = ((diagnostics.avg_entry_price - diagnostics.avg_stop_barrier) / diagnostics.avg_entry_price) * 100.0;
     }
     
-    // Calculate average exit times
     auto calc_avg = [](const std::vector<int>& vec) -> double {
         return vec.empty() ? 0.0 : std::accumulate(vec.begin(), vec.end(), 0.0) / vec.size();
     };
@@ -199,7 +192,6 @@ double PortfolioSimulator::calculateMaxDrawdown(const std::vector<double>& portf
 }
 
 double PortfolioSimulator::calculatePositionSize(double prediction, bool is_ttbm) {
-    // Debug output
     static int debug_count = 0;
     if (debug_count < 10) {
         printf("DEBUG: calculatePositionSize - prediction=%.4f, is_ttbm=%s\n", 
@@ -208,12 +200,9 @@ double PortfolioSimulator::calculatePositionSize(double prediction, bool is_ttbm
     }
     
     if (is_ttbm) {
-        // For TTBM regression, predictions are continuous in range [-1, 1]
-        // Trade only when signal strength is reasonably strong
         double signal_strength = std::abs(prediction);
         
-        if (signal_strength > 0.2) {  // Lowered from 0.3 to 0.2
-            // Scale position size based on signal strength, max 3% of capital
+        if (signal_strength > 0.2) {
             double position_size = std::min(signal_strength * 0.03, 0.03);
             double result = prediction < 0 ? -position_size : position_size;
             if (debug_count <= 10) {
@@ -227,25 +216,21 @@ double PortfolioSimulator::calculatePositionSize(double prediction, bool is_ttbm
             }
         }
     } else {
-        // For hard barrier classification, predictions should be exactly -1, 0, or 1
         if (std::abs(prediction - 1.0) < 0.1) {
-            // Long position for +1 prediction
             if (debug_count <= 10) {
                 printf("DEBUG: Hard barrier LONG trade - prediction=%.4f\n", prediction);
             }
-            return 0.02;  // 2% long position
+            return 0.02;
         } else if (std::abs(prediction - (-1.0)) < 0.1) {
-            // Short position for -1 prediction
             if (debug_count <= 10) {
                 printf("DEBUG: Hard barrier SHORT trade - prediction=%.4f\n", prediction);
             }
-            return -0.02; // 2% short position
+            return -0.02;
         } else {
-            // No position for 0 or other values
             if (debug_count <= 10) {
                 printf("DEBUG: Hard barrier no trade - prediction=%.4f (not close to -1 or +1)\n", prediction);
             }
         }
     }
-    return 0.0;  // No position
+    return 0.0;
 }

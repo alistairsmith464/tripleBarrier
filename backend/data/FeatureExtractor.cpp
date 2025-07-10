@@ -34,7 +34,6 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForCl
 ) {
     FeatureExtractionResult result;
     
-    // Convert selected features to backend IDs
     auto featureMap = getFeatureMapping();
     std::set<std::string> backendFeatures;
     for (const std::string& feat : selectedFeatures) {
@@ -43,7 +42,6 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForCl
         }
     }
     
-    // Extract price and timestamp data
     std::vector<double> prices;
     std::vector<std::string> timestamps;
     for (const auto& row : rows) {
@@ -51,10 +49,8 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForCl
         timestamps.push_back(row.timestamp);
     }
     
-    // Find event indices
     std::vector<int> eventIndices = findEventIndices(rows, labeledEvents);
     
-    // Calculate features for each event
     for (size_t i = 0; i < eventIndices.size(); ++i) {
         auto features = FeatureCalculator::calculateFeatures(
             prices, timestamps, eventIndices, int(i), backendFeatures
@@ -75,7 +71,6 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
 ) {
     FeatureExtractionResult result;
     
-    // Convert selected features to backend IDs
     auto featureMap = getFeatureMapping();
     std::set<std::string> backendFeatures;
     for (const std::string& feat : selectedFeatures) {
@@ -84,7 +79,6 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
         }
     }
     
-    // Extract price and timestamp data
     std::vector<double> prices;
     std::vector<std::string> timestamps;
     for (const auto& row : rows) {
@@ -92,16 +86,13 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
         timestamps.push_back(row.timestamp);
     }
     
-    // Find event indices
     std::vector<int> eventIndices = findEventIndices(rows, labeledEvents);
     
-    // Calculate features for each event
     for (size_t i = 0; i < eventIndices.size(); ++i) {
         auto baseFeatures = FeatureCalculator::calculateFeatures(
             prices, timestamps, eventIndices, int(i), backendFeatures
         );
         
-        // Enhance features with additional calculations
         auto enhancedFeatures = enhanceFeatures(baseFeatures, rows[eventIndices[i]]);
         
         result.features.push_back(enhancedFeatures);
@@ -109,7 +100,6 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
         result.returns.push_back(labeledEvents[i].exit_price - labeledEvents[i].entry_price);
     }
     
-    // Clean invalid values
     for (auto& featureRow : result.features) {
         for (auto& kv : featureRow) {
             if (std::isnan(kv.second) || std::isinf(kv.second)) {
@@ -118,10 +108,8 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
         }
     }
     
-    // Apply robust scaling
     applyRobustScaling(result.features);
     
-    // Debug output
     if (!result.labels_double.empty()) {
         double min_label = *std::min_element(result.labels_double.begin(), result.labels_double.end());
         double max_label = *std::max_element(result.labels_double.begin(), result.labels_double.end());
@@ -166,7 +154,6 @@ std::map<std::string, double> FeatureExtractor::enhanceFeatures(
 ) {
     std::map<std::string, double> enhanced = baseFeatures;
     
-    // Volume-based features
     if (row.volume.has_value()) {
         double volume = row.volume.value();
         enhanced["volume"] = volume;
@@ -179,7 +166,6 @@ std::map<std::string, double> FeatureExtractor::enhanceFeatures(
         }
     }
     
-    // Volatility-adjusted return
     if (baseFeatures.count(FeatureCalculator::RETURN_5D) && baseFeatures.count(FeatureCalculator::ROLLING_STD_5D)) {
         double return_5d = baseFeatures.at(FeatureCalculator::RETURN_5D);
         double vol_5d = baseFeatures.at(FeatureCalculator::ROLLING_STD_5D);
@@ -188,14 +174,12 @@ std::map<std::string, double> FeatureExtractor::enhanceFeatures(
         }
     }
     
-    // Momentum-volatility ratio
     if (baseFeatures.count(FeatureCalculator::ROC_5D) && baseFeatures.count(FeatureCalculator::EWMA_VOL_10D)) {
         double roc_5d = baseFeatures.at(FeatureCalculator::ROC_5D);
         double vol_10d = baseFeatures.at(FeatureCalculator::EWMA_VOL_10D);
         enhanced["momentum_vol_ratio"] = roc_5d * vol_10d;
     }
     
-    // SMA distance volatility-adjusted
     if (baseFeatures.count(FeatureCalculator::DIST_TO_SMA_5D) && baseFeatures.count(FeatureCalculator::ROLLING_STD_5D)) {
         double dist_sma = baseFeatures.at(FeatureCalculator::DIST_TO_SMA_5D);
         double vol_5d = baseFeatures.at(FeatureCalculator::ROLLING_STD_5D);
@@ -204,7 +188,6 @@ std::map<std::string, double> FeatureExtractor::enhanceFeatures(
         }
     }
     
-    // RSI momentum
     if (baseFeatures.count(FeatureCalculator::RSI_14D) && baseFeatures.count(FeatureCalculator::RETURN_5D)) {
         double rsi = baseFeatures.at(FeatureCalculator::RSI_14D);
         double return_5d = baseFeatures.at(FeatureCalculator::RETURN_5D);
@@ -220,7 +203,6 @@ void FeatureExtractor::applyRobustScaling(std::vector<std::map<std::string, doub
     std::map<std::string, double> feature_medians;
     std::map<std::string, double> feature_iqrs;
     
-    // Initialize feature names
     for (const auto& featureRow : features) {
         for (const auto& kv : featureRow) {
             if (feature_medians.find(kv.first) == feature_medians.end()) {
@@ -230,7 +212,6 @@ void FeatureExtractor::applyRobustScaling(std::vector<std::map<std::string, doub
         }
     }
     
-    // Calculate medians and IQRs
     for (const auto& kv : feature_medians) {
         std::vector<double> values;
         for (const auto& featureRow : features) {
@@ -244,14 +225,12 @@ void FeatureExtractor::applyRobustScaling(std::vector<std::map<std::string, doub
             std::sort(values.begin(), values.end());
             size_t n = values.size();
             
-            // Calculate median
             if (n % 2 == 0) {
                 feature_medians[kv.first] = (values[n/2-1] + values[n/2]) / 2.0;
             } else {
                 feature_medians[kv.first] = values[n/2];
             }
             
-            // Calculate IQR
             double q1 = values[n/4];
             double q3 = values[3*n/4];
             feature_iqrs[kv.first] = q3 - q1;
@@ -259,7 +238,6 @@ void FeatureExtractor::applyRobustScaling(std::vector<std::map<std::string, doub
         }
     }
     
-    // Apply scaling
     for (auto& featureRow : features) {
         for (auto& kv : featureRow) {
             kv.second = (kv.second - feature_medians[kv.first]) / feature_iqrs[kv.first];

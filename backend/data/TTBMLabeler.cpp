@@ -23,7 +23,7 @@ std::vector<LabeledEvent> TTBMLabeler::label(
         if (event_idx >= data.size()) continue;
         
         const auto& entry = data[event_idx];
-        if (entry.volatility <= 0.0) continue;  // Skip invalid volatility
+        if (entry.volatility <= 0.0) continue;
         
         double pt = entry.price * (1.0 + profit_multiple * entry.volatility);
         double sl = entry.price * (1.0 - stop_multiple * entry.volatility);
@@ -90,10 +90,10 @@ std::vector<LabeledEvent> TTBMLabeler::label(
             time_elapsed_ratio,
             decay_factor,
             true,
-            pt,  // profit_barrier
-            sl,  // stop_barrier
-            entry.volatility,  // entry_volatility
-            data[exit_idx].price  // trigger_price
+            pt,
+            sl,
+            entry.volatility,
+            data[exit_idx].price
         });
     }
     
@@ -111,7 +111,7 @@ double TTBMLabeler::linearDecay(double time_ratio) const {
 double TTBMLabeler::hyperbolicDecay(double time_ratio) const {
     const double epsilon = 1e-12;
     if (std::abs(beta_ * time_ratio) > 1e6) {
-        return 0.0;  // Prevent overflow
+        return 0.0;
     }
     return 1.0 / (1.0 + beta_ * time_ratio);
 }
