@@ -48,18 +48,10 @@ add_library(backend
     ml/BarrierMLStrategy.h
 )
 
-target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "${CMAKE_SOURCE_DIR}/xgboost/include")
+target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Platform-specific XGBoost library linking
-if(WIN32)
-    # Windows: Use the pre-built import library
-    target_link_libraries(backend PUBLIC "${CMAKE_SOURCE_DIR}/xgboost/lib/libxgboost.dll.a")
-    message(STATUS "Using Windows XGBoost library: ${CMAKE_SOURCE_DIR}/xgboost/lib/libxgboost.dll.a")
-else()
-    # Linux/Unix: Use the shared library
-    target_link_libraries(backend PUBLIC "${CMAKE_SOURCE_DIR}/xgboost/lib/libxgboost.so")
-    message(STATUS "Using Linux XGBoost library: ${CMAKE_SOURCE_DIR}/xgboost/lib/libxgboost.so")
-endif()
+# Link XGBoost using modern CMake target
+target_link_libraries(backend PUBLIC xgboost)
 
 # Only link Qt6::Core if building frontend (and Qt6 is available)
 if(BUILD_FRONTEND)
