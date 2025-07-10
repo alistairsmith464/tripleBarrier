@@ -72,7 +72,7 @@ public:
         const TrainingConfig& config) override;
     
     std::string getStrategyName() const override { return "Hard Barrier"; }
-    std::string getModelObjective() const override { return "binary:logistic"; }
+    std::string getModelObjective() const override { return "multi:softprob"; }
 
 private:
     std::vector<double> convertClassificationToTradingSignals(

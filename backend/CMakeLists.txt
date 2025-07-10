@@ -40,6 +40,8 @@ add_library(backend
     ml/ModelUtils.h
     ml/MetricsCalculator.cpp
     ml/MetricsCalculator.h
+    ml/BarrierMLStrategy.cpp
+    ml/BarrierMLStrategy.h
 )
 
 target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "${CMAKE_SOURCE_DIR}/xgboost/include")

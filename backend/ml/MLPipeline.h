@@ -71,6 +71,7 @@ namespace MLPipeline {
         double colsample_bytree = 1.0;
         BarrierType barrier_type = BarrierType::HARD;
         HyperparameterGrid hyperparameter_grid;
+        int embargo = 5;
     };
 
     template<typename LabelType>

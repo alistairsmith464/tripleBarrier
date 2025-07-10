@@ -356,7 +356,7 @@ MLResults ModelServiceImpl::trainModel(
     
     MLResults results;
     try {
-        std::cout << "[DEBUG] MLService::trainModel called (NEW UNIFIED APPROACH)" << std::endl;
+        std::cout << "[DEBUG] MLService::trainModel called (STRATEGY APPROACH)" << std::endl;
         std::cout << "  - Features size: " << features.features.size() << std::endl;
         std::cout << "  - Labels size: " << features.labels.size() << std::endl;
         std::cout << "  - Labels_double size: " << features.labels_double.size() << std::endl;
@@ -373,50 +373,32 @@ MLResults ModelServiceImpl::trainModel(
             return results;
         }
         
-        MLPipeline::UnifiedMLPipeline::PipelineConfig pipeline_config;
+        MLPipeline::BarrierMLStrategy::TrainingConfig training_config;
+        training_config.test_size = config.pipelineConfig.test_size;
+        training_config.val_size = config.pipelineConfig.val_size;
+        training_config.n_rounds = config.pipelineConfig.n_rounds;
+        training_config.max_depth = config.pipelineConfig.max_depth;
+        training_config.nthread = config.pipelineConfig.nthread;
+        training_config.learning_rate = config.pipelineConfig.learning_rate;
+        training_config.subsample = config.pipelineConfig.subsample;
+        training_config.colsample_bytree = config.pipelineConfig.colsample_bytree;
+        training_config.random_seed = config.randomSeed;
         
-        pipeline_config.strategy_type = MLPipeline::BarrierMLStrategyFactory::getStrategyType(config.useTTBM);
-        
-        pipeline_config.selected_features.clear();
-        for (const QString& feature : config.selectedFeatures) {
-            pipeline_config.selected_features.insert(feature.toStdString());
+        std::unique_ptr<MLPipeline::BarrierMLStrategy> strategy;
+        if (config.useTTBM) {
+            strategy = std::make_unique<MLPipeline::TTBMStrategy>();
+        } else {
+            strategy = std::make_unique<MLPipeline::HardBarrierStrategy>();
         }
         
-        pipeline_config.training_config.test_size = config.pipelineConfig.test_size;
-        pipeline_config.training_config.val_size = config.pipelineConfig.val_size;
-        pipeline_config.training_config.n_rounds = config.pipelineConfig.n_rounds;
-        pipeline_config.training_config.max_depth = config.pipelineConfig.max_depth;
-        pipeline_config.training_config.nthread = config.pipelineConfig.nthread;
-        pipeline_config.training_config.learning_rate = config.pipelineConfig.learning_rate;
-        pipeline_config.training_config.subsample = config.pipelineConfig.subsample;
-        pipeline_config.training_config.colsample_bytree = config.pipelineConfig.colsample_bytree;
-        pipeline_config.training_config.random_seed = config.randomSeed;
+        auto prediction_result = strategy->trainAndPredict(
+            features, features.returns, training_config);
         
-        pipeline_config.portfolio_config.starting_capital = 10000.0;
-        pipeline_config.portfolio_config.max_position_pct = 0.1;
-        pipeline_config.portfolio_config.position_threshold = 0.01;
-        pipeline_config.portfolio_config.hard_barrier_position_pct = 0.05;
-        
-        pipeline_config.enable_detailed_logging = true;
-        pipeline_config.enable_hyperparameter_tuning = config.tuneHyperparameters;
-        
-        std::vector<PreprocessedRow> rows;
-        for (const auto& event : labeledEvents) {
-            PreprocessedRow row;
-            row.log_return = event.forward_return;
-            // Note: In a real implementation, you'd properly reconstruct rows
-            // For now, we'll work with what we have
-            rows.push_back(row);
-        }
-        
-        auto pipeline_result = MLPipeline::UnifiedMLPipeline::runPipeline(
-            rows, labeledEvents, pipeline_config);
-        
-        if (pipeline_result.success) {
-            results.predictions = pipeline_result.prediction_result.predictions;
-            results.prediction_probabilities = pipeline_result.prediction_result.confidence_scores;
+        if (prediction_result.success) {
+            results.predictions = prediction_result.predictions;
+            results.prediction_probabilities = prediction_result.confidence_scores;
             
-            const auto& portfolio = pipeline_result.prediction_result.portfolio_result;
+            const auto& portfolio = prediction_result.portfolio_result;
             results.portfolioResult.starting_capital = portfolio.starting_capital;
             results.portfolioResult.final_value = portfolio.final_capital;
             results.portfolioResult.total_return = portfolio.total_return;
@@ -426,34 +408,24 @@ MLResults ModelServiceImpl::trainModel(
             results.portfolioResult.total_trades = portfolio.total_trades;
             results.portfolioResult.win_rate = portfolio.win_rate;
             
-            for (const auto& [key, value] : pipeline_result.performance_metrics) {
-                if (key == "accuracy") results.accuracy = value;
-                else if (key == "precision") results.precision = value;
-                else if (key == "recall") results.recall = value;
-                else if (key == "f1_score") results.f1_score = value;
-                else if (key == "r2_score") results.r2_score = value;
-                else if (key == "mae") results.mae = value;
-                else if (key == "rmse") results.rmse = value;
-            }
-            
-            results.modelInfo = QString("Strategy: %1").arg(QString::fromStdString(pipeline_result.strategy_name));
+            results.modelInfo = QString("Strategy: %1").arg(QString::fromStdString(strategy->getStrategyName()));
             results.success = true;
             
-            std::cout << "[DEBUG] NEW UNIFIED PIPELINE SUCCESS:" << std::endl;
-            std::cout << "  Strategy: " << pipeline_result.strategy_name << std::endl;
+            std::cout << "[DEBUG] STRATEGY TRAINING SUCCESS:" << std::endl;
+            std::cout << "  Strategy: " << strategy->getStrategyName() << std::endl;
             std::cout << "  Predictions: " << results.predictions.size() << std::endl;
             std::cout << "  Portfolio - Starting: $" << results.portfolioResult.starting_capital 
                      << ", Final: $" << results.portfolioResult.final_value 
                      << ", Trades: " << results.portfolioResult.total_trades << std::endl;
             
         } else {
-            results.errorMessage = QString::fromStdString(pipeline_result.error_message);
+            results.errorMessage = QString::fromStdString(prediction_result.error_message);
             results.success = false;
-            std::cout << "[DEBUG] UNIFIED PIPELINE FAILED: " << pipeline_result.error_message << std::endl;
+            std::cout << "[DEBUG] STRATEGY TRAINING FAILED: " << prediction_result.error_message << std::endl;
         }
         
     } catch (const std::exception& e) {
-        results.errorMessage = QString("Unified model training failed: %1").arg(e.what());
+        results.errorMessage = QString("Model training failed: %1").arg(e.what());
         results.success = false;
         std::cout << "[DEBUG] EXCEPTION: " << e.what() << std::endl;
     }

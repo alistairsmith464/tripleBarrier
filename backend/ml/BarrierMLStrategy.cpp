@@ -58,6 +58,11 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         auto [X_clean, y_clean, returns_clean] = DataProcessor::cleanData(
             features.features, features.labels, returns, cleaning_opts);
         
+        std::cout << "[DEBUG] Using multi-class classification for {-1, 0, +1} labels" << std::endl;
+        std::cout << "  - Label -1: Bearish (stop loss hit)" << std::endl;
+        std::cout << "  - Label  0: Neutral (timeout)" << std::endl;
+        std::cout << "  - Label +1: Bullish (profit target hit)" << std::endl;
+        
         auto [train_idx, val_idx, test_idx] = createTrainValTestSplits(X_clean.size(), config);
         
         auto X_train = toFloatMatrix(select_rows(X_clean, train_idx));
@@ -75,6 +80,7 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         model_config.learning_rate = config.learning_rate;
         model_config.subsample = config.subsample;
         model_config.colsample_bytree = config.colsample_bytree;
+        model_config.num_class = 3;
         
         XGBoostModel model;
         model.fit(X_train, y_train, model_config);
@@ -113,15 +119,18 @@ std::vector<double> HardBarrierStrategy::convertClassificationToTradingSignals(
     signals.reserve(predictions.size());
     
     for (size_t i = 0; i < predictions.size(); ++i) {
-        if (i < probabilities.size()) {
-            double signal = probabilities[i];
-            if (predictions[i] == 0) {
-                signal = -signal; 
-            }
-            signals.push_back(signal);
+        double signal = 0.0;
+        
+        int pred = predictions[i];
+        if (pred == 1) {
+            signal = 1.0;
+        } else if (pred == -1) {
+            signal = -1.0;
         } else {
-            signals.push_back(predictions[i] == 1 ? 1.0 : -1.0);
+            signal = 0.0;
         }
+        
+        signals.push_back(signal);
     }
     
     std::cout << "[DEBUG] HardBarrier trading signals: ";
