@@ -63,13 +63,13 @@ enum class SplitStrategy {
 };
 
 struct SplitConfig {
-    SplitStrategy strategy = SplitStrategy::CHRONOLOGICAL;  // Default to chronological for time series
+    SplitStrategy strategy = SplitStrategy::CHRONOLOGICAL;
     double test_size = 0.2;
     double val_size = 0.2;
     int n_splits = 5;
-    int embargo = 0;  // Embargo period to prevent information leakage
+    int embargo = 0;
     int random_seed = 42;
-    bool shuffle = false;  // NEVER shuffle time series financial data - causes temporal leakage
+    bool shuffle = false; 
 };
 
 std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
@@ -81,7 +81,6 @@ createSplits(size_t data_size, const PipelineConfig& config);
 std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
 createSplits(size_t data_size, const UnifiedPipelineConfig& config);
 
-// Time-series safe split function for financial data
 std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
 createSplits(size_t data_size, double test_size, double val_size, bool enforce_chronological = true);
 

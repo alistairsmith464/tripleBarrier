@@ -288,17 +288,14 @@ createSplits(size_t data_size, const SplitConfig& config) {
     
     switch (config.strategy) {
         case SplitStrategy::CHRONOLOGICAL: {
-            // Chronological splits for time series - maintains temporal order
             std::cout << "[INFO] Using CHRONOLOGICAL splits - temporal order preserved" << std::endl;
             
             size_t n_test = static_cast<size_t>(data_size * config.test_size);
             size_t n_val = static_cast<size_t>(data_size * config.val_size);
             
-            // Apply embargo period to prevent information leakage between sets
             size_t embargo_size = static_cast<size_t>(config.embargo);
             
-            // Adjust sizes to account for embargo periods
-            size_t total_embargo = 2 * embargo_size; // Between train-val and val-test
+            size_t total_embargo = 2 * embargo_size; 
             if (total_embargo >= data_size) {
                 throw std::invalid_argument("Embargo period too large for dataset size");
             }
@@ -312,14 +309,11 @@ createSplits(size_t data_size, const SplitConfig& config) {
             val_idx.reserve(n_val);
             test_idx.reserve(n_test);
             
-            // Training set: earliest data
             for (size_t i = 0; i < n_train; ++i) train_idx.push_back(i);
             
-            // Validation set: middle data (with embargo gap)
             size_t val_start = n_train + embargo_size;
             for (size_t i = val_start; i < val_start + n_val; ++i) val_idx.push_back(i);
             
-            // Test set: latest data (with embargo gap)
             size_t test_start = val_start + n_val + embargo_size;
             for (size_t i = test_start; i < test_start + n_test; ++i) test_idx.push_back(i);
             
@@ -331,8 +325,6 @@ createSplits(size_t data_size, const SplitConfig& config) {
         }
         
         case SplitStrategy::RANDOM: {
-            // WARNING: Random splits are DANGEROUS for time series financial data!
-            // This can cause severe temporal data leakage and inflated performance metrics
             std::cout << "[CRITICAL WARNING] Using RANDOM splits on time series data!" << std::endl;
             std::cout << "[CRITICAL WARNING] This WILL cause temporal data leakage and invalid results!" << std::endl;
             std::cout << "[CRITICAL WARNING] Consider using CHRONOLOGICAL or PURGED_KFOLD instead!" << std::endl;
@@ -357,14 +349,12 @@ createSplits(size_t data_size, const SplitConfig& config) {
         }
         
         case SplitStrategy::PURGED_KFOLD: {
-            // Purged K-fold for time series with embargo periods
             std::cout << "[INFO] Using PURGED_KFOLD splits with embargo=" << config.embargo << " for time series" << std::endl;
             
             auto folds = MLSplitUtils::purgedKFoldSplit(data_size, config.n_splits, config.embargo);
             if (!folds.empty()) {
                 train_idx = std::move(folds[0].train_indices);
                 val_idx = std::move(folds[0].val_indices);
-                // Use last fold's validation set as test set
                 test_idx = std::move(folds.back().val_indices);
             }
             break;
@@ -382,11 +372,10 @@ createSplits(size_t data_size, const PipelineConfig& config) {
     SplitConfig split_config;
     split_config.test_size = config.test_size;
     split_config.val_size = config.val_size;
-    // FORCE chronological splits for financial time series data
-    split_config.strategy = SplitStrategy::CHRONOLOGICAL;  // Override any other setting
+    split_config.strategy = SplitStrategy::CHRONOLOGICAL;
     split_config.n_splits = config.n_splits;
     split_config.embargo = config.embargo;
-    split_config.shuffle = false;  // NEVER shuffle time series data
+    split_config.shuffle = false;
     
     std::cout << "[INFO] PipelineConfig conversion: Enforcing CHRONOLOGICAL splits for time series safety" << std::endl;
     
@@ -405,19 +394,17 @@ createSplits(size_t data_size, const UnifiedPipelineConfig& config) {
     return createSplits(data_size, split_config);
 }
 
-// Time-series safe split function for financial data - ALWAYS uses chronological splits
 std::tuple<std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
 createSplits(size_t data_size, double test_size, double val_size, bool enforce_chronological) {
     if (data_size == 0) {
         throw std::invalid_argument("Data size cannot be zero");
     }
     
-    // For financial time series data, ALWAYS use chronological splits to prevent temporal leakage
     SplitConfig split_config;
     split_config.test_size = test_size;
     split_config.val_size = val_size;
-    split_config.strategy = enforce_chronological ? SplitStrategy::CHRONOLOGICAL : SplitStrategy::CHRONOLOGICAL; // Force chronological
-    split_config.shuffle = false; // Never shuffle time series data
+    split_config.strategy = SplitStrategy::CHRONOLOGICAL;
+    split_config.shuffle = false;
     
     std::cout << "[WARNING] Using CHRONOLOGICAL splits to prevent temporal data leakage in time series financial data" << std::endl;
     

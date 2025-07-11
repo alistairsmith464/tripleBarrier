@@ -22,6 +22,8 @@ add_executable(TripleBarrierApp
     utils/ErrorHandler.cpp
     utils/InputValidator.cpp
     utils/AsyncTaskManager.cpp
+    utils/ValidationFramework.cpp
+    utils/ErrorHandlingStrategy.cpp
     services/DataService.cpp
     services/MLService.cpp
     state/ApplicationState.cpp

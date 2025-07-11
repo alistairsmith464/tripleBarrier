@@ -11,6 +11,8 @@
 #include "../../backend/utils/Exceptions.h"
 #include "../../backend/utils/ErrorHandling.h"
 #include "../config/VisualizationConfig.h"
+#include "../utils/ValidationFramework.h"
+#include "../utils/ErrorHandlingStrategy.h"
 #include <algorithm>
 #include <cstdio>
 #include <QStandardPaths>
@@ -24,6 +26,10 @@ MLServiceImpl::MLServiceImpl()
     : feature_service_(std::make_unique<FeatureServiceImpl>())
     , model_service_(std::make_unique<ModelServiceImpl>())
     , portfolio_service_(std::make_unique<PortfolioServiceImpl>()) {
+    
+    // Configure error handling strategy for ML operations
+    using namespace ValidationFramework;
+    ErrorHandlingStrategy::setMode(ErrorHandlingStrategy::Mode::MIXED);
 }
 
 FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesForClassification(
@@ -31,18 +37,23 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
     const std::vector<LabeledEvent>& labeledEvents,
     const QSet<QString>& selectedFeatures) {
     
-    if (rows.empty()) {
-        throw std::runtime_error("Empty rows vector provided to feature extraction");
+    using namespace ValidationFramework;
+    
+    // Comprehensive input validation
+    ValidationAccumulator accumulator;
+    accumulator.addResult(DataValidator::validateDataRows(rows));
+    accumulator.addResult(DataValidator::validateLabeledEvents(labeledEvents));
+    accumulator.addResult(MLValidator::validateFeatureSelection(selectedFeatures));
+    accumulator.addResult(CoreValidator::validateSizeMatch(rows, labeledEvents, "Data rows", "Labeled events"));
+    
+    if (!accumulator.isValid()) {
+        throw TripleBarrier::FeatureExtractionException(
+            accumulator.getSummary().errorMessage.toStdString(),
+            "Classification Feature Extraction"
+        );
     }
     
-    if (labeledEvents.empty()) {
-        throw std::runtime_error("Empty labeled events provided to feature extraction");
-    }
-    
-    if (selectedFeatures.empty()) {
-        throw std::runtime_error("No features selected for extraction");
-    }
-    
+    // Convert features to backend format
     std::set<std::string> features;
     for (const QString& feature : selectedFeatures) {
         if (!feature.isEmpty()) {
@@ -51,19 +62,38 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
     }
     
     if (features.empty()) {
-        throw std::runtime_error("No valid features after conversion");
+        throw TripleBarrier::FeatureExtractionException(
+            "No valid features after conversion",
+            "Feature Format Conversion"
+        );
     }
     
     try {
         auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, labeledEvents);
         
+        // Validate output
         if (result.features.empty()) {
-            throw std::runtime_error("Feature extraction returned empty feature set");
+            throw TripleBarrier::FeatureExtractionException(
+                "Feature extraction returned empty feature set",
+                "Feature Extraction Output"
+            );
+        }
+        
+        // Additional output validation
+        ValidationResult outputValidation = MLValidator::validateModelInputs(result.features, result.labels);
+        if (!outputValidation.isValid) {
+            throw TripleBarrier::FeatureExtractionException(
+                outputValidation.errorMessage.toStdString(),
+                "Feature Extraction Output Validation"
+            );
         }
         
         return result;
+    } catch (const TripleBarrier::BaseException& e) {
+        throw; // Re-throw structured exceptions
     } catch (const std::exception& e) {
-        throw std::runtime_error(std::string("Feature extraction failed: ") + e.what());
+        auto converted = TripleBarrier::ExceptionUtils::convertException(e, "Feature Extraction");
+        throw *converted;
     }
 }
 
@@ -72,18 +102,23 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
     const std::vector<LabeledEvent>& labeledEvents,
     const QSet<QString>& selectedFeatures) {
     
-    if (rows.empty()) {
-        throw std::runtime_error("Empty rows vector provided to feature extraction");
+    using namespace ValidationFramework;
+    
+    // Comprehensive input validation using the same pattern as classification
+    ValidationAccumulator accumulator;
+    accumulator.addResult(DataValidator::validateDataRows(rows));
+    accumulator.addResult(DataValidator::validateLabeledEvents(labeledEvents));
+    accumulator.addResult(MLValidator::validateFeatureSelection(selectedFeatures));
+    accumulator.addResult(CoreValidator::validateSizeMatch(rows, labeledEvents, "Data rows", "Labeled events"));
+    
+    if (!accumulator.isValid()) {
+        throw TripleBarrier::FeatureExtractionException(
+            accumulator.getSummary().errorMessage.toStdString(),
+            "Regression Feature Extraction"
+        );
     }
     
-    if (labeledEvents.empty()) {
-        throw std::runtime_error("Empty labeled events provided to feature extraction");
-    }
-    
-    if (selectedFeatures.empty()) {
-        throw std::runtime_error("No features selected for extraction");
-    }
-    
+    // Convert features to backend format
     std::set<std::string> features;
     for (const QString& feature : selectedFeatures) {
         if (!feature.isEmpty()) {
@@ -92,19 +127,40 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
     }
     
     if (features.empty()) {
-        throw std::runtime_error("No valid features after conversion");
+        throw TripleBarrier::FeatureExtractionException(
+            "No valid features after conversion",
+            "Feature Format Conversion"
+        );
     }
     
     try {
         auto result = FeatureExtractor::extractFeaturesForRegression(features, rows, labeledEvents);
         
+        // Validate output
         if (result.features.empty()) {
-            throw std::runtime_error("Feature extraction returned empty feature set");
+            throw TripleBarrier::FeatureExtractionException(
+                "Feature extraction returned empty feature set",
+                "Feature Extraction Output"
+            );
+        }
+        
+        // Additional output validation for regression
+        if (!result.labels_double.empty()) {
+            ValidationResult outputValidation = MLValidator::validateModelInputs(result.features, result.labels_double);
+            if (!outputValidation.isValid) {
+                throw TripleBarrier::FeatureExtractionException(
+                    outputValidation.errorMessage.toStdString(),
+                    "Regression Feature Extraction Output Validation"
+                );
+            }
         }
         
         return result;
+    } catch (const TripleBarrier::BaseException& e) {
+        throw; // Re-throw structured exceptions
     } catch (const std::exception& e) {
-        throw std::runtime_error(std::string("Feature extraction failed: ") + e.what());
+        auto converted = TripleBarrier::ExceptionUtils::convertException(e, "Feature Extraction");
+        throw *converted;
     }
 }
 
@@ -120,10 +176,15 @@ QStringList FeatureServiceImpl::getAvailableFeatures() {
 }
 
 QString FeatureServiceImpl::validateFeatureSelection(const QSet<QString>& features) {
-    if (features.empty()) {
-        return "No features selected";
+    using namespace ValidationFramework;
+    
+    ValidationResult result = MLValidator::validateFeatureSelection(features);
+    
+    if (!result.isValid) {
+        return result.errorMessage;
     }
     
+    // Additional validation against available features
     QStringList available = getAvailableFeatures();
     QStringList invalid;
     
@@ -137,6 +198,11 @@ QString FeatureServiceImpl::validateFeatureSelection(const QSet<QString>& featur
         return QString("Invalid features: %1").arg(invalid.join(", "));
     }
     
+    // Return warning if present
+    if (!result.warningMessage.isEmpty()) {
+        return result.warningMessage;
+    }
+    
     return QString(); 
 }
 
@@ -145,35 +211,80 @@ MLResults MLServiceImpl::runMLPipeline(
     const std::vector<LabeledEvent>& labeledEvents,
     const MLConfig& config) {
     
+    using namespace ValidationFramework;
+    
     MLResults results;
     
+    // Create error handling context
+    ErrorHandlingStrategy::ErrorContext context(
+        "ML Pipeline Execution",
+        "MLService",
+        ErrorHandlingStrategy::Severity::ERROR
+    );
+    
     try {
-        QString config_error = validateConfiguration(config);
-        if (!config_error.isEmpty()) {
-            results.errorMessage = config_error;
+        // Comprehensive validation before processing
+        ValidationAccumulator accumulator;
+        accumulator.addResult(DataValidator::validateDataRows(rows));
+        accumulator.addResult(DataValidator::validateLabeledEvents(labeledEvents));
+        accumulator.addResult(MLValidator::validateMLConfig(config));
+        accumulator.addResult(CoreValidator::validateSizeMatch(rows, labeledEvents, "Data rows", "Labeled events"));
+        
+        if (!accumulator.isValid()) {
+            results.errorMessage = accumulator.getSummary().errorMessage;
             results.success = false;
             return results;
         }
         
-        try {
+        // Log any warnings
+        if (accumulator.hasWarnings()) {
+            results.warningMessage = accumulator.getSummary().warningMessage;
+        }
+        
+        // Feature extraction with validation
+        auto featureExtractor = createValidatedFunction<FeatureExtractor::FeatureExtractionResult>([&]() {
             if (config.useTTBM) {
-                results.features = feature_service_->extractFeaturesForRegression(
-                    rows, labeledEvents, config.selectedFeatures);
+                return feature_service_->extractFeaturesForRegression(rows, labeledEvents, config.selectedFeatures);
             } else {
-                results.features = feature_service_->extractFeaturesForClassification(
-                    rows, labeledEvents, config.selectedFeatures);
+                return feature_service_->extractFeaturesForClassification(rows, labeledEvents, config.selectedFeatures);
             }
+        }).withContext(ErrorHandlingStrategy::ErrorContext(
+            "Feature Extraction",
+            "FeatureService",
+            ErrorHandlingStrategy::Severity::ERROR
+        ));
+        
+        try {
+            results.features = featureExtractor.build().execute();
         } catch (const std::exception& e) {
             results.errorMessage = QString("Feature extraction failed: %1").arg(e.what());
             results.success = false;
             return results;
         }
         
-        MLResults model_results = model_service_->trainModel(results.features, labeledEvents, config);
+        // Model training with validation
+        auto modelTrainer = createValidatedFunction<MLResults>([&]() {
+            return model_service_->trainModel(results.features, labeledEvents, config);
+        }).withContext(ErrorHandlingStrategy::ErrorContext(
+            "Model Training",
+            "ModelService",
+            ErrorHandlingStrategy::Severity::ERROR
+        ));
+        
+        MLResults model_results;
+        try {
+            model_results = modelTrainer.build().execute();
+        } catch (const std::exception& e) {
+            results.errorMessage = QString("Model training failed: %1").arg(e.what());
+            results.success = false;
+            return results;
+        }
+        
         if (!model_results.success) {
             return model_results;
         }
         
+        // Copy results with validation
         results.predictions = model_results.predictions;
         results.prediction_probabilities = model_results.prediction_probabilities;
         results.accuracy = model_results.accuracy;
@@ -188,8 +299,20 @@ MLResults MLServiceImpl::runMLPipeline(
         results.mape = model_results.mape;
         results.modelInfo = model_results.modelInfo;
         results.dataQuality = model_results.dataQuality;
-        
         results.portfolioResult = model_results.portfolioResult;
+        
+        // Post-validation of results
+        ValidationAccumulator postValidation;
+        postValidation.addResult(CoreValidator::validateNotEmpty(results.predictions, "Predictions"));
+        postValidation.addResult(CoreValidator::validateFinite(results.portfolioResult.total_return, "Total Return"));
+        postValidation.addResult(CoreValidator::validateFinite(results.portfolioResult.sharpe_ratio, "Sharpe Ratio"));
+        postValidation.addResult(CoreValidator::validateNonNegative(results.portfolioResult.total_trades, "Total Trades"));
+        
+        if (!postValidation.isValid()) {
+            results.errorMessage = QString("Post-validation failed: %1").arg(postValidation.getSummary().errorMessage);
+            results.success = false;
+            return results;
+        }
         
         std::cout << "DEBUG: Portfolio simulation completed successfully" << std::endl;
         std::cout << "DEBUG: Starting capital: $" << results.portfolioResult.starting_capital << std::endl;
@@ -200,6 +323,7 @@ MLResults MLServiceImpl::runMLPipeline(
         results.success = true;
         
     } catch (const std::exception& e) {
+        ErrorHandlingStrategy::handleException(e, context);
         results.errorMessage = QString("ML Pipeline error: %1").arg(e.what());
         results.success = false;
     }
@@ -237,24 +361,17 @@ std::future<MLResults> MLServiceImpl::runMLPipelineAsync(
 }
 
 QString MLServiceImpl::validateConfiguration(const MLConfig& config) {
-    if (config.selectedFeatures.empty()) {
-        return "No features selected";
+    using namespace ValidationFramework;
+    
+    ValidationResult result = MLValidator::validateMLConfig(config);
+    
+    if (!result.isValid) {
+        return result.errorMessage;
     }
     
-    if (config.crossValidationRatio < 0.0 || config.crossValidationRatio > 0.5) {
-        return "Cross-validation ratio must be between 0.0 and 0.5";
-    }
-    
-    if (config.pipelineConfig.n_rounds < 1 || config.pipelineConfig.n_rounds > 10000) {
-        return "Number of rounds must be between 1 and 10000";
-    }
-    
-    if (config.pipelineConfig.max_depth < 1 || config.pipelineConfig.max_depth > 20) {
-        return "Max depth must be between 1 and 20";
-    }
-    
-    if (config.outlierThreshold < 1.0 || config.outlierThreshold > 10.0) {
-        return "Outlier threshold must be between 1.0 and 10.0";
+    // Return warning if present
+    if (!result.warningMessage.isEmpty()) {
+        return result.warningMessage;
     }
     
     return QString();
