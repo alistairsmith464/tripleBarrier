@@ -1,4 +1,6 @@
 #include "XGBoostModel.h"
+#include "../utils/Exceptions.h"
+#include "../utils/ErrorHandling.h"
 #include <xgboost/c_api.h>
 #include <cassert>
 #include <cstring>
@@ -114,12 +116,40 @@ void XGBoostModel::set_xgboost_parameters(const XGBoostConfig& config) {
 }
 
 void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vector<float>& y, const XGBoostConfig& config) {
-    if (X.empty() || y.empty()) {
-        throw std::invalid_argument("Training data cannot be empty");
+    using namespace TripleBarrier;
+    
+    Validation::validateNotEmpty(X, "training_features");
+    Validation::validateNotEmpty(y, "training_labels");
+    Validation::validateSizeMatch(X, y, "features", "labels");
+    
+    if (config.n_rounds <= 0) {
+        throw HyperparameterException("n_rounds must be positive", "n_rounds");
+    }
+    if (config.max_depth <= 0) {
+        throw HyperparameterException("max_depth must be positive", "max_depth");
+    }
+    if (config.learning_rate <= 0.0) {
+        throw HyperparameterException("learning_rate must be positive", "learning_rate");
+    }
+    
+    if (!X.empty()) {
+        size_t expected_features = X[0].size();
+        for (size_t i = 1; i < X.size(); ++i) {
+            if (X[i].size() != expected_features) {
+                throw DataValidationException(
+                    "Inconsistent feature dimensions at row " + std::to_string(i) + 
+                    ": expected " + std::to_string(expected_features) + 
+                    ", got " + std::to_string(X[i].size())
+                );
+            }
+        }
     }
     
     if (X.size() != y.size()) {
-        throw std::invalid_argument("Feature matrix and target vector must have the same number of samples");
+        throw DataValidationException(
+            "Size mismatch: features (" + std::to_string(X.size()) + 
+            ") vs labels (" + std::to_string(y.size()) + ")"
+        );
     }
     
     std::cout << "[DEBUG] XGBoostModel::fit called" << std::endl;
@@ -128,15 +158,34 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
     std::cout << "  - Objective: " << config.objective << std::endl;
     std::cout << "  - n_rounds: " << config.n_rounds << std::endl;
     
+    ErrorAccumulator dataErrors;
     int nan_count = 0, inf_count = 0;
+    
     for (size_t i = 0; i < X.size(); ++i) {
         for (size_t j = 0; j < X[i].size(); ++j) {
-            if (std::isnan(X[i][j])) nan_count++;
-            if (std::isinf(X[i][j])) inf_count++;
+            if (std::isnan(X[i][j])) {
+                nan_count++;
+                if (dataErrors.errorCount() < 5) {
+                    dataErrors.addError("NaN value in features", 
+                                       "row " + std::to_string(i) + ", col " + std::to_string(j));
+                }
+            }
+            if (std::isinf(X[i][j])) {
+                inf_count++;
+                if (dataErrors.errorCount() < 5) {
+                    dataErrors.addError("Infinite value in features", 
+                                       "row " + std::to_string(i) + ", col " + std::to_string(j));
+                }
+            }
         }
         if (std::isnan(y[i]) || std::isinf(y[i])) {
-            std::cout << "  - WARNING: Invalid label at index " << i << ": " << y[i] << std::endl;
+            dataErrors.addError("Invalid label value: " + std::to_string(y[i]), 
+                               "row " + std::to_string(i));
         }
+    }
+    
+    if (dataErrors.hasErrors()) {
+        throw DataValidationException("Data quality issues detected", dataErrors.getAllErrors());
     }
     
     std::cout << "  - NaN features: " << nan_count << std::endl;

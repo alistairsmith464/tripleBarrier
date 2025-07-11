@@ -13,6 +13,8 @@
 #include "../backend/data/CSVDataSource.h"
 #include "../backend/data/PreprocessedRow.h"
 #include "../backend/data/DataPreprocessor.h"
+#include "../backend/utils/Exceptions.h"
+#include "../backend/utils/ErrorHandling.h"
 #include "../backend/data/BarrierConfig.h"
 #include <QtCharts/QValueAxis>
 #include "FeatureSelectionDialog.h"
@@ -131,12 +133,22 @@ void MainWindow::onSelectCSVFile() {
         
         showBarrierConfigurationDialog(rows);
         
-    } catch (const std::exception& e) {
+    } catch (const TripleBarrier::BaseException& e) {
         ErrorHandler::ErrorInfo errorInfo(
             ErrorHandler::ErrorType::DataLoad,
             ErrorHandler::Severity::Error,
             "CSV Loading Failed",
-            QString::fromStdString(e.what())
+            QString::fromStdString(e.full_message())
+        );
+        ErrorHandler::handleError(errorInfo, this);
+        m_uploadDataButton->setEnabled(true);
+    } catch (const std::exception& e) {
+        auto converted = TripleBarrier::ExceptionUtils::convertException(e, "CSV Loading");
+        ErrorHandler::ErrorInfo errorInfo(
+            ErrorHandler::ErrorType::DataLoad,
+            ErrorHandler::Severity::Error,
+            "CSV Loading Failed",
+            QString::fromStdString(converted->full_message())
         );
         ErrorHandler::handleError(errorInfo, this);
         m_uploadDataButton->setEnabled(true);
@@ -179,12 +191,21 @@ void MainWindow::processDataWithConfig(const std::vector<DataRow>& rows,
         plotLabeledEvents(processed, labeled);
         showUploadSuccess(QString::fromStdString("Processing completed with %1 events").arg(labeled.size()));
         
-    } catch (const std::exception& e) {
+    } catch (const TripleBarrier::BaseException& e) {
         ErrorHandler::ErrorInfo errorInfo(
             ErrorHandler::ErrorType::DataLoad,
             ErrorHandler::Severity::Error,
             "Data Processing Failed",
-            QString::fromStdString(e.what())
+            QString::fromStdString(e.full_message())
+        );
+        ErrorHandler::handleError(errorInfo, this);
+    } catch (const std::exception& e) {
+        auto converted = TripleBarrier::ExceptionUtils::convertException(e, "Data Processing");
+        ErrorHandler::ErrorInfo errorInfo(
+            ErrorHandler::ErrorType::DataLoad,
+            ErrorHandler::Severity::Error,
+            "Data Processing Failed",
+            QString::fromStdString(converted->full_message())
         );
         ErrorHandler::handleError(errorInfo, this);
     }
@@ -298,12 +319,22 @@ void MainWindow::processDataWithUserConfig(const std::vector<DataRow>& rows,
         m_statusLabel->setText(QString("Success! Processed %1 rows, found %2 events").arg(processed.size()).arg(labeled.size()));
         m_uploadDataButton->setEnabled(true);
         
-    } catch (const std::exception& e) {
+    } catch (const TripleBarrier::BaseException& e) {
         ErrorHandler::ErrorInfo errorInfo(
             ErrorHandler::ErrorType::DataLoad,
             ErrorHandler::Severity::Error,
             "Data Processing Failed",
-            QString::fromStdString(e.what())
+            QString::fromStdString(e.full_message())
+        );
+        ErrorHandler::handleError(errorInfo, this);
+        m_uploadDataButton->setEnabled(true);
+    } catch (const std::exception& e) {
+        auto converted = TripleBarrier::ExceptionUtils::convertException(e, "Data Processing");
+        ErrorHandler::ErrorInfo errorInfo(
+            ErrorHandler::ErrorType::DataLoad,
+            ErrorHandler::Severity::Error,
+            "Data Processing Failed",
+            QString::fromStdString(converted->full_message())
         );
         ErrorHandler::handleError(errorInfo, this);
         m_uploadDataButton->setEnabled(true);

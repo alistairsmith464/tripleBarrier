@@ -8,6 +8,8 @@
 #include "../../backend/ml/MetricsCalculator.h"
 #include "../../backend/ml/DataUtils.h"
 #include "../../backend/ml/BarrierMLStrategy.h"
+#include "../../backend/utils/Exceptions.h"
+#include "../../backend/utils/ErrorHandling.h"
 #include "../config/VisualizationConfig.h"
 #include <algorithm>
 #include <cstdio>
@@ -352,7 +354,10 @@ MLResults ModelServiceImpl::trainModel(
     const std::vector<LabeledEvent>& labeledEvents,
     const MLConfig& config) {
     
+    using namespace TripleBarrier;
+    
     MLResults results;
+    
     try {
         std::cout << "[DEBUG] MLService::trainModel called (STRATEGY APPROACH)" << std::endl;
         std::cout << "  - Features size: " << features.features.size() << std::endl;
@@ -360,15 +365,40 @@ MLResults ModelServiceImpl::trainModel(
         std::cout << "  - Labels_double size: " << features.labels_double.size() << std::endl;
         std::cout << "  - TTBM mode: " << (config.useTTBM ? "YES" : "NO") << std::endl;
         
-        bool hasValidData = !features.features.empty() && 
-                           (config.useTTBM ? !features.labels_double.empty() : !features.labels.empty());
+        Validation::validateNotEmpty(features.features, "features");
         
-        if (!hasValidData) {
-            std::cout << "  - ERROR: No valid feature data available for " 
-                     << (config.useTTBM ? "regression (TTBM)" : "classification") << " mode!" << std::endl;
-            results.errorMessage = "No valid feature data available";
-            results.success = false;
-            return results;
+        if (config.useTTBM) {
+            Validation::validateNotEmpty(features.labels_double, "regression_labels");
+            if (features.features.size() != features.labels_double.size()) {
+                throw DataValidationException(
+                    "Size mismatch: features (" + std::to_string(features.features.size()) + 
+                    ") vs regression_labels (" + std::to_string(features.labels_double.size()) + ")"
+                );
+            }
+        } else {
+            Validation::validateNotEmpty(features.labels, "classification_labels");
+            if (features.features.size() != features.labels.size()) {
+                throw DataValidationException(
+                    "Size mismatch: features (" + std::to_string(features.features.size()) + 
+                    ") vs classification_labels (" + std::to_string(features.labels.size()) + ")"
+                );
+            }
+        }
+        
+        Validation::validateRange(config.pipelineConfig.test_size, 0.0, 0.8, "test_size");
+        Validation::validateRange(config.pipelineConfig.val_size, 0.0, 0.8, "val_size");
+        Validation::validatePositive(config.pipelineConfig.learning_rate, "learning_rate");
+        Validation::validateRange(config.pipelineConfig.subsample, 0.0, 1.0, "subsample");
+        Validation::validateRange(config.pipelineConfig.colsample_bytree, 0.0, 1.0, "colsample_bytree");
+        
+        if (config.pipelineConfig.n_rounds <= 0) {
+            throw HyperparameterException("n_rounds must be positive", "n_rounds");
+        }
+        if (config.pipelineConfig.max_depth <= 0) {
+            throw HyperparameterException("max_depth must be positive", "max_depth");
+        }
+        if (config.pipelineConfig.nthread <= 0) {
+            throw HyperparameterException("nthread must be positive", "nthread");
         }
         
         MLPipeline::BarrierMLStrategy::TrainingConfig training_config;
@@ -383,49 +413,69 @@ MLResults ModelServiceImpl::trainModel(
         training_config.random_seed = config.randomSeed;
         
         std::unique_ptr<MLPipeline::BarrierMLStrategy> strategy;
-        if (config.useTTBM) {
-            strategy = std::make_unique<MLPipeline::TTBMStrategy>();
-        } else {
-            strategy = std::make_unique<MLPipeline::HardBarrierStrategy>();
+        try {
+            if (config.useTTBM) {
+                strategy = std::make_unique<MLPipeline::TTBMStrategy>();
+            } else {
+                strategy = std::make_unique<MLPipeline::HardBarrierStrategy>();
+            }
+        } catch (const std::bad_alloc& e) {
+            throw ResourceAllocationException("ML Strategy", "Failed to allocate memory for strategy");
         }
         
-        auto prediction_result = strategy->trainAndPredict(
-            features, features.returns, training_config);
+        Validation::validateNotNull(strategy.get(), "strategy");
         
-        if (prediction_result.success) {
-            results.predictions = prediction_result.predictions;
-            results.prediction_probabilities = prediction_result.confidence_scores;
-            
-            const auto& portfolio = prediction_result.portfolio_result;
-            results.portfolioResult.starting_capital = portfolio.starting_capital;
-            results.portfolioResult.final_value = portfolio.final_capital;
-            results.portfolioResult.total_return = portfolio.total_return;
-            results.portfolioResult.annualized_return = portfolio.annualized_return;
-            results.portfolioResult.max_drawdown = portfolio.max_drawdown;
-            results.portfolioResult.sharpe_ratio = portfolio.sharpe_ratio;
-            results.portfolioResult.total_trades = portfolio.total_trades;
-            results.portfolioResult.win_rate = portfolio.win_rate;
-            
-            results.modelInfo = QString("Strategy: %1").arg(QString::fromStdString(strategy->getStrategyName()));
-            results.success = true;
-            
-            std::cout << "[DEBUG] STRATEGY TRAINING SUCCESS:" << std::endl;
-            std::cout << "  Strategy: " << strategy->getStrategyName() << std::endl;
-            std::cout << "  Predictions: " << results.predictions.size() << std::endl;
-            std::cout << "  Portfolio - Starting: $" << results.portfolioResult.starting_capital 
-                     << ", Final: $" << results.portfolioResult.final_value 
-                     << ", Trades: " << results.portfolioResult.total_trades << std::endl;
-            
-        } else {
-            results.errorMessage = QString::fromStdString(prediction_result.error_message);
-            results.success = false;
-            std::cout << "[DEBUG] STRATEGY TRAINING FAILED: " << prediction_result.error_message << std::endl;
+        auto prediction_result = strategy->trainAndPredict(features, features.returns, training_config);
+        
+        if (!prediction_result.success) {
+            throw ModelTrainingException(prediction_result.error_message, 
+                                       strategy->getStrategyName());
         }
         
-    } catch (const std::exception& e) {
-        results.errorMessage = QString("Model training failed: %1").arg(e.what());
+        if (prediction_result.predictions.empty()) {
+            throw ModelPredictionException("No predictions generated", strategy->getStrategyName());
+        }
+        
+        results.predictions = prediction_result.predictions;
+        results.prediction_probabilities = prediction_result.confidence_scores;
+        
+        const auto& portfolio = prediction_result.portfolio_result;
+        results.portfolioResult.starting_capital = portfolio.starting_capital;
+        results.portfolioResult.final_value = portfolio.final_capital;
+        results.portfolioResult.total_return = portfolio.total_return;
+        results.portfolioResult.annualized_return = portfolio.annualized_return;
+        results.portfolioResult.max_drawdown = portfolio.max_drawdown;
+        results.portfolioResult.sharpe_ratio = portfolio.sharpe_ratio;
+        results.portfolioResult.total_trades = portfolio.total_trades;
+        results.portfolioResult.win_rate = portfolio.win_rate;
+        
+        Validation::validateFinite(results.portfolioResult.total_return, "total_return");
+        Validation::validateFinite(results.portfolioResult.sharpe_ratio, "sharpe_ratio");
+        Validation::validateNonNegative(results.portfolioResult.total_trades, "total_trades");
+        
+        results.modelInfo = QString("Strategy: %1").arg(QString::fromStdString(strategy->getStrategyName()));
+        results.success = true;
+        
+        std::cout << "[DEBUG] STRATEGY TRAINING SUCCESS:" << std::endl;
+        std::cout << "  Strategy: " << strategy->getStrategyName() << std::endl;
+        std::cout << "  Predictions: " << results.predictions.size() << std::endl;
+        std::cout << "  Portfolio - Starting: $" << results.portfolioResult.starting_capital 
+                 << ", Final: $" << results.portfolioResult.final_value 
+                 << ", Trades: " << results.portfolioResult.total_trades << std::endl;
+        
+        return results;
+        
+    } catch (const BaseException& e) {
         results.success = false;
-        std::cout << "[DEBUG] EXCEPTION: " << e.what() << std::endl;
+        results.errorMessage = QString::fromStdString(e.full_message());
+        std::cout << "[ERROR] Model Training Failed: " << e.full_message() << std::endl;
+        return results;
+    } catch (const std::exception& e) {
+        auto converted = ExceptionUtils::convertException(e, "Model Training");
+        results.success = false;
+        results.errorMessage = QString::fromStdString(converted->full_message());
+        std::cout << "[ERROR] Model Training Failed: " << converted->full_message() << std::endl;
+        return results;
     }
     
     return results;

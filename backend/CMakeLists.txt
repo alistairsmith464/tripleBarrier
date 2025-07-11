@@ -46,6 +46,8 @@ add_library(backend
     ml/MetricsCalculator.h
     ml/BarrierMLStrategy.cpp
     ml/BarrierMLStrategy.h
+    utils/Exceptions.h
+    utils/ErrorHandling.h
 )
 
 target_include_directories(backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

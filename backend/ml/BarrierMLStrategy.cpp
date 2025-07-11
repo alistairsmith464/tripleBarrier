@@ -3,6 +3,8 @@
 #include "ModelUtils.h"
 #include "MetricsCalculator.h"
 #include "DataUtils.h"
+#include "../utils/Exceptions.h"
+#include "../utils/ErrorHandling.h"
 #include <iostream>
 #include <algorithm>
 #include <numeric>
@@ -37,6 +39,8 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
     const std::vector<double>& returns,
     const TrainingConfig& config) {
     
+    using namespace TripleBarrier;
+    
     PredictionResult result;
     
     try {
@@ -44,10 +48,20 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         std::cout << "  - Training samples: " << features.features.size() << std::endl;
         std::cout << "  - Classification labels: " << features.labels.size() << std::endl;
         
-        if (features.features.empty() || features.labels.empty()) {
-            result.error_message = "No valid classification data available";
-            return result;
+        Validation::validateNotEmpty(features.features, "features");
+        Validation::validateNotEmpty(features.labels, "classification_labels");
+        Validation::validateNotEmpty(returns, "returns");
+        
+        if (features.features.size() != features.labels.size()) {
+            throw DataValidationException(
+                "Size mismatch: features (" + std::to_string(features.features.size()) + 
+                ") vs labels (" + std::to_string(features.labels.size()) + ")"
+            );
         }
+        
+        Validation::validateRange(config.test_size, 0.0, 0.8, "test_size");
+        Validation::validateRange(config.val_size, 0.0, 0.8, "val_size");
+        Validation::validatePositive(config.learning_rate, "learning_rate");
         
         DataProcessor::CleaningOptions cleaning_opts;
         cleaning_opts.remove_nan = true;
@@ -58,6 +72,14 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         auto [X_clean, y_clean, returns_clean] = DataProcessor::cleanData(
             features.features, features.labels, returns, cleaning_opts);
         
+        Validation::validateNotEmpty(X_clean, "cleaned_features");
+        Validation::validateNotEmpty(y_clean, "cleaned_labels");
+        
+        if (X_clean.size() < 10) {
+            throw DataProcessingException("Insufficient data after cleaning", 
+                                        "samples: " + std::to_string(X_clean.size()));
+        }
+        
         std::cout << "[DEBUG] Using multi-class classification for {-1, 0, +1} labels" << std::endl;
         std::cout << "  - Label -1: Bearish (stop loss hit)" << std::endl;
         std::cout << "  - Label  0: Neutral (timeout)" << std::endl;
@@ -65,10 +87,18 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         
         auto [train_idx, val_idx, test_idx] = createTrainValTestSplits(X_clean.size(), config);
         
+        if (train_idx.empty()) {
+            throw DataProcessingException("No training samples available after split");
+        }
+        
         auto X_train = toFloatMatrix(select_rows(X_clean, train_idx));
         auto y_train = toFloatVecInt(select_rows(y_clean, train_idx));
         
         std::vector<size_t> eval_idx = val_idx.empty() ? test_idx : val_idx;
+        if (eval_idx.empty()) {
+            throw DataProcessingException("No evaluation samples available after split");
+        }
+        
         auto X_eval = toFloatMatrix(select_rows(X_clean, eval_idx));
         auto returns_eval = select_rows(returns_clean, eval_idx);
         
@@ -82,11 +112,46 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         model_config.colsample_bytree = config.colsample_bytree;
         model_config.num_class = 3;
         
-        XGBoostModel model;
-        model.fit(X_train, y_train, model_config);
+        if (model_config.n_rounds <= 0) {
+            throw HyperparameterException("n_rounds must be positive", "n_rounds");
+        }
+        if (model_config.max_depth <= 0) {
+            throw HyperparameterException("max_depth must be positive", "max_depth");
+        }
         
-        auto y_pred = model.predict(X_eval); 
-        auto y_prob = model.predict_proba(X_eval); 
+        XGBoostModel model;
+        try {
+            model.fit(X_train, y_train, model_config);
+        } catch (const BaseException& e) {
+            throw ModelTrainingException("XGBoost training failed: " + std::string(e.what()), e.context());
+        } catch (const std::exception& e) {
+            throw ModelTrainingException("XGBoost training failed", e.what());
+        }
+        
+        if (!model.is_trained()) {
+            throw ModelTrainingException("Model training completed but model is not in trained state");
+        }
+        
+        std::vector<int> y_pred;
+        std::vector<float> y_prob;
+        
+        try {
+            y_pred = model.predict(X_eval);
+            y_prob = model.predict_proba(X_eval);
+        } catch (const BaseException& e) {
+            throw ModelPredictionException("XGBoost prediction failed: " + std::string(e.what()), e.context());
+        } catch (const std::exception& e) {
+            throw ModelPredictionException("XGBoost prediction failed", e.what());
+        }
+        
+        Validation::validateNotEmpty(y_pred, "predictions");
+        Validation::validateNotEmpty(y_prob, "probabilities");
+        
+        if (y_pred.size() != eval_idx.size()) {
+            throw ModelPredictionException("Prediction count mismatch", 
+                                         "expected: " + std::to_string(eval_idx.size()) + 
+                                         ", got: " + std::to_string(y_pred.size()));
+        }
         
         std::cout << "[DEBUG] HardBarrierStrategy: Predictions completed" << std::endl;
         std::cout << "  - Predictions: " << y_pred.size() << std::endl;
@@ -95,20 +160,32 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         result.predictions.assign(y_pred.begin(), y_pred.end());
         result.confidence_scores.assign(y_prob.begin(), y_prob.end());
         
-        result.trading_signals = convertClassificationToTradingSignals(y_pred, 
-            std::vector<double>(y_prob.begin(), y_prob.end()));
-        
-        result.portfolio_result = runPortfolioSimulation(
-            result.trading_signals, returns_eval);
+        try {
+            result.trading_signals = convertClassificationToTradingSignals(y_pred, 
+                std::vector<double>(y_prob.begin(), y_prob.end()));
+            
+            result.portfolio_result = runPortfolioSimulation(
+                result.trading_signals, returns_eval);
+                
+        } catch (const BaseException& e) {
+            throw PortfolioException("Portfolio simulation failed: " + std::string(e.what()), e.context());
+        } catch (const std::exception& e) {
+            throw PortfolioException("Portfolio simulation failed", e.what());
+        }
         
         result.success = true;
+        return result;
         
-    } catch (const std::exception& e) {
-        result.error_message = std::string("Hard barrier training failed: ") + e.what();
+    } catch (const BaseException& e) {
+        result.error_message = e.full_message();
         result.success = false;
+        return result;
+    } catch (const std::exception& e) {
+        auto converted = ExceptionUtils::convertException(e, "Hard Barrier Strategy Training");
+        result.error_message = converted->full_message();
+        result.success = false;
+        return result;
     }
-    
-    return result;
 }
 
 std::vector<double> HardBarrierStrategy::convertClassificationToTradingSignals(
