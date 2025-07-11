@@ -14,6 +14,7 @@ struct LabeledEvent;
 #include "../backend/data/FeatureExtractor.h"
 #include "../backend/ml/PortfolioSimulator.h"
 #include "../backend/ml/MLPipeline.h"
+#include "../utils/ValidationFramework.h"
 
 struct MLConfig {
     QSet<QString> selectedFeatures;
@@ -183,6 +184,10 @@ public:
         
     QStringList getAvailableFeatures() override;
     QString validateFeatureSelection(const QSet<QString>& features) override;
+    
+    void validateEventAlignment(const std::vector<PreprocessedRow>& rows,
+                               const std::vector<LabeledEvent>& labeledEvents,
+                               ValidationFramework::ValidationAccumulator& accumulator);
 };
 
 class ModelServiceImpl : public ModelService {

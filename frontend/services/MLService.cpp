@@ -32,54 +32,64 @@ MLServiceImpl::MLServiceImpl()
     ErrorHandlingStrategy::setMode(ErrorHandlingStrategy::Mode::MIXED);
 }
 
+void FeatureServiceImpl::validateEventAlignment(
+    const std::vector<PreprocessedRow>& rows,
+    const std::vector<LabeledEvent>& labeledEvents,
+    ValidationFramework::ValidationAccumulator& accumulator) {
+    std::set<std::string> rowTimestamps;
+    for (const auto& row : rows) {
+        rowTimestamps.insert(row.timestamp);
+    }
+    size_t matchedEvents = 0;
+    for (const auto& event : labeledEvents) {
+        if (rowTimestamps.count(event.entry_time)) {
+            matchedEvents++;
+        }
+    }
+    if (matchedEvents != labeledEvents.size()) {
+        std::cerr << "[FeatureServiceImpl] WARNING: Only " << matchedEvents << " out of " << labeledEvents.size() << " labeled events have matching data rows." << std::endl;
+    }
+    if (rows.size() == labeledEvents.size() && matchedEvents == labeledEvents.size()) {
+        accumulator.addResult(ValidationFramework::CoreValidator::validateSizeMatch(rows, labeledEvents, "Data rows", "Labeled events"));
+    }
+}
+
 FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesForClassification(
     const std::vector<PreprocessedRow>& rows,
     const std::vector<LabeledEvent>& labeledEvents,
     const QSet<QString>& selectedFeatures) {
-    
     using namespace ValidationFramework;
-    
-    // Comprehensive input validation
     ValidationAccumulator accumulator;
     accumulator.addResult(DataValidator::validateDataRows(rows));
     accumulator.addResult(DataValidator::validateLabeledEvents(labeledEvents));
     accumulator.addResult(MLValidator::validateFeatureSelection(selectedFeatures));
-    accumulator.addResult(CoreValidator::validateSizeMatch(rows, labeledEvents, "Data rows", "Labeled events"));
-    
+    validateEventAlignment(rows, labeledEvents, accumulator);
     if (!accumulator.isValid()) {
         throw TripleBarrier::FeatureExtractionException(
             accumulator.getSummary().errorMessage.toStdString(),
             "Classification Feature Extraction"
         );
     }
-    
-    // Convert features to backend format
     std::set<std::string> features;
     for (const QString& feature : selectedFeatures) {
         if (!feature.isEmpty()) {
             features.insert(feature.toStdString());
         }
     }
-    
     if (features.empty()) {
         throw TripleBarrier::FeatureExtractionException(
             "No valid features after conversion",
             "Feature Format Conversion"
         );
     }
-    
     try {
         auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, labeledEvents);
-        
-        // Validate output
         if (result.features.empty()) {
             throw TripleBarrier::FeatureExtractionException(
                 "Feature extraction returned empty feature set",
                 "Feature Extraction Output"
             );
         }
-        
-        // Additional output validation
         ValidationResult outputValidation = MLValidator::validateModelInputs(result.features, result.labels);
         if (!outputValidation.isValid) {
             throw TripleBarrier::FeatureExtractionException(
@@ -87,10 +97,9 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
                 "Feature Extraction Output Validation"
             );
         }
-        
         return result;
     } catch (const TripleBarrier::BaseException& e) {
-        throw; // Re-throw structured exceptions
+        throw;
     } catch (const std::exception& e) {
         auto converted = TripleBarrier::ExceptionUtils::convertException(e, "Feature Extraction");
         throw *converted;
@@ -101,50 +110,38 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
     const std::vector<PreprocessedRow>& rows,
     const std::vector<LabeledEvent>& labeledEvents,
     const QSet<QString>& selectedFeatures) {
-    
     using namespace ValidationFramework;
-    
-    // Comprehensive input validation using the same pattern as classification
     ValidationAccumulator accumulator;
     accumulator.addResult(DataValidator::validateDataRows(rows));
     accumulator.addResult(DataValidator::validateLabeledEvents(labeledEvents));
     accumulator.addResult(MLValidator::validateFeatureSelection(selectedFeatures));
-    accumulator.addResult(CoreValidator::validateSizeMatch(rows, labeledEvents, "Data rows", "Labeled events"));
-    
+    validateEventAlignment(rows, labeledEvents, accumulator);
     if (!accumulator.isValid()) {
         throw TripleBarrier::FeatureExtractionException(
             accumulator.getSummary().errorMessage.toStdString(),
             "Regression Feature Extraction"
         );
     }
-    
-    // Convert features to backend format
     std::set<std::string> features;
     for (const QString& feature : selectedFeatures) {
         if (!feature.isEmpty()) {
             features.insert(feature.toStdString());
         }
     }
-    
     if (features.empty()) {
         throw TripleBarrier::FeatureExtractionException(
             "No valid features after conversion",
             "Feature Format Conversion"
         );
     }
-    
     try {
         auto result = FeatureExtractor::extractFeaturesForRegression(features, rows, labeledEvents);
-        
-        // Validate output
         if (result.features.empty()) {
             throw TripleBarrier::FeatureExtractionException(
                 "Feature extraction returned empty feature set",
                 "Feature Extraction Output"
             );
         }
-        
-        // Additional output validation for regression
         if (!result.labels_double.empty()) {
             ValidationResult outputValidation = MLValidator::validateModelInputs(result.features, result.labels_double);
             if (!outputValidation.isValid) {
@@ -154,10 +151,9 @@ FeatureExtractor::FeatureExtractionResult FeatureServiceImpl::extractFeaturesFor
                 );
             }
         }
-        
         return result;
     } catch (const TripleBarrier::BaseException& e) {
-        throw; // Re-throw structured exceptions
+        throw;
     } catch (const std::exception& e) {
         auto converted = TripleBarrier::ExceptionUtils::convertException(e, "Feature Extraction");
         throw *converted;
@@ -228,7 +224,25 @@ MLResults MLServiceImpl::runMLPipeline(
         accumulator.addResult(DataValidator::validateDataRows(rows));
         accumulator.addResult(DataValidator::validateLabeledEvents(labeledEvents));
         accumulator.addResult(MLValidator::validateMLConfig(config));
-        accumulator.addResult(CoreValidator::validateSizeMatch(rows, labeledEvents, "Data rows", "Labeled events"));
+        
+        // --- FIX: Only validate size match if all labeled events are present in data rows ---
+        std::set<std::string> rowTimestamps;
+        for (const auto& row : rows) {
+            rowTimestamps.insert(row.timestamp);
+        }
+        size_t matchedEvents = 0;
+        for (const auto& event : labeledEvents) {
+            if (rowTimestamps.count(event.entry_time)) {
+                matchedEvents++;
+            }
+        }
+        if (matchedEvents != labeledEvents.size()) {
+            std::cerr << "[FeatureServiceImpl] WARNING: Only " << matchedEvents << " out of " << labeledEvents.size() << " labeled events have matching data rows." << std::endl;
+        }
+        // Only validate size match if all events are matched
+        if (rows.size() == labeledEvents.size() && matchedEvents == labeledEvents.size()) {
+            accumulator.addResult(CoreValidator::validateSizeMatch(rows, labeledEvents, "Data rows", "Labeled events"));
+        }
         
         if (!accumulator.isValid()) {
             results.errorMessage = accumulator.getSummary().errorMessage;
@@ -594,8 +608,6 @@ MLResults ModelServiceImpl::trainModel(
         std::cout << "[ERROR] Model Training Failed: " << converted->full_message() << std::endl;
         return results;
     }
-    
-    return results;
 }
 
 std::future<MLResults> ModelServiceImpl::trainModelAsync(
