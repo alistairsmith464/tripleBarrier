@@ -18,22 +18,6 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake g++ ninja-build
 
-      - name: Build XGBoost
-        run: |
-          cd xgboost
-          mkdir -p build
-          cd build
-          cmake .. -G Ninja
-          cmake --build .
-          # Copy the built library to lib directory
-          mkdir -p ../lib
-          find . -name "libxgboost.so" -exec cp {} ../lib/ \;
-
-      - name: Verify XGBoost installation
-        run: |
-          echo "Checking XGBoost library files:"
-          find xgboost -name "*libxgboost*" -type f
-
       - name: Configure CMake
         run: cmake -S . -B build -G Ninja -DBUILD_FRONTEND=OFF
 
