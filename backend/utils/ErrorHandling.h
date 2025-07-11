@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <iostream> // For std::cerr
 
 namespace TripleBarrier {
 
@@ -18,13 +19,14 @@ public:
         if (resource_ && cleanup_) {
             try {
                 cleanup_(resource_);
+            } catch (const std::exception& e) {
+                std::cerr << "Resource cleanup failed: " << e.what() << std::endl;
             } catch (...) {
-                // Cleanup should never throw, but if it does, we can't let it escape
+                std::cerr << "Resource cleanup failed: Unknown exception" << std::endl;
             }
         }
     }
     
-    // Move semantics
     ResourceGuard(ResourceGuard&& other) noexcept
         : resource_(other.resource_), cleanup_(std::move(other.cleanup_)) {
         other.resource_ = nullptr;
@@ -44,7 +46,6 @@ public:
         return *this;
     }
     
-    // Disable copy
     ResourceGuard(const ResourceGuard&) = delete;
     ResourceGuard& operator=(const ResourceGuard&) = delete;
     
@@ -62,7 +63,6 @@ private:
     std::function<void(T*)> cleanup_;
 };
 
-// Error handling result pattern
 template<typename T>
 class Result {
 public:
@@ -125,7 +125,6 @@ private:
     int error_code_;
 };
 
-// Exception-safe function wrapper
 template<typename Func>
 class SafeFunction {
 public:
@@ -155,13 +154,11 @@ private:
     std::string operation_name_;
 };
 
-// Helper function to create safe functions
 template<typename Func>
 SafeFunction<Func> makeSafe(Func func, const std::string& operation_name = "") {
     return SafeFunction<Func>(func, operation_name);
 }
 
-// Validation helpers
 namespace Validation {
     
     inline void validateNotNull(const void* ptr, const std::string& name) {
@@ -225,7 +222,6 @@ namespace Validation {
         }
     }
     
-    // Specialized version for different container types
     template<typename Container1, typename Container2>
     inline void validateSizeMatch(const Container1& c1, const Container2& c2, 
                                  const std::string& name1, const std::string& name2) {
@@ -238,7 +234,6 @@ namespace Validation {
     }
 }
 
-// Error accumulator for batch operations
 class ErrorAccumulator {
 public:
     void addError(const std::string& error, const std::string& context = "") {

@@ -328,13 +328,16 @@ ValidationResult MLValidator::validateFeatureSelection(const QSet<QString>& feat
     QStringList invalidFeatures;
     try {
         auto stdFeatures = TypeConversion::TypeAdapter::toStdSet(features);
-        
         for (const auto& feature : stdFeatures) {
             if (feature.empty()) {
                 invalidFeatures.append("(empty)");
             }
         }
     } catch (const std::exception& e) {
+        qWarning("Type conversion error: %s", e.what());
+        #ifdef _WIN32
+        OutputDebugStringA(e.what());
+        #endif
         accumulator.addResult(ValidationResult::error(
             QString("Failed to validate feature selection: %1").arg(e.what()),
             {"Check feature format", "Ensure valid feature names"},
