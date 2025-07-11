@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <cstdint>
 
 TTBMLabeler::TTBMLabeler(BarrierConfig::TTBMDecayType decay_type,
                          double lambda, double alpha, double beta)
