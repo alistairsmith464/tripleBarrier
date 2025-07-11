@@ -1,26 +1,45 @@
 #pragma once
 
-#include <QString>
-#include <QStringList>
-#include <QSet>
+#ifndef VALIDATION_FRAMEWORK_H
+#define VALIDATION_FRAMEWORK_H
+
+// Standard library includes
 #include <vector>
 #include <memory>
 #include <functional>
 #include <stdexcept>
 #include <map>
 #include <set>
+#include <string>
+#include <algorithm>
+#include <cmath>
+#include <climits>
+#include <type_traits>
+
+// Qt includes
+#include <QString>
+#include <QStringList>
+#include <QSet>
+
+// Backend includes
 #include "../../backend/utils/Exceptions.h"
 
-// Forward declarations
+#include "TypeConversionAdapter.h"
+
+namespace UnifiedErrorHandling { class ErrorHandler; }
+
 struct PreprocessedRow;
 struct LabeledEvent;
-struct MLConfig;
 struct BarrierConfig;
-namespace MLPipeline { struct UnifiedPipelineConfig; }
+
+namespace MLPipeline { 
+    struct UnifiedPipelineConfig; 
+}
+
+struct MLConfig;
 
 namespace ValidationFramework {
 
-// Enhanced validation result with detailed error information
 struct ValidationResult {
     bool isValid;
     QString errorMessage;
@@ -63,7 +82,6 @@ struct ValidationResult {
         return result;
     }
     
-    // Convert to backend exception
     TripleBarrier::BaseException toException() const {
         return TripleBarrier::DataValidationException(
             errorMessage.toStdString(),
@@ -72,7 +90,6 @@ struct ValidationResult {
     }
 };
 
-// Validation result accumulator for batch operations
 class ValidationAccumulator {
 public:
     void addResult(const ValidationResult& result) {
@@ -131,10 +148,8 @@ private:
     bool hasWarnings_ = false;
 };
 
-// Core validation functions
 class CoreValidator {
 public:
-    // Basic type validations
     static ValidationResult validateNotEmpty(const QString& value, const QString& fieldName) {
         if (value.isEmpty()) {
             return ValidationResult::error(
@@ -147,8 +162,22 @@ public:
         return ValidationResult::success();
     }
     
+    // Template specialization for QSet and other Qt containers
+    static ValidationResult validateNotEmpty(const QSet<QString>& container, const QString& fieldName) {
+        if (container.isEmpty()) {
+            return ValidationResult::error(
+                QString("%1 cannot be empty").arg(fieldName),
+                {"Add at least one item"},
+                fieldName,
+                "Empty Container Check"
+            );
+        }
+        return ValidationResult::success();
+    }
+    
     template<typename Container>
-    static ValidationResult validateNotEmpty(const Container& container, const QString& fieldName) {
+    static ValidationResult validateNotEmpty(const Container& container, const QString& fieldName,
+        typename std::enable_if_t<!std::is_same_v<Container, QSet<QString>>, int> = 0) {
         if (container.empty()) {
             return ValidationResult::error(
                 QString("%1 cannot be empty").arg(fieldName),
@@ -247,7 +276,6 @@ public:
     }
 };
 
-// Specialized validators for different domains
 class DataValidator {
 public:
     static ValidationResult validateDataRows(const std::vector<PreprocessedRow>& rows);
@@ -265,7 +293,6 @@ public:
                                               const std::vector<float>& y);
     static ValidationResult validateModelInputs(const std::vector<std::vector<float>>& X,
                                               const std::vector<double>& y);
-    // Overloads for feature extraction results
     static ValidationResult validateModelInputs(const std::vector<std::map<std::string, double>>& X,
                                               const std::vector<int>& y);
     static ValidationResult validateModelInputs(const std::vector<std::map<std::string, double>>& X,
@@ -279,7 +306,6 @@ public:
                                                      int verticalWindow);
 };
 
-// Validation chain for complex validations
 class ValidationChain {
 public:
     ValidationChain& add(std::function<ValidationResult()> validator) {
@@ -306,7 +332,6 @@ private:
     std::vector<std::function<ValidationResult()>> validators_;
 };
 
-// Exception-safe validation wrapper
 template<typename T>
 class SafeValidator {
 public:
@@ -333,7 +358,6 @@ public:
     }
 };
 
-// Validation configuration
 struct ValidationConfig {
     bool enableWarnings = true;
     bool stopOnFirstError = false;
@@ -353,7 +377,6 @@ struct ValidationConfig {
     }
 };
 
-// Main validation facade
 class Validator {
 public:
     static void setConfig(const ValidationConfig& config) {
@@ -364,7 +387,6 @@ public:
         return config_;
     }
     
-    // Convenience methods that use the configured behavior
     static ValidationResult validateData(const std::vector<PreprocessedRow>& rows,
                                         const std::vector<LabeledEvent>& events);
     
@@ -372,7 +394,6 @@ public:
     
     static ValidationResult validateBarrier(const BarrierConfig& config);
     
-    // Batch validation with accumulation
     static ValidationResult validateAll(const std::vector<PreprocessedRow>& rows,
                                        const std::vector<LabeledEvent>& events,
                                        const MLConfig& mlConfig,
@@ -383,3 +404,5 @@ private:
 };
 
 } // namespace ValidationFramework
+
+#endif // VALIDATION_FRAMEWORK_H

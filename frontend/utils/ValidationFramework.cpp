@@ -1,4 +1,6 @@
 #include "ValidationFramework.h"
+#include "TypeConversionAdapter.h"
+#include "UnifiedErrorHandling.h"
 #include "../../backend/data/PreprocessedRow.h"
 #include "../../backend/data/LabeledEvent.h"
 #include "../../backend/data/BarrierConfig.h"
@@ -11,109 +13,119 @@
 
 namespace ValidationFramework {
 
-// Static configuration
 ValidationConfig Validator::config_;
 
-// Data validation implementations
 ValidationResult DataValidator::validateDataRows(const std::vector<PreprocessedRow>& rows) {
-    ValidationAccumulator accumulator;
+    using namespace UnifiedErrorHandling;
     
-    // Check if empty
-    accumulator.addResult(CoreValidator::validateNotEmpty(rows, "Data rows"));
-    if (!accumulator.isValid()) {
-        return accumulator.getSummary();
-    }
+    ErrorHandler::ErrorContext context(
+        ErrorHandler::ErrorCategory::Validation,
+        ErrorHandler::ErrorSeverity::Error,
+        "DataValidator",
+        "validateDataRows"
+    );
     
-    // Check minimum size
-    accumulator.addResult(CoreValidator::validateMinSize(rows.size(), 10, "Data rows"));
-    
-    // Check for data quality issues
-    size_t invalidRows = 0;
-    size_t nanCount = 0;
-    size_t infCount = 0;
-    
-    for (size_t i = 0; i < rows.size(); ++i) {
-        const auto& row = rows[i];
+    return ErrorHandler::safeExecute([&]() -> ValidationResult {
+        ValidationAccumulator accumulator;
         
-        // Check for NaN/Inf values
-        if (std::isnan(row.log_return)) {
-            nanCount++;
-        }
-        if (std::isinf(row.log_return)) {
-            infCount++;
+        if (rows.empty()) {
+            return ValidationResult::error(
+                "Data rows cannot be empty",
+                {"Load valid data", "Check data source"},
+                "Data rows",
+                "Empty Check"
+            );
         }
         
-        // Check for invalid volatility
-        if (row.volatility < 0.0 || !std::isfinite(row.volatility)) {
-            invalidRows++;
-        }
-        
-        // Check timestamp validity (it's a string, so just check if empty)
-        if (row.timestamp.empty()) {
-            invalidRows++;
-        }
-    }
-    
-    // Report data quality issues
-    if (nanCount > 0) {
-        double nanPercent = (nanCount * 100.0) / rows.size();
-        if (nanPercent > 5.0) {
-            accumulator.addResult(ValidationResult::error(
-                QString("Too many NaN values: %1 out of %2 rows (%3%)")
-                    .arg(nanCount).arg(rows.size()).arg(nanPercent, 0, 'f', 1),
-                {"Clean the data before processing", "Check data source quality"},
-                "Data Quality",
-                "NaN Check"
-            ));
-        } else if (nanPercent > 1.0) {
+        if (rows.size() < 10) {
             accumulator.addResult(ValidationResult::warning(
-                QString("Some NaN values found: %1 out of %2 rows (%3%)")
-                    .arg(nanCount).arg(rows.size()).arg(nanPercent, 0, 'f', 1),
-                {"Consider cleaning the data", "Monitor data quality"},
-                "Data Quality",
-                "NaN Check"
+                QString("Very few data rows: %1 (minimum recommended: 10)").arg(rows.size()),
+                {"Load more data", "Check data quality"},
+                "Data rows",
+                "Size Check"
             ));
         }
-    }
-    
-    if (infCount > 0) {
-        accumulator.addResult(ValidationResult::error(
-            QString("Infinite values found: %1 out of %2 rows").arg(infCount).arg(rows.size()),
-            {"Remove infinite values", "Check data calculation logic"},
-            "Data Quality",
-            "Infinity Check"
-        ));
-    }
-    
-    if (invalidRows > 0) {
-        double invalidPercent = (invalidRows * 100.0) / rows.size();
-        if (invalidPercent > 10.0) {
+        
+        size_t invalidRows = 0;
+        size_t nanCount = 0;
+        size_t infCount = 0;
+        
+        for (size_t i = 0; i < rows.size(); ++i) {
+            const auto& row = rows[i];
+            
+            if (std::isnan(row.log_return)) {
+                nanCount++;
+            }
+            if (std::isinf(row.log_return)) {
+                infCount++;
+            }
+            
+            if (row.volatility < 0.0 || !std::isfinite(row.volatility)) {
+                invalidRows++;
+            }
+            
+            if (row.timestamp.empty()) {
+                invalidRows++;
+            }
+        }
+        
+        if (nanCount > 0) {
+            double nanPercent = (nanCount * 100.0) / rows.size();
+            if (nanPercent > 5.0) {
+                accumulator.addResult(ValidationResult::error(
+                    QString("Too many NaN values: %1 out of %2 rows (%3%)")
+                        .arg(nanCount).arg(rows.size()).arg(nanPercent, 0, 'f', 1),
+                    {"Clean the data before processing", "Check data source quality"},
+                    "Data Quality",
+                    "NaN Check"
+                ));
+            } else if (nanPercent > 1.0) {
+                accumulator.addResult(ValidationResult::warning(
+                    QString("Some NaN values found: %1 out of %2 rows (%3%)")
+                        .arg(nanCount).arg(rows.size()).arg(nanPercent, 0, 'f', 1),
+                    {"Consider cleaning the data", "Monitor data quality"},
+                    "Data Quality",
+                    "NaN Check"
+                ));
+            }
+        }
+        
+        if (infCount > 0) {
             accumulator.addResult(ValidationResult::error(
-                QString("Too many invalid rows: %1 out of %2 (%3%)")
-                    .arg(invalidRows).arg(rows.size()).arg(invalidPercent, 0, 'f', 1),
-                {"Fix data quality issues", "Check data preprocessing"},
+                QString("Infinite values found: %1 out of %2 rows").arg(infCount).arg(rows.size()),
+                {"Remove infinite values", "Check data calculation logic"},
                 "Data Quality",
-                "Invalid Rows Check"
+                "Infinity Check"
             ));
         }
-    }
-    
-    return accumulator.getSummary();
+        
+        if (invalidRows > 0) {
+            double invalidPercent = (invalidRows * 100.0) / rows.size();
+            if (invalidPercent > 10.0) {
+                accumulator.addResult(ValidationResult::error(
+                    QString("Too many invalid rows: %1 out of %2 (%3%)")
+                        .arg(invalidRows).arg(rows.size()).arg(invalidPercent, 0, 'f', 1),
+                    {"Fix data quality issues", "Check data preprocessing"},
+                    "Data Quality",
+                    "Invalid Rows Check"
+                ));
+            }
+        }
+        
+        return accumulator.getSummary();
+    }, context);
 }
 
 ValidationResult DataValidator::validateLabeledEvents(const std::vector<LabeledEvent>& events) {
     ValidationAccumulator accumulator;
     
-    // Check if empty
     accumulator.addResult(CoreValidator::validateNotEmpty(events, "Labeled events"));
     if (!accumulator.isValid()) {
         return accumulator.getSummary();
     }
     
-    // Check minimum size
     accumulator.addResult(CoreValidator::validateMinSize(events.size(), 5, "Labeled events"));
     
-    // Check label distribution
     std::map<int, int> labelCounts;
     size_t invalidLabels = 0;
     
@@ -124,7 +136,6 @@ ValidationResult DataValidator::validateLabeledEvents(const std::vector<LabeledE
             labelCounts[event.label]++;
         }
         
-        // Check for invalid returns (using ttbm_label as it's available)
         if (!std::isfinite(event.ttbm_label)) {
             invalidLabels++;
         }
@@ -139,7 +150,6 @@ ValidationResult DataValidator::validateLabeledEvents(const std::vector<LabeledE
         ));
     }
     
-    // Check label balance
     if (labelCounts.size() > 1) {
         int maxCount = 0;
         int minCount = INT_MAX;
@@ -175,7 +185,6 @@ ValidationResult DataValidator::validateDataConsistency(const std::vector<Prepro
                                                        const std::vector<LabeledEvent>& events) {
     ValidationAccumulator accumulator;
     
-    // Validate individual components first
     accumulator.addResult(validateDataRows(rows));
     accumulator.addResult(validateLabeledEvents(events));
     
@@ -183,10 +192,7 @@ ValidationResult DataValidator::validateDataConsistency(const std::vector<Prepro
         return accumulator.getSummary();
     }
     
-    // Check timestamp consistency (using entry_time since start_timestamp doesn't exist)
     if (!rows.empty() && !events.empty()) {
-        // Since timestamp is a string, we'll skip the detailed timestamp validation
-        // and just check that we have valid data
         bool hasValidTimestamps = true;
         for (const auto& row : rows) {
             if (row.timestamp.empty()) {
@@ -215,25 +221,18 @@ ValidationResult DataValidator::validateDataConsistency(const std::vector<Prepro
     return accumulator.getSummary();
 }
 
-// ML validation implementations
 ValidationResult MLValidator::validateMLConfig(const MLConfig& config) {
     ValidationAccumulator accumulator;
     
-    // Validate feature selection
     accumulator.addResult(validateFeatureSelection(config.selectedFeatures));
-    
-    // Validate pipeline configuration
     accumulator.addResult(validatePipelineConfig(config.pipelineConfig));
     
-    // Validate cross-validation ratio
     accumulator.addResult(CoreValidator::validateRange(
         config.crossValidationRatio, 0.0, 0.5, "Cross-validation ratio"));
     
-    // Validate outlier threshold
     accumulator.addResult(CoreValidator::validateRange(
         config.outlierThreshold, 1.0, 10.0, "Outlier threshold"));
     
-    // Validate random seed
     if (config.randomSeed < 0) {
         accumulator.addResult(ValidationResult::warning(
             "Negative random seed may cause issues",
@@ -249,7 +248,6 @@ ValidationResult MLValidator::validateMLConfig(const MLConfig& config) {
 ValidationResult MLValidator::validatePipelineConfig(const MLPipeline::UnifiedPipelineConfig& config) {
     ValidationAccumulator accumulator;
     
-    // Validate test/validation split
     accumulator.addResult(CoreValidator::validateRange(
         config.test_size, 0.05, 0.5, "Test size"));
     
@@ -266,7 +264,6 @@ ValidationResult MLValidator::validatePipelineConfig(const MLPipeline::UnifiedPi
         ));
     }
     
-    // Validate XGBoost parameters
     accumulator.addResult(CoreValidator::validateRange(
         config.n_rounds, 1, 10000, "Number of rounds"));
     
@@ -285,7 +282,6 @@ ValidationResult MLValidator::validatePipelineConfig(const MLPipeline::UnifiedPi
     accumulator.addResult(CoreValidator::validatePositive(
         config.nthread, "Number of threads"));
     
-    // Warning for potentially problematic values
     if (config.n_rounds > 1000) {
         accumulator.addResult(ValidationResult::warning(
             "Large number of rounds may cause overfitting",
@@ -310,8 +306,15 @@ ValidationResult MLValidator::validatePipelineConfig(const MLPipeline::UnifiedPi
 ValidationResult MLValidator::validateFeatureSelection(const QSet<QString>& features) {
     ValidationAccumulator accumulator;
     
-    // Check if empty
-    accumulator.addResult(CoreValidator::validateNotEmpty(features, "Feature selection"));
+    if (TypeConversion::TypeAdapter::isEmpty(features)) {
+        accumulator.addResult(ValidationResult::error(
+            "Feature selection cannot be empty",
+            {"Add at least one feature"},
+            "Feature selection",
+            "Empty Container Check"
+        ));
+        return accumulator.getSummary();
+    }
     
     if (features.size() > 50) {
         accumulator.addResult(ValidationResult::warning(
@@ -322,12 +325,23 @@ ValidationResult MLValidator::validateFeatureSelection(const QSet<QString>& feat
         ));
     }
     
-    // Check for known invalid features (this would need to be implemented based on your feature system)
     QStringList invalidFeatures;
-    for (const QString& feature : features) {
-        if (feature.isEmpty()) {
-            invalidFeatures.append("(empty)");
+    try {
+        auto stdFeatures = TypeConversion::TypeAdapter::toStdSet(features);
+        
+        for (const auto& feature : stdFeatures) {
+            if (feature.empty()) {
+                invalidFeatures.append("(empty)");
+            }
         }
+    } catch (const std::exception& e) {
+        accumulator.addResult(ValidationResult::error(
+            QString("Failed to validate feature selection: %1").arg(e.what()),
+            {"Check feature format", "Ensure valid feature names"},
+            "Feature Validation",
+            "Type Conversion Error"
+        ));
+        return accumulator.getSummary();
     }
     
     if (!invalidFeatures.isEmpty()) {
@@ -346,7 +360,6 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::vector<
                                                  const std::vector<float>& y) {
     ValidationAccumulator accumulator;
     
-    // Check if empty
     accumulator.addResult(CoreValidator::validateNotEmpty(X, "Feature matrix"));
     accumulator.addResult(CoreValidator::validateNotEmpty(y, "Target vector"));
     
@@ -354,10 +367,8 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::vector<
         return accumulator.getSummary();
     }
     
-    // Check size consistency
     accumulator.addResult(CoreValidator::validateSizeMatch(X, y, "Features", "Targets"));
     
-    // Check feature matrix consistency
     if (!X.empty()) {
         size_t expectedFeatures = X[0].size();
         for (size_t i = 1; i < X.size(); ++i) {
@@ -374,7 +385,6 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::vector<
         }
     }
     
-    // Check for NaN/Inf values
     size_t nanCount = 0;
     size_t infCount = 0;
     for (const auto& row : X) {
@@ -410,12 +420,10 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::vector<
     return accumulator.getSummary();
 }
 
-// Overload for double vector targets (regression)
 ValidationResult MLValidator::validateModelInputs(const std::vector<std::vector<float>>& X,
                                                  const std::vector<double>& y) {
     ValidationAccumulator accumulator;
     
-    // Check if empty
     accumulator.addResult(CoreValidator::validateNotEmpty(X, "Feature matrix"));
     accumulator.addResult(CoreValidator::validateNotEmpty(y, "Target vector"));
     
@@ -423,10 +431,8 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::vector<
         return accumulator.getSummary();
     }
     
-    // Check size consistency
     accumulator.addResult(CoreValidator::validateSizeMatch(X, y, "Features", "Targets"));
     
-    // Check feature matrix consistency
     if (!X.empty()) {
         size_t expectedFeatures = X[0].size();
         for (size_t i = 1; i < X.size(); ++i) {
@@ -443,7 +449,6 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::vector<
         }
     }
     
-    // Check for NaN/Inf values
     size_t nanCount = 0;
     size_t infCount = 0;
     for (const auto& row : X) {
@@ -479,12 +484,10 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::vector<
     return accumulator.getSummary();
 }
 
-// Overloads for feature extraction results (map-based features)
 ValidationResult MLValidator::validateModelInputs(const std::vector<std::map<std::string, double>>& X,
                                                  const std::vector<int>& y) {
     ValidationAccumulator accumulator;
     
-    // Check if empty
     accumulator.addResult(CoreValidator::validateNotEmpty(X, "Feature matrix"));
     accumulator.addResult(CoreValidator::validateNotEmpty(y, "Target vector"));
     
@@ -492,7 +495,6 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::map<std
         return accumulator.getSummary();
     }
     
-    // Check size consistency
     if (X.size() != y.size()) {
         accumulator.addResult(ValidationResult::error(
             QString("Feature matrix size (%1) doesn't match target vector size (%2)")
@@ -504,7 +506,6 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::map<std
         return accumulator.getSummary();
     }
     
-    // Check feature consistency
     if (!X.empty()) {
         std::set<std::string> expectedFeatures;
         for (const auto& pair : X[0]) {
@@ -529,7 +530,6 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::map<std
         }
     }
     
-    // Check for NaN/Inf values
     size_t nanCount = 0;
     size_t infCount = 0;
     for (const auto& sample : X) {
@@ -564,7 +564,6 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::map<std
                                                  const std::vector<double>& y) {
     ValidationAccumulator accumulator;
     
-    // Check if empty
     accumulator.addResult(CoreValidator::validateNotEmpty(X, "Feature matrix"));
     accumulator.addResult(CoreValidator::validateNotEmpty(y, "Target vector"));
     
@@ -572,7 +571,6 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::map<std
         return accumulator.getSummary();
     }
     
-    // Check size consistency
     if (X.size() != y.size()) {
         accumulator.addResult(ValidationResult::error(
             QString("Feature matrix size (%1) doesn't match target vector size (%2)")
@@ -584,7 +582,6 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::map<std
         return accumulator.getSummary();
     }
     
-    // Check feature consistency
     if (!X.empty()) {
         std::set<std::string> expectedFeatures;
         for (const auto& pair : X[0]) {
@@ -609,7 +606,6 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::map<std
         }
     }
     
-    // Check for NaN/Inf values
     size_t nanCount = 0;
     size_t infCount = 0;
     for (const auto& sample : X) {
@@ -645,21 +641,17 @@ ValidationResult MLValidator::validateModelInputs(const std::vector<std::map<std
     return accumulator.getSummary();
 }
 
-// Barrier validation implementations
 ValidationResult BarrierValidator::validateBarrierConfig(const BarrierConfig& config) {
     ValidationAccumulator accumulator;
     
-    // Validate barrier parameters
     accumulator.addResult(validateBarrierParameters(
         config.profit_multiple, config.stop_multiple, config.vertical_window));
     
-    // Validate CUSUM parameters if enabled
     if (config.use_cusum) {
         accumulator.addResult(CoreValidator::validatePositive(
             config.cusum_threshold, "CUSUM threshold"));
     }
     
-    // Check for logical issues
     if (config.profit_multiple < config.stop_multiple) {
         accumulator.addResult(ValidationResult::warning(
             "Profit multiple is smaller than stop multiple",
@@ -681,7 +673,6 @@ ValidationResult BarrierValidator::validateBarrierParameters(double profitMultip
     accumulator.addResult(CoreValidator::validatePositive(stopMultiple, "Stop multiple"));
     accumulator.addResult(CoreValidator::validatePositive(verticalWindow, "Vertical window"));
     
-    // Check for reasonable ranges
     if (profitMultiple > 10.0) {
         accumulator.addResult(ValidationResult::warning(
             "Very high profit multiple may result in few profitable trades",
@@ -703,7 +694,6 @@ ValidationResult BarrierValidator::validateBarrierParameters(double profitMultip
     return accumulator.getSummary();
 }
 
-// Main validator implementations
 ValidationResult Validator::validateData(const std::vector<PreprocessedRow>& rows,
                                         const std::vector<LabeledEvent>& events) {
     return DataValidator::validateDataConsistency(rows, events);
