@@ -15,19 +15,6 @@ PortfolioSimulation simulate_portfolio(
     bool is_hard_barrier,
     const PortfolioConfig& portfolio_config
 ) {
-    std::cout << "DEBUG: simulate_portfolio called with " << trading_signals.size() 
-              << " signals and " << returns.size() << " returns" << std::endl;
-    std::cout << "DEBUG: is_hard_barrier = " << (is_hard_barrier ? "true" : "false") << std::endl;
-    std::cout << "DEBUG: Starting capital = " << portfolio_config.starting_capital << std::endl;
-    std::cout << "DEBUG: Position threshold = " << portfolio_config.position_threshold << std::endl;
-    std::cout << "DEBUG: Hard barrier position % = " << portfolio_config.hard_barrier_position_pct << std::endl;
-    
-    std::cout << "DEBUG: First 10 trading signals: ";
-    for (size_t i = 0; i < std::min(size_t(10), trading_signals.size()); ++i) {
-        std::cout << trading_signals[i] << " ";
-    }
-    std::cout << std::endl;
-    
     if (trading_signals.empty() || returns.empty()) {
         throw std::invalid_argument("Signals and returns cannot be empty");
     }
@@ -45,10 +32,11 @@ PortfolioSimulation simulate_portfolio(
     int winning_trades = 0;
     double total_pnl = 0;
     std::vector<std::string> trade_decisions;
-    
+    std::vector<double> trade_returns; // Store PnL for each trade
     for (size_t i = 0; i < trading_signals.size(); ++i) {
         double position_pct = 0;
         std::string decision;
+        double trade_capital = capital; // Use capital before trade for PnL calculation
         
         if (is_hard_barrier) {
             if (trading_signals[i] > 0.5) {
@@ -60,12 +48,6 @@ PortfolioSimulation simulate_portfolio(
             } else {
                 position_pct = 0;
                 decision = "HOLD";
-            }
-            
-            if (i < 5) {
-                std::cout << "DEBUG: Signal[" << i << "] = " << trading_signals[i] 
-                         << " -> position_pct = " << position_pct 
-                         << " (threshold = 0.5)" << std::endl;
             }
         } else {
             position_pct = std::min(std::abs(trading_signals[i]) * portfolio_config.max_position_pct, portfolio_config.max_position_pct);
@@ -82,9 +64,10 @@ PortfolioSimulation simulate_portfolio(
         
         if (std::abs(position_pct) > portfolio_config.position_threshold) {
             total_trades++;
-            double pnl = position_pct * capital * returns[i];
+            double pnl = position_pct * trade_capital * returns[i]; 
             total_pnl += pnl;
             capital += pnl;
+            trade_returns.push_back(pnl); 
             if (pnl > 0) winning_trades++;
         }
         
@@ -116,14 +99,8 @@ PortfolioSimulation simulate_portfolio(
     
     double win_rate = total_trades > 0 ? winning_trades / static_cast<double>(total_trades) : 0;
     
-    std::cout << "DEBUG: Portfolio simulation completed:" << std::endl;
-    std::cout << "  Total trades: " << total_trades << std::endl;
-    std::cout << "  Win rate: " << win_rate << std::endl;
-    std::cout << "  Final capital: " << capital << std::endl;
-    std::cout << "  Total return: " << total_return << std::endl;
-    
     return {portfolio_config.starting_capital, capital, total_return, annualized_return, max_drawdown, 
-            sharpe_ratio, total_trades, win_rate, trade_decisions};
+            sharpe_ratio, total_trades, win_rate, trade_decisions, trade_returns};
 }
 
 BarrierDiagnostics analyzeBarriers(

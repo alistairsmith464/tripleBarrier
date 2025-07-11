@@ -30,7 +30,6 @@ FeatureExtractor::FeatureExtractionResult HardBarrierStrategy::extractFeatures(
     const std::vector<PreprocessedRow>& rows,
     const std::vector<LabeledEvent>& labeledEvents) {
     
-    std::cout << "[DEBUG] HardBarrierStrategy: Extracting features for classification" << std::endl;
     return FeatureExtractor::extractFeaturesForClassification(selectedFeatures, rows, labeledEvents);
 }
 
@@ -44,10 +43,6 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
     PredictionResult result;
     
     try {
-        std::cout << "[DEBUG] HardBarrierStrategy: Training classification model" << std::endl;
-        std::cout << "  - Training samples: " << features.features.size() << std::endl;
-        std::cout << "  - Classification labels: " << features.labels.size() << std::endl;
-        
         Validation::validateNotEmpty(features.features, "features");
         Validation::validateNotEmpty(features.labels, "classification_labels");
         Validation::validateNotEmpty(returns, "returns");
@@ -79,11 +74,6 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
             throw DataProcessingException("Insufficient data after cleaning", 
                                         "samples: " + std::to_string(X_clean.size()));
         }
-        
-        std::cout << "[DEBUG] Using multi-class classification for {-1, 0, +1} labels" << std::endl;
-        std::cout << "  - Label -1: Bearish (stop loss hit)" << std::endl;
-        std::cout << "  - Label  0: Neutral (timeout)" << std::endl;
-        std::cout << "  - Label +1: Bullish (profit target hit)" << std::endl;
         
         auto [train_idx, val_idx, test_idx] = createTrainValTestSplits(X_clean.size(), config);
         
@@ -153,11 +143,11 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
                                          ", got: " + std::to_string(y_pred.size()));
         }
         
-        std::cout << "[DEBUG] HardBarrierStrategy: Predictions completed" << std::endl;
-        std::cout << "  - Predictions: " << y_pred.size() << std::endl;
-        std::cout << "  - Probabilities: " << y_prob.size() << std::endl;
-        
-        result.predictions.assign(y_pred.begin(), y_pred.end());
+        result.predictions.clear();
+        result.predictions.reserve(y_pred.size());
+        for (const auto& val : y_pred) {
+            result.predictions.push_back(static_cast<double>(val));
+        }
         result.confidence_scores.assign(y_prob.begin(), y_prob.end());
         
         try {
@@ -210,12 +200,6 @@ std::vector<double> HardBarrierStrategy::convertClassificationToTradingSignals(
         signals.push_back(signal);
     }
     
-    std::cout << "[DEBUG] HardBarrier trading signals: ";
-    for (size_t i = 0; i < std::min(size_t(10), signals.size()); ++i) {
-        std::cout << signals[i] << " ";
-    }
-    std::cout << std::endl;
-    
     return signals;
 }
 
@@ -224,7 +208,6 @@ FeatureExtractor::FeatureExtractionResult TTBMStrategy::extractFeatures(
     const std::vector<PreprocessedRow>& rows,
     const std::vector<LabeledEvent>& labeledEvents) {
     
-    std::cout << "[DEBUG] TTBMStrategy: Extracting features for regression" << std::endl;
     return FeatureExtractor::extractFeaturesForRegression(selectedFeatures, rows, labeledEvents);
 }
 
@@ -236,10 +219,6 @@ BarrierMLStrategy::PredictionResult TTBMStrategy::trainAndPredict(
     PredictionResult result;
     
     try {
-        std::cout << "[DEBUG] TTBMStrategy: Training regression model" << std::endl;
-        std::cout << "  - Training samples: " << features.features.size() << std::endl;
-        std::cout << "  - Regression labels: " << features.labels_double.size() << std::endl;
-        
         if (features.features.empty() || features.labels_double.empty()) {
             result.error_message = "No valid regression data available";
             return result;
@@ -263,15 +242,6 @@ BarrierMLStrategy::PredictionResult TTBMStrategy::trainAndPredict(
         auto X_eval = toFloatMatrix(select_rows(X_clean, eval_idx));
         auto returns_eval = select_rows(returns_clean, eval_idx);
         
-        if (!y_train.empty()) {
-            float min_train = *std::min_element(y_train.begin(), y_train.end());
-            float max_train = *std::max_element(y_train.begin(), y_train.end());
-            float sum_train = std::accumulate(y_train.begin(), y_train.end(), 0.0f);
-            float mean_train = sum_train / y_train.size();
-            std::cout << "[DEBUG] Training label stats: [" << min_train << ", " << max_train 
-                     << "], mean: " << mean_train << std::endl;
-        }
-        
         XGBoostConfig model_config;
         model_config.n_rounds = config.n_rounds;
         model_config.max_depth = config.max_depth;
@@ -284,22 +254,7 @@ BarrierMLStrategy::PredictionResult TTBMStrategy::trainAndPredict(
         XGBoostModel model;
         model.fit(X_train, y_train, model_config);
         
-        std::cout << "[DEBUG] TTBMStrategy: Making predictions using predict_raw..." << std::endl;
         auto y_pred_raw = model.predict_raw(X_eval); 
-        
-        if (!y_pred_raw.empty()) {
-            float min_pred = *std::min_element(y_pred_raw.begin(), y_pred_raw.end());
-            float max_pred = *std::max_element(y_pred_raw.begin(), y_pred_raw.end());
-            float sum_pred = std::accumulate(y_pred_raw.begin(), y_pred_raw.end(), 0.0f);
-            float mean_pred = sum_pred / y_pred_raw.size();
-            std::cout << "[DEBUG] Raw predictions stats: [" << min_pred << ", " << max_pred 
-                     << "], mean: " << mean_pred << std::endl;
-            std::cout << "[DEBUG] First 10 raw predictions: ";
-            for (size_t i = 0; i < std::min(size_t(10), y_pred_raw.size()); ++i) {
-                std::cout << y_pred_raw[i] << " ";
-            }
-            std::cout << std::endl;
-        }
         
         result.predictions.assign(y_pred_raw.begin(), y_pred_raw.end());
         result.trading_signals = convertRegressionToTradingSignals(result.predictions);
@@ -351,12 +306,6 @@ std::vector<double> TTBMStrategy::normalizeToTradingRange(
         normalized.assign(raw_predictions.size(), 0.0);
     }
     
-    std::cout << "[DEBUG] TTBM trading signals (normalized): ";
-    for (size_t i = 0; i < std::min(size_t(10), normalized.size()); ++i) {
-        std::cout << normalized[i] << " ";
-    }
-    std::cout << std::endl;
-    
     return normalized;
 }
 
@@ -383,12 +332,8 @@ UnifiedMLPipeline::PipelineResult UnifiedMLPipeline::runPipeline(
     PipelineResult pipeline_result;
     
     try {
-        std::cout << "[DEBUG] UnifiedMLPipeline: Starting with strategy: ";
-        
         auto strategy = BarrierMLStrategyFactory::createStrategy(config.strategy_type);
         pipeline_result.strategy_name = strategy->getStrategyName();
-        
-        std::cout << pipeline_result.strategy_name << std::endl;
         
         auto features = strategy->extractFeatures(config.selected_features, rows, labeledEvents);
         

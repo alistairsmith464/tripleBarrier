@@ -152,12 +152,6 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
         );
     }
     
-    std::cout << "[DEBUG] XGBoostModel::fit called" << std::endl;
-    std::cout << "  - Samples: " << X.size() << std::endl;
-    std::cout << "  - Features: " << (X.empty() ? 0 : X[0].size()) << std::endl;
-    std::cout << "  - Objective: " << config.objective << std::endl;
-    std::cout << "  - n_rounds: " << config.n_rounds << std::endl;
-    
     ErrorAccumulator dataErrors;
     int nan_count = 0, inf_count = 0;
     
@@ -188,38 +182,14 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
         throw DataValidationException("Data quality issues detected", dataErrors.getAllErrors());
     }
     
-    std::cout << "  - NaN features: " << nan_count << std::endl;
-    std::cout << "  - Inf features: " << inf_count << std::endl;
-    
-    std::cout << "  - Label range check:" << std::endl;
-    float min_label = *std::min_element(y.begin(), y.end());
-    float max_label = *std::max_element(y.begin(), y.end());
-    std::cout << "    Min label: " << min_label << std::endl;
-    std::cout << "    Max label: " << max_label << std::endl;
-    
-    std::set<float> unique_labels(y.begin(), y.end());
-    std::cout << "    Unique labels: ";
-    for (float label : unique_labels) {
-        std::cout << label << " ";
-    }
-    std::cout << std::endl;
-    
     XGBoostConfig adjusted_config = config;
     std::vector<float> adjusted_y = y;
-    
+    std::set<float> unique_labels(y.begin(), y.end());
     if (unique_labels.size() > 2 && config.objective == "binary:logistic") {
         adjusted_config.objective = "multi:softmax";
-        std::cout << "  - WARNING: Detected " << unique_labels.size() << " classes but objective is binary:logistic" << std::endl;
-        std::cout << "  - Switching to multi:softmax objective" << std::endl;
         
         std::vector<float> sorted_labels(unique_labels.begin(), unique_labels.end());
         std::sort(sorted_labels.begin(), sorted_labels.end());
-        
-        std::cout << "  - Internal mapping: ";
-        for (size_t i = 0; i < sorted_labels.size(); ++i) {
-            std::cout << sorted_labels[i] << "->" << i << " ";
-        }
-        std::cout << std::endl;
         
         label_mapping_.clear();
         reverse_label_mapping_.clear();
@@ -234,9 +204,6 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
         
         adjusted_config.num_class = static_cast<int>(unique_labels.size());
     }
-    
-    std::cout << "  - Using objective: " << adjusted_config.objective << std::endl;
-    std::cout << "  - Starting XGBoost training..." << std::endl;
     
     free_booster();
     trained_ = false;
@@ -276,20 +243,15 @@ void XGBoostModel::fit(const std::vector<std::vector<float>>& X, const std::vect
         
         set_xgboost_parameters(adjusted_config); 
         
-        std::cout << "  - Starting XGBoost training..." << std::endl;
-        
         for (int iter = 0; iter < config.n_rounds; ++iter) {
             ret = XGBoosterUpdateOneIter(static_cast<BoosterHandle>(booster_), iter, dtrain);
             if (ret != 0) {
                 const char* error_msg = XGBGetLastError();
                 std::string full_error = "Training failed at iteration " + std::to_string(iter) + 
                                        ". XGBoost error: " + std::string(error_msg);
-                std::cout << "  - ERROR: " << full_error << std::endl;
                 throw std::runtime_error(full_error);
             }
         }
-        
-        std::cout << "  - Training completed successfully!" << std::endl;
         
         trained_ = true;
         
@@ -305,11 +267,10 @@ std::vector<int> XGBoostModel::predict(const std::vector<std::vector<float>>& X)
     if (!is_trained()) {
         throw std::runtime_error("Model must be trained before making predictions");
     }
-    
     std::vector<float> raw_predictions = predict_raw(X);
     std::vector<int> predictions;
-    predictions.reserve(raw_predictions.size());
-    
+    predictions.reserve(X.size());
+
     if (config_.objective == "multi:softmax") {
         for (float pred : raw_predictions) {
             int xgb_index = static_cast<int>(pred);
@@ -319,12 +280,30 @@ std::vector<int> XGBoostModel::predict(const std::vector<std::vector<float>>& X)
                 predictions.push_back(xgb_index);
             }
         }
+    } else if (config_.objective == "multi:softprob") {
+        int n_classes = config_.num_class;
+        int n_samples = static_cast<int>(X.size());
+        for (int i = 0; i < n_samples; ++i) {
+            int best_class = 0;
+            float best_prob = raw_predictions[i * n_classes];
+            for (int c = 1; c < n_classes; ++c) {
+                float prob = raw_predictions[i * n_classes + c];
+                if (prob > best_prob) {
+                    best_prob = prob;
+                    best_class = c;
+                }
+            }
+            if (reverse_label_mapping_.count(best_class)) {
+                predictions.push_back(static_cast<int>(reverse_label_mapping_.at(best_class)));
+            } else {
+                predictions.push_back(best_class);
+            }
+        }
     } else {
         for (float prob : raw_predictions) {
             predictions.push_back((prob > config_.binary_threshold) ? 1 : 0);
         }
     }
-    
     return predictions;
 }
 

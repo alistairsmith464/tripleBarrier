@@ -27,7 +27,6 @@ MLServiceImpl::MLServiceImpl()
     , model_service_(std::make_unique<ModelServiceImpl>())
     , portfolio_service_(std::make_unique<PortfolioServiceImpl>()) {
     
-    // Configure error handling strategy for ML operations
     using namespace ValidationFramework;
     ErrorHandlingStrategy::setMode(ErrorHandlingStrategy::Mode::MIXED);
 }
@@ -180,7 +179,6 @@ QString FeatureServiceImpl::validateFeatureSelection(const QSet<QString>& featur
         return result.errorMessage;
     }
     
-    // Additional validation against available features
     QStringList available = getAvailableFeatures();
     QStringList invalid;
     
@@ -194,7 +192,6 @@ QString FeatureServiceImpl::validateFeatureSelection(const QSet<QString>& featur
         return QString("Invalid features: %1").arg(invalid.join(", "));
     }
     
-    // Return warning if present
     if (!result.warningMessage.isEmpty()) {
         return result.warningMessage;
     }
@@ -211,7 +208,6 @@ MLResults MLServiceImpl::runMLPipeline(
     
     MLResults results;
     
-    // Create error handling context
     ErrorHandlingStrategy::ErrorContext context(
         "ML Pipeline Execution",
         "MLService",
@@ -219,28 +215,12 @@ MLResults MLServiceImpl::runMLPipeline(
     );
     
     try {
-        // Comprehensive validation before processing
         ValidationAccumulator accumulator;
         accumulator.addResult(DataValidator::validateDataRows(rows));
         accumulator.addResult(DataValidator::validateLabeledEvents(labeledEvents));
         accumulator.addResult(MLValidator::validateMLConfig(config));
         
-        // --- FIX: Only validate size match if all labeled events are present in data rows ---
-        std::set<std::string> rowTimestamps;
-        for (const auto& row : rows) {
-            rowTimestamps.insert(row.timestamp);
-        }
-        size_t matchedEvents = 0;
-        for (const auto& event : labeledEvents) {
-            if (rowTimestamps.count(event.entry_time)) {
-                matchedEvents++;
-            }
-        }
-        if (matchedEvents != labeledEvents.size()) {
-            std::cerr << "[FeatureServiceImpl] WARNING: Only " << matchedEvents << " out of " << labeledEvents.size() << " labeled events have matching data rows." << std::endl;
-        }
-        // Only validate size match if all events are matched
-        if (rows.size() == labeledEvents.size() && matchedEvents == labeledEvents.size()) {
+        if (rows.size() == labeledEvents.size()) {
             accumulator.addResult(CoreValidator::validateSizeMatch(rows, labeledEvents, "Data rows", "Labeled events"));
         }
         
@@ -250,12 +230,10 @@ MLResults MLServiceImpl::runMLPipeline(
             return results;
         }
         
-        // Log any warnings
         if (accumulator.hasWarnings()) {
             results.warningMessage = accumulator.getSummary().warningMessage;
         }
         
-        // Feature extraction with validation
         auto featureExtractor = createValidatedFunction<FeatureExtractor::FeatureExtractionResult>([&]() {
             if (config.useTTBM) {
                 return feature_service_->extractFeaturesForRegression(rows, labeledEvents, config.selectedFeatures);
@@ -276,7 +254,6 @@ MLResults MLServiceImpl::runMLPipeline(
             return results;
         }
         
-        // Model training with validation
         auto modelTrainer = createValidatedFunction<MLResults>([&]() {
             return model_service_->trainModel(results.features, labeledEvents, config);
         }).withContext(ErrorHandlingStrategy::ErrorContext(
@@ -298,7 +275,6 @@ MLResults MLServiceImpl::runMLPipeline(
             return model_results;
         }
         
-        // Copy results with validation
         results.predictions = model_results.predictions;
         results.prediction_probabilities = model_results.prediction_probabilities;
         results.accuracy = model_results.accuracy;
@@ -315,7 +291,6 @@ MLResults MLServiceImpl::runMLPipeline(
         results.dataQuality = model_results.dataQuality;
         results.portfolioResult = model_results.portfolioResult;
         
-        // Post-validation of results
         ValidationAccumulator postValidation;
         postValidation.addResult(CoreValidator::validateNotEmpty(results.predictions, "Predictions"));
         postValidation.addResult(CoreValidator::validateFinite(results.portfolioResult.total_return, "Total Return"));
@@ -327,12 +302,6 @@ MLResults MLServiceImpl::runMLPipeline(
             results.success = false;
             return results;
         }
-        
-        std::cout << "DEBUG: Portfolio simulation completed successfully" << std::endl;
-        std::cout << "DEBUG: Starting capital: $" << results.portfolioResult.starting_capital << std::endl;
-        std::cout << "DEBUG: Final value: $" << results.portfolioResult.final_value << std::endl;
-        std::cout << "DEBUG: Total trades: " << results.portfolioResult.total_trades << std::endl;
-        std::cout << "DEBUG: Total return: " << results.portfolioResult.total_return << std::endl;
         
         results.success = true;
         
@@ -383,7 +352,6 @@ QString MLServiceImpl::validateConfiguration(const MLConfig& config) {
         return result.errorMessage;
     }
     
-    // Return warning if present
     if (!result.warningMessage.isEmpty()) {
         return result.warningMessage;
     }
@@ -490,12 +458,6 @@ MLResults ModelServiceImpl::trainModel(
     MLResults results;
     
     try {
-        std::cout << "[DEBUG] MLService::trainModel called (STRATEGY APPROACH)" << std::endl;
-        std::cout << "  - Features size: " << features.features.size() << std::endl;
-        std::cout << "  - Labels size: " << features.labels.size() << std::endl;
-        std::cout << "  - Labels_double size: " << features.labels_double.size() << std::endl;
-        std::cout << "  - TTBM mode: " << (config.useTTBM ? "YES" : "NO") << std::endl;
-        
         Validation::validateNotEmpty(features.features, "features");
         
         if (config.useTTBM) {
@@ -553,21 +515,34 @@ MLResults ModelServiceImpl::trainModel(
         } catch (const std::bad_alloc& e) {
             throw ResourceAllocationException("ML Strategy", "Failed to allocate memory for strategy");
         }
-        
         Validation::validateNotNull(strategy.get(), "strategy");
-        
-        auto prediction_result = strategy->trainAndPredict(features, features.returns, training_config);
-        
-        if (!prediction_result.success) {
-            throw ModelTrainingException(prediction_result.error_message, 
-                                       strategy->getStrategyName());
+
+        FeatureExtractor::FeatureExtractionResult mappedFeatures = features;
+        if (!config.useTTBM && mappedFeatures.labels.size() > 0) {
+            for (auto& label : mappedFeatures.labels) {
+                if (label == -1) label = 0;
+                else if (label == 0) label = 1;
+                else if (label == 1) label = 2;
+            }
         }
         
-        if (prediction_result.predictions.empty()) {
-            throw ModelPredictionException("No predictions generated", strategy->getStrategyName());
+        auto prediction_result = strategy->trainAndPredict(mappedFeatures, mappedFeatures.returns, training_config);
+
+        std::vector<double> mapped_predictions;
+        if (!prediction_result.predictions.empty()) {
+            mapped_predictions.reserve(prediction_result.predictions.size());
+            for (const auto& pred : prediction_result.predictions) {
+                mapped_predictions.push_back(static_cast<double>(pred));
+            }
         }
-        
-        results.predictions = prediction_result.predictions;
+        if (!config.useTTBM && !mapped_predictions.empty()) {
+            for (auto& pred : mapped_predictions) {
+                if (pred == 0) pred = -1;
+                else if (pred == 1) pred = 0;
+                else if (pred == 2) pred = 1;
+            }
+        }
+        results.predictions = mapped_predictions;
         results.prediction_probabilities = prediction_result.confidence_scores;
         
         const auto& portfolio = prediction_result.portfolio_result;
@@ -587,25 +562,14 @@ MLResults ModelServiceImpl::trainModel(
         results.modelInfo = QString("Strategy: %1").arg(QString::fromStdString(strategy->getStrategyName()));
         results.success = true;
         
-        std::cout << "[DEBUG] STRATEGY TRAINING SUCCESS:" << std::endl;
-        std::cout << "  Strategy: " << strategy->getStrategyName() << std::endl;
-        std::cout << "  Predictions: " << results.predictions.size() << std::endl;
-        std::cout << "  Portfolio - Starting: $" << results.portfolioResult.starting_capital 
-                 << ", Final: $" << results.portfolioResult.final_value 
-                 << ", Trades: " << results.portfolioResult.total_trades << std::endl;
-        
-        return results;
-        
     } catch (const BaseException& e) {
         results.success = false;
         results.errorMessage = QString::fromStdString(e.full_message());
-        std::cout << "[ERROR] Model Training Failed: " << e.full_message() << std::endl;
         return results;
     } catch (const std::exception& e) {
         auto converted = ExceptionUtils::convertException(e, "Model Training");
         results.success = false;
         results.errorMessage = QString::fromStdString(converted->full_message());
-        std::cout << "[ERROR] Model Training Failed: " << converted->full_message() << std::endl;
         return results;
     }
 }
@@ -671,6 +635,17 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
         results.sharpe_ratio = simulation.sharpe_ratio;
         results.total_trades = simulation.total_trades;
         results.win_rate = simulation.win_rate;
+
+        if (!simulation.trade_returns.empty()) {
+            results.best_trade = *std::max_element(simulation.trade_returns.begin(), simulation.trade_returns.end());
+            results.worst_trade = *std::min_element(simulation.trade_returns.begin(), simulation.trade_returns.end());
+            double sum = std::accumulate(simulation.trade_returns.begin(), simulation.trade_returns.end(), 0.0);
+            results.avg_trade_return = sum / simulation.trade_returns.size();
+        } else {
+            results.best_trade = 0.0;
+            results.worst_trade = 0.0;
+            results.avg_trade_return = 0.0;
+        }
         
         return results;
         

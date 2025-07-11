@@ -17,6 +17,7 @@ struct PortfolioSimulation {
     int total_trades;
     double win_rate;
     std::vector<std::string> trade_decisions;
+    std::vector<double> trade_returns; 
 };
 
 struct PortfolioResults {
