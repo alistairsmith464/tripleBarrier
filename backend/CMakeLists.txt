@@ -95,3 +95,7 @@ add_test(NAME DataPreprocessorTest COMMAND TestDataPreprocessor)
 add_executable(TestTTBMLabeler tests/TestTTBMLabeler.cpp)
 target_link_libraries(TestTTBMLabeler backend gtest gtest_main)
 add_test(NAME TTBMLabelerTest COMMAND TestTTBMLabeler)
+
+add_executable(TestFeatureExtractor tests/TestFeatureExtractor.cpp)
+target_link_libraries(TestFeatureExtractor backend gtest gtest_main)
+add_test(NAME TestFeatureExtractor COMMAND TestFeatureExtractor)

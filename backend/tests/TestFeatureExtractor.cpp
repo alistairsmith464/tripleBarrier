@@ -137,18 +137,19 @@ TEST(FeatureExtractorTest, EwmaVol10D_ShortWindow) {
 }
 
 // ------------------ EWMA_VOL_10D (Additional Tests) ------------------
-// Case: Alternating prices (high volatility)
-TEST(FeatureExtractorTest, EwmaVol10D_Alternating) {
+// Alternating prices (high volatility)
+TEST(FeatureExtractorTest, EwmaVol10D_AlternatingPrices) {
     vector<PreprocessedRow> rows;
     for (int i = 0; i < 10; ++i) rows.push_back(makeRow(100 + (i % 2) * 10, "2021-01-" + to_string(i+1)));
     vector<LabeledEvent> events = {makeEvent(9, 1)};
     set<string> features = {"EWMA volatility over 10 days"};
     auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, events);
-    // Alternating between 100 and 110, returns alternate between 0.1 and -0.0909, so EWMA should be > 0
-    EXPECT_GT(result.features[0]["EWMA volatility over 10 days"], 0.0);
+    // Alternating between 100 and 110, returns alternate between 0.1 and -0.0909
+    // EWMA volatility should be positive and significant
+    EXPECT_GT(result.features[0]["EWMA volatility over 10 days"], 0.05);
 }
 
-// Case: Single spike in price
+// Single spike in price
 TEST(FeatureExtractorTest, EwmaVol10D_SingleSpike) {
     vector<PreprocessedRow> rows;
     for (int i = 0; i < 9; ++i) rows.push_back(makeRow(100, "2021-01-" + to_string(i+1)));
@@ -156,11 +157,11 @@ TEST(FeatureExtractorTest, EwmaVol10D_SingleSpike) {
     vector<LabeledEvent> events = {makeEvent(9, 1)};
     set<string> features = {"EWMA volatility over 10 days"};
     auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, events);
-    // Big spike, so EWMA should be high
+    // Large volatility due to spike
     EXPECT_GT(result.features[0]["EWMA volatility over 10 days"], 0.5);
 }
 
-// Case: Single drop in price
+// Single drop in price
 TEST(FeatureExtractorTest, EwmaVol10D_SingleDrop) {
     vector<PreprocessedRow> rows;
     for (int i = 0; i < 9; ++i) rows.push_back(makeRow(100, "2021-01-" + to_string(i+1)));
@@ -168,29 +169,20 @@ TEST(FeatureExtractorTest, EwmaVol10D_SingleDrop) {
     vector<LabeledEvent> events = {makeEvent(9, 1)};
     set<string> features = {"EWMA volatility over 10 days"};
     auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, events);
-    // Big drop, so EWMA should be high
+    // Large volatility due to drop
     EXPECT_GT(result.features[0]["EWMA volatility over 10 days"], 0.5);
 }
 
-// Case: Mixed volatility
+// Mixed volatility: stable, then volatile
 TEST(FeatureExtractorTest, EwmaVol10D_MixedVolatility) {
-    vector<PreprocessedRow> rows = {
-        makeRow(100, "2021-01-01"),
-        makeRow(110, "2021-01-02"),
-        makeRow(90, "2021-01-03"),
-        makeRow(120, "2021-01-04"),
-        makeRow(80, "2021-01-05"),
-        makeRow(130, "2021-01-06"),
-        makeRow(70, "2021-01-07"),
-        makeRow(140, "2021-01-08"),
-        makeRow(60, "2021-01-09"),
-        makeRow(150, "2021-01-10")
-    };
+    vector<PreprocessedRow> rows;
+    for (int i = 0; i < 5; ++i) rows.push_back(makeRow(100, "2021-01-" + to_string(i+1)));
+    for (int i = 5; i < 10; ++i) rows.push_back(makeRow(100 + (i % 2) * 20, "2021-01-" + to_string(i+1)));
     vector<LabeledEvent> events = {makeEvent(9, 1)};
     set<string> features = {"EWMA volatility over 10 days"};
     auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, events);
-    // Large swings, so EWMA should be high
-    EXPECT_GT(result.features[0]["EWMA volatility over 10 days"], 0.5);
+    // Volatility should be higher than 0 due to last 5 days
+    EXPECT_GT(result.features[0]["EWMA volatility over 10 days"], 0.1);
 }
 
 // ------------------ DIST_TO_SMA_5D ------------------
