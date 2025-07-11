@@ -53,9 +53,6 @@ public:
     void clear() override;
     bool is_trained() const override;
     
-    void save_model(const std::string& filename) const;
-    void load_model(const std::string& filename);
-    
     int get_num_features() const { return n_features_; }
     void set_feature_names(const std::vector<std::string>& names);
     const std::vector<std::string>& get_feature_names() const { return feature_names_; }

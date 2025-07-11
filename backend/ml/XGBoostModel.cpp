@@ -321,42 +321,6 @@ std::vector<float> XGBoostModel::predict_raw(const std::vector<std::vector<float
     return predictions;
 }
 
-void XGBoostModel::save_model(const std::string& filename) const {
-    if (!is_trained()) {
-        throw std::runtime_error("Cannot save untrained model");
-    }
-    
-    int ret = XGBoosterSaveModel(static_cast<BoosterHandle>(booster_), filename.c_str());
-    if (ret != 0) {
-        throw std::runtime_error("Failed to save model to " + filename);
-    }
-}
-
-void XGBoostModel::load_model(const std::string& filename) {
-    clear();
-    
-    std::ifstream file(filename);
-    if (!file.good()) {
-        throw std::runtime_error("Model file does not exist: " + filename);
-    }
-    file.close();
-    
-    BoosterHandle temp_booster;
-    int ret = XGBoosterCreate(nullptr, 0, &temp_booster);
-    if (ret != 0) {
-        throw std::runtime_error("Failed to create booster for loading");
-    }
-    booster_ = temp_booster;
-    
-    ret = XGBoosterLoadModel(static_cast<BoosterHandle>(booster_), filename.c_str());
-    if (ret != 0) {
-        free_booster();
-        throw std::runtime_error("Failed to load model from " + filename);
-    }
-    
-    trained_ = true;
-}
-
 void XGBoostModel::set_feature_names(const std::vector<std::string>& names) {
     if (trained_ && !names.empty() && static_cast<int>(names.size()) != n_features_) {
         throw std::invalid_argument("Number of feature names must match number of features");

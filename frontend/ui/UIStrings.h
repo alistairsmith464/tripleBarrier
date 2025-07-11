@@ -76,9 +76,6 @@ namespace UIStrings {
     constexpr const char* EXPORT_CSV_TITLE = "Export CSV File";
     constexpr const char* CSV_FILTER = "CSV Files (*.csv)";
     constexpr const char* ALL_FILES_FILTER = "All Files (*)";
-    constexpr const char* SAVE_MODEL = "Save Model";
-    constexpr const char* LOAD_MODEL = "Load Model";
-    constexpr const char* MODEL_FILTER = "Model Files (*.model)";
     
     constexpr const char* EXTRACTING_FEATURES = "Extracting features...";
     constexpr const char* TRAINING_MODEL = "Training model...";

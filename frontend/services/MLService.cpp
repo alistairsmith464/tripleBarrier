@@ -271,8 +271,6 @@ MLConfig MLServiceImpl::getDefaultConfiguration() {
     config.crossValidationRatio = 0.2;
     config.randomSeed = 42;
     config.tuneHyperparameters = false;
-    config.saveModel = false;
-    config.loadModel = false;
     config.preprocessFeatures = true;
     config.normalizeFeatures = false;
     config.removeOutliers = false;
@@ -460,21 +458,6 @@ std::future<MLResults> ModelServiceImpl::trainModelAsync(
         
         return result;
     });
-}
-
-bool ModelServiceImpl::saveModel(const QString& modelPath, const QString& configPath) {
-    Q_UNUSED(modelPath)
-    Q_UNUSED(configPath)
-    return false;
-}
-
-bool ModelServiceImpl::loadModel(const QString& modelPath) {
-    Q_UNUSED(modelPath)
-    return false;
-}
-
-QStringList ModelServiceImpl::getAvailableModels() {
-    return QStringList{"XGBoost", "Random Forest", "Linear Regression"};
 }
 
 MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(

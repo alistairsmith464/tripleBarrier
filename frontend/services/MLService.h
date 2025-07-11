@@ -24,11 +24,6 @@ struct MLConfig {
     
     MLPipeline::UnifiedPipelineConfig pipelineConfig;
     
-    QString modelSavePath;
-    QString modelLoadPath;
-    bool saveModel = false;
-    bool loadModel = false;
-    
     bool preprocessFeatures = true;
     bool normalizeFeatures = false;
     bool removeOutliers = false;
@@ -125,10 +120,6 @@ public:
         const std::vector<LabeledEvent>& labeledEvents,
         const MLConfig& config,
         MLProgressCallback callback = nullptr) = 0;
-    
-    virtual bool saveModel(const QString& modelPath, const QString& configPath) = 0;
-    virtual bool loadModel(const QString& modelPath) = 0;
-    virtual QStringList getAvailableModels() = 0;
 };
 
 class PortfolioService {
@@ -206,10 +197,6 @@ public:
         const std::vector<LabeledEvent>& labeledEvents,
         const MLConfig& config,
         MLProgressCallback callback = nullptr) override;
-    
-    bool saveModel(const QString& modelPath, const QString& configPath) override;
-    bool loadModel(const QString& modelPath) override;
-    QStringList getAvailableModels() override;
 };
 
 class PortfolioServiceImpl : public PortfolioService {
