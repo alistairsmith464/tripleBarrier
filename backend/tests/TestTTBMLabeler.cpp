@@ -14,7 +14,7 @@ TEST(TTBMLabelerTest, ExponentialDecayBasic) {
         data[i].volatility = 1.0;
     }
     // Quick profit hit at time 1
-    data[1].price = 102.1;
+    data[1].price = 300.0; // profit hit at time 1
     
     std::vector<size_t> events = {0};
     auto result = labeler.label(data, events, 2.0, 1.0, 4);
@@ -40,7 +40,7 @@ TEST(TTBMLabelerTest, LinearDecayBasic) {
         data[i].volatility = 1.0;
     }
     // Stop hit at time 2
-    data[2].price = 98.9;
+    data[2].price = 0.0;   // stop hit at time 2
     
     std::vector<size_t> events = {0};
     auto result = labeler.label(data, events, 2.0, 1.0, 4);
@@ -66,7 +66,7 @@ TEST(TTBMLabelerTest, HyperbolicDecayBasic) {
         data[i].volatility = 1.0;
     }
     // Profit hit at time 3
-    data[3].price = 102.1;
+    data[3].price = 300.0; // profit hit at time 3
     
     std::vector<size_t> events = {0};
     auto result = labeler.label(data, events, 2.0, 1.0, 4);
@@ -110,7 +110,7 @@ TEST(TTBMLabelerTest, InstantBarrierHit) {
         data[i].volatility = 1.0;
     }
     // Immediate profit hit
-    data[1].price = 102.1;
+    data[1].price = 300.0; // profit hit at time 1
     
     std::vector<size_t> events = {0};
     auto result = labeler.label(data, events, 2.0, 1.0, 2);
@@ -133,9 +133,9 @@ TEST(TTBMLabelerTest, MultipleEvents) {
         data[i].volatility = 1.0;
     }
     // First event: quick profit
-    data[1].price = 102.1;
+    data[1].price = 300.0; // first event profit hit
     // Second event: slower stop
-    data[7].price = 98.9;
+    data[7].price = 0.0;   // second event stop hit
     
     std::vector<size_t> events = {0, 5};
     auto result = labeler.label(data, events, 2.0, 1.0, 4);
