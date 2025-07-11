@@ -1,4 +1,5 @@
 #include "UserInputUtils.h"
+#include "ValidationFramework.h"
 #include <QInputDialog>
 
 bool UserInputUtils::getBarrierConfig(QWidget* parent, BarrierConfig& cfg) {

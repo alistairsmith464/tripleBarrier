@@ -11,6 +11,10 @@
 #include <cmath>
 #include <algorithm>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace ValidationFramework {
 
 ValidationConfig Validator::config_;
