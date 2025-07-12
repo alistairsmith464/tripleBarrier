@@ -21,7 +21,6 @@ struct PortfolioSimulation {
     double total_return;
     double annualized_return;
     double max_drawdown;
-    double sharpe_ratio;
     int total_trades;
     double win_rate;
     std::vector<std::string> trade_decisions;
@@ -35,7 +34,6 @@ struct PortfolioResults {
     double total_return = 0.0;
     double annualized_return = 0.0;
     double max_drawdown = 0.0;
-    double sharpe_ratio = 0.0;
     int total_trades = 0;
     int winning_trades = 0;
     int losing_trades = 0;
@@ -74,14 +72,6 @@ struct PortfolioConfig {
     int max_trade_decisions_logged = 100;
 };
 
-/**
- * Simulates portfolio performance based on trading signals and returns
- * @param signals Trading signals (probabilities or hard decisions)
- * @param returns Asset returns for each time period
- * @param is_hard_barrier Whether to use hard barrier strategy (discrete) or continuous
- * @param portfolio_config Portfolio configuration parameters
- * @return Portfolio simulation results
- */
 PortfolioSimulation simulate_portfolio(
     const std::vector<double>& trading_signals,
     const std::vector<double>& returns,
@@ -89,12 +79,6 @@ PortfolioSimulation simulate_portfolio(
     const PortfolioConfig& portfolio_config = PortfolioConfig{}
 );
 
-/**
- * Analyzes barrier statistics from labeled events
- * @param labeledEvents Labeled events to analyze
- * @param rows Preprocessed data rows
- * @return Barrier diagnostics
- */
 BarrierDiagnostics analyzeBarriers(
     const std::vector<LabeledEvent>& labeledEvents,
     const std::vector<PreprocessedRow>& rows

@@ -173,10 +173,10 @@ void FeaturePreviewDialog::displayTradeLog(const std::vector<MLPipeline::TradeLo
 
     for (int i = 0; i < static_cast<int>(tradeLog.size()); ++i) {
         const auto& entry = tradeLog[i];
-        m_tradeLogTable->setItem(i, 1, new QTableWidgetItem(QString::number(entry.signal, 'f', 4)));
-        m_tradeLogTable->setItem(i, 2, new QTableWidgetItem(QString::number(entry.trade_return, 'f', 4)));
-        m_tradeLogTable->setItem(i, 3, new QTableWidgetItem(QString::number(entry.capital_before, 'f', 2)));
-        m_tradeLogTable->setItem(i, 4, new QTableWidgetItem(QString::number(entry.capital_after, 'f', 2)));
+        m_tradeLogTable->setItem(i, 0, new QTableWidgetItem(QString::number(entry.signal, 'f', 4)));
+        m_tradeLogTable->setItem(i, 1, new QTableWidgetItem(QString::number(entry.trade_return, 'f', 4)));
+        m_tradeLogTable->setItem(i, 2, new QTableWidgetItem(QString::number(entry.capital_before, 'f', 2)));
+        m_tradeLogTable->setItem(i, 3, new QTableWidgetItem(QString::number(entry.capital_after, 'f', 2)));
     }
 
     m_tradeLogTable->resizeRowsToContents();

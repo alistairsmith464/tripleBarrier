@@ -62,7 +62,7 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForCl
         
         result.features.push_back(features);
         result.labels.push_back(labeledEvents[i].label);
-        result.returns.push_back(labeledEvents[i].exit_price - labeledEvents[i].entry_price);
+        result.returns.push_back((labeledEvents[i].exit_price - labeledEvents[i].entry_price) / labeledEvents[i].entry_price);
     }
     
     return result;
@@ -105,7 +105,7 @@ FeatureExtractor::FeatureExtractionResult FeatureExtractor::extractFeaturesForRe
         
         result.features.push_back(enhancedFeatures);
         result.labels_double.push_back(labeledEvents[i].ttbm_label);
-        result.returns.push_back(labeledEvents[i].exit_price - labeledEvents[i].entry_price);
+        result.returns.push_back((labeledEvents[i].exit_price - labeledEvents[i].entry_price) / labeledEvents[i].entry_price);
     }
 
     for (auto& featureRow : result.features) {

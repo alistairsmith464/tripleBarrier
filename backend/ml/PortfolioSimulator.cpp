@@ -104,8 +104,6 @@ PortfolioSimulation simulate_portfolio(
         daily_variance /= (capital_history.size() - 1);
     }
     double daily_std = std::sqrt(daily_variance);
-    double sharpe_ratio = (daily_std > 1e-10) ? avg_daily_return / daily_std * std::sqrt(portfolio_config.trading_days_per_year) : 0;
-    
     double win_rate = total_trades > 0 ? winning_trades / static_cast<double>(total_trades) : 0;
     
     return PortfolioSimulation{
@@ -114,7 +112,6 @@ PortfolioSimulation simulate_portfolio(
         total_return,
         annualized_return,
         max_drawdown,
-        sharpe_ratio,
         total_trades,
         win_rate,
         trade_decisions,

@@ -146,12 +146,8 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         result.confidence_scores.assign(y_prob.begin(), y_prob.end());
         
         try {
-            result.trading_signals = convertClassificationToTradingSignals(y_pred, 
-                std::vector<double>(y_prob.begin(), y_prob.end()));
-            
-            result.portfolio_result = runPortfolioSimulation(
-                result.trading_signals, returns_eval);
-                
+            result.trading_signals = convertClassificationToTradingSignals(y_pred, std::vector<double>(y_prob.begin(), y_prob.end()));
+            result.portfolio_result = runPortfolioSimulation(result.trading_signals, returns_eval);   
         } catch (const BaseException& e) {
             throw PortfolioException("Portfolio simulation failed: " + std::string(e.what()), e.context());
         } catch (const std::exception& e) {
@@ -381,7 +377,6 @@ std::map<std::string, double> UnifiedMLPipeline::calculatePerformanceMetrics(
         
         const auto& portfolio = result.portfolio_result;
         metrics["total_return"] = portfolio.total_return;
-        metrics["sharpe_ratio"] = portfolio.sharpe_ratio;
         metrics["max_drawdown"] = portfolio.max_drawdown;
         metrics["total_trades"] = static_cast<double>(portfolio.total_trades);
         metrics["win_rate"] = portfolio.win_rate;

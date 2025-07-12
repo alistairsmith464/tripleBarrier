@@ -306,7 +306,6 @@ MLResults MLServiceImpl::runMLPipeline(
         ValidationAccumulator postValidation;
         postValidation.addResult(CoreValidator::validateNotEmpty(results.predictions, "Predictions"));
         postValidation.addResult(CoreValidator::validateFinite(results.portfolioResult.total_return, "Total Return"));
-        postValidation.addResult(CoreValidator::validateFinite(results.portfolioResult.sharpe_ratio, "Sharpe Ratio"));
         postValidation.addResult(CoreValidator::validateNonNegative(results.portfolioResult.total_trades, "Total Trades"));
         
         if (!postValidation.isValid()) {
@@ -563,13 +562,11 @@ MLResults ModelServiceImpl::trainModel(
         results.portfolioResult.total_return = portfolio.total_return;
         results.portfolioResult.annualized_return = portfolio.annualized_return;
         results.portfolioResult.max_drawdown = portfolio.max_drawdown;
-        results.portfolioResult.sharpe_ratio = portfolio.sharpe_ratio;
         results.portfolioResult.total_trades = portfolio.total_trades;
         results.portfolioResult.win_rate = portfolio.win_rate;
         results.trade_log = portfolio.trade_log;
 
         Validation::validateFinite(results.portfolioResult.total_return, "total_return");
-        Validation::validateFinite(results.portfolioResult.sharpe_ratio, "sharpe_ratio");
         Validation::validateNonNegative(results.portfolioResult.total_trades, "total_trades");
         
         results.modelInfo = QString("Strategy: %1").arg(QString::fromStdString(strategy->getStrategyName()));
@@ -637,8 +634,7 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
         config.trading_days_per_year = 252.0;
         config.max_trade_decisions_logged = 100;
         
-        auto simulation = MLPipeline::simulate_portfolio(
-            predictions, returns, !useTTBM, config);
+        auto simulation = MLPipeline::simulate_portfolio(predictions, returns, !useTTBM, config);
         
         MLPipeline::PortfolioResults results;
         results.starting_capital = simulation.starting_capital;
@@ -646,20 +642,8 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
         results.total_return = simulation.total_return;
         results.annualized_return = simulation.annualized_return;
         results.max_drawdown = simulation.max_drawdown;
-        results.sharpe_ratio = simulation.sharpe_ratio;
         results.total_trades = simulation.total_trades;
         results.win_rate = simulation.win_rate;
-
-        if (!simulation.trade_returns.empty()) {
-            results.best_trade = *std::max_element(simulation.trade_returns.begin(), simulation.trade_returns.end());
-            results.worst_trade = *std::min_element(simulation.trade_returns.begin(), simulation.trade_returns.end());
-            double sum = std::accumulate(simulation.trade_returns.begin(), simulation.trade_returns.end(), 0.0);
-            results.avg_trade_return = sum / simulation.trade_returns.size();
-        } else {
-            results.best_trade = 0.0;
-            results.worst_trade = 0.0;
-            results.avg_trade_return = 0.0;
-        }
         
         return results;
         
@@ -670,7 +654,6 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
         results.total_return = 0.0;
         results.annualized_return = 0.0;
         results.max_drawdown = 0.0;
-        results.sharpe_ratio = 0.0;
         results.total_trades = 0;
         results.win_rate = 0.0;
         return results;

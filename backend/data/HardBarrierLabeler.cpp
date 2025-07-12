@@ -82,5 +82,6 @@ std::vector<LabeledEvent> HardBarrierLabeler::label(
             data[exit_idx].price
         });
     }
+
     return results;
 }
