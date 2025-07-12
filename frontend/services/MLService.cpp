@@ -560,7 +560,6 @@ MLResults ModelServiceImpl::trainModel(
         results.portfolioResult.starting_capital = portfolio.starting_capital;
         results.portfolioResult.final_value = portfolio.final_capital;
         results.portfolioResult.total_return = portfolio.total_return;
-        results.portfolioResult.annualized_return = portfolio.annualized_return;
         results.portfolioResult.max_drawdown = portfolio.max_drawdown;
         results.portfolioResult.total_trades = portfolio.total_trades;
         results.portfolioResult.win_rate = portfolio.win_rate;
@@ -640,7 +639,6 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
         results.starting_capital = simulation.starting_capital;
         results.final_value = simulation.final_capital; 
         results.total_return = simulation.total_return;
-        results.annualized_return = simulation.annualized_return;
         results.max_drawdown = simulation.max_drawdown;
         results.total_trades = simulation.total_trades;
         results.win_rate = simulation.win_rate;
@@ -652,7 +650,6 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
         results.starting_capital = 0.0;
         results.final_value = 0.0;
         results.total_return = 0.0;
-        results.annualized_return = 0.0;
         results.max_drawdown = 0.0;
         results.total_trades = 0;
         results.win_rate = 0.0;

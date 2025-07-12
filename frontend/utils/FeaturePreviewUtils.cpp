@@ -60,19 +60,17 @@ QString FeaturePreviewUtils::formatPortfolioResults(
                    "Starting Capital: £%3<br>"
                    "Final Portfolio Value: £%4<br>"
                    "Total Return: %5%<br>"
-                   "Annualized Return: %6%<br>"
-                   "Maximum Drawdown: %7%<br>"
+                   "Maximum Drawdown: %6%<br>"
                    
                    "<b>Trading Statistics:</b><br>"
-                   "Total Trades: %8<br>"
-                   "Winning Trades: %9 (%10%)<br>"
-                   "Losing Trades: %11 (%12%)<br>")
+                   "Total Trades: %7<br>"
+                   "Winning Trades: %8 (%9%)<br>"
+                   "Losing Trades: %10 (%11%)<br>")
            .arg(title)
            .arg(strategy)
            .arg(results.starting_capital, 0, 'f', 0)
            .arg(results.final_value, 0, 'f', 0)
            .arg(results.total_return * 100, 0, 'f', 2)
-           .arg(results.annualized_return * 100, 0, 'f', 2)
            .arg(results.max_drawdown * 100, 0, 'f', 2)
            .arg(results.total_trades)
            .arg(results.total_trades * results.win_rate, 0, 'f', 0)

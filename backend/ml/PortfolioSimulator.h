@@ -19,7 +19,6 @@ struct PortfolioSimulation {
     double starting_capital;
     double final_capital;
     double total_return;
-    double annualized_return;
     double max_drawdown;
     int total_trades;
     double win_rate;
@@ -32,7 +31,6 @@ struct PortfolioResults {
     double starting_capital = 100000.0;
     double final_value = 0.0;
     double total_return = 0.0;
-    double annualized_return = 0.0;
     double max_drawdown = 0.0;
     int total_trades = 0;
     int winning_trades = 0;

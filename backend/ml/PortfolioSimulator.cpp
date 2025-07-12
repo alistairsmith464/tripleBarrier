@@ -91,11 +91,9 @@ PortfolioSimulation simulate_portfolio(
     
     double total_return = (capital - portfolio_config.starting_capital) / portfolio_config.starting_capital;
     double max_drawdown = (max_capital - min_capital) / max_capital;
-    
-    double annualized_return = total_return * portfolio_config.trading_days_per_year / trading_signals.size();
-    
     double avg_daily_return = total_return / trading_signals.size();
     double daily_variance = 0;
+
     if (capital_history.size() > 1) {
         for (size_t i = 1; i < capital_history.size(); ++i) {
             double daily_ret = (capital_history[i] - capital_history[i-1]) / capital_history[i-1];
@@ -103,6 +101,7 @@ PortfolioSimulation simulate_portfolio(
         }
         daily_variance /= (capital_history.size() - 1);
     }
+
     double daily_std = std::sqrt(daily_variance);
     double win_rate = total_trades > 0 ? winning_trades / static_cast<double>(total_trades) : 0;
     
@@ -110,7 +109,6 @@ PortfolioSimulation simulate_portfolio(
         portfolio_config.starting_capital,
         capital,
         total_return,
-        annualized_return,
         max_drawdown,
         total_trades,
         win_rate,
