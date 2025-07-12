@@ -220,7 +220,18 @@ MLResults MLServiceImpl::runMLPipeline(
         accumulator.addResult(DataValidator::validateLabeledEvents(labeledEvents));
         accumulator.addResult(MLValidator::validateMLConfig(config));
         
-        if (rows.size() == labeledEvents.size()) {
+        std::set<std::string> rowTimestamps;
+        for (const auto& row : rows) {
+            rowTimestamps.insert(row.timestamp);
+        }
+        size_t matchedEvents = 0;
+        for (const auto& event : labeledEvents) {
+            if (rowTimestamps.count(event.entry_time)) {
+                matchedEvents++;
+            }
+        }
+
+        if (rows.size() == labeledEvents.size() && matchedEvents == labeledEvents.size()) {
             accumulator.addResult(CoreValidator::validateSizeMatch(rows, labeledEvents, "Data rows", "Labeled events"));
         }
         
@@ -302,7 +313,7 @@ MLResults MLServiceImpl::runMLPipeline(
             results.success = false;
             return results;
         }
-        
+       
         results.success = true;
         
     } catch (const std::exception& e) {
@@ -457,7 +468,7 @@ MLResults ModelServiceImpl::trainModel(
     
     MLResults results;
     
-    try {
+    try { 
         Validation::validateNotEmpty(features.features, "features");
         
         if (config.useTTBM) {
@@ -562,6 +573,7 @@ MLResults ModelServiceImpl::trainModel(
         results.modelInfo = QString("Strategy: %1").arg(QString::fromStdString(strategy->getStrategyName()));
         results.success = true;
         
+        return results;
     } catch (const BaseException& e) {
         results.success = false;
         results.errorMessage = QString::fromStdString(e.full_message());

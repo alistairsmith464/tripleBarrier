@@ -128,6 +128,11 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         try {
             y_pred = model.predict(X_eval);
             y_prob = model.predict_proba(X_eval);
+            if (!y_pred.empty()) {
+                for (size_t i = 0; i < std::min<size_t>(y_pred.size(), 20); ++i) {
+                    std::cout << y_pred[i] << " ";
+                }
+            }
         } catch (const BaseException& e) {
             throw ModelPredictionException("XGBoost prediction failed: " + std::string(e.what()), e.context());
         } catch (const std::exception& e) {
@@ -143,11 +148,7 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
                                          ", got: " + std::to_string(y_pred.size()));
         }
         
-        result.predictions.clear();
-        result.predictions.reserve(y_pred.size());
-        for (const auto& val : y_pred) {
-            result.predictions.push_back(static_cast<double>(val));
-        }
+        result.predictions.assign(y_pred.begin(), y_pred.end());
         result.confidence_scores.assign(y_prob.begin(), y_prob.end());
         
         try {
@@ -242,6 +243,13 @@ BarrierMLStrategy::PredictionResult TTBMStrategy::trainAndPredict(
         auto X_eval = toFloatMatrix(select_rows(X_clean, eval_idx));
         auto returns_eval = select_rows(returns_clean, eval_idx);
         
+        if (!y_train.empty()) {
+            float min_train = *std::min_element(y_train.begin(), y_train.end());
+            float max_train = *std::max_element(y_train.begin(), y_train.end());
+            float sum_train = std::accumulate(y_train.begin(), y_train.end(), 0.0f);
+            float mean_train = sum_train / y_train.size();
+        }
+        
         XGBoostConfig model_config;
         model_config.n_rounds = config.n_rounds;
         model_config.max_depth = config.max_depth;
@@ -254,7 +262,14 @@ BarrierMLStrategy::PredictionResult TTBMStrategy::trainAndPredict(
         XGBoostModel model;
         model.fit(X_train, y_train, model_config);
         
-        auto y_pred_raw = model.predict_raw(X_eval); 
+       auto y_pred_raw = model.predict_raw(X_eval); 
+        
+        if (!y_pred_raw.empty()) {
+            float min_pred = *std::min_element(y_pred_raw.begin(), y_pred_raw.end());
+            float max_pred = *std::max_element(y_pred_raw.begin(), y_pred_raw.end());
+            float sum_pred = std::accumulate(y_pred_raw.begin(), y_pred_raw.end(), 0.0f);
+            float mean_pred = sum_pred / y_pred_raw.size();
+        }
         
         result.predictions.assign(y_pred_raw.begin(), y_pred_raw.end());
         result.trading_signals = convertRegressionToTradingSignals(result.predictions);

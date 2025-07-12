@@ -14,7 +14,7 @@ PortfolioSimulation simulate_portfolio(
     const std::vector<double>& returns,
     bool is_hard_barrier,
     const PortfolioConfig& portfolio_config
-) {
+) {  
     if (trading_signals.empty() || returns.empty()) {
         throw std::invalid_argument("Signals and returns cannot be empty");
     }
