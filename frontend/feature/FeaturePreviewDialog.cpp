@@ -8,6 +8,7 @@
 #include <QHeaderView>
 #include <QDialogButtonBox>
 #include <QPushButton>
+#include <IOStream>
 
 FeaturePreviewDialog::FeaturePreviewDialog(
     const QSet<QString>& selectedFeatures,
@@ -38,6 +39,10 @@ void FeaturePreviewDialog::setupUI() {
     vbox->addWidget(m_debugInfoLabel);
     updateBarrierDiagnostics();
     
+    m_tuneHyperparamsCheckBox = new QCheckBox(UIStrings::AUTO_TUNE_HYPERPARAMS, this);
+    m_tuneHyperparamsCheckBox->setToolTip("If checked, the pipeline will automatically search for the best hyperparameters (n_rounds, max_depth, nthread).");
+    vbox->addWidget(m_tuneHyperparamsCheckBox);
+    
     m_runMLButton = new QPushButton(UIStrings::RUN_ML, this);
     vbox->addWidget(m_runMLButton);
     
@@ -45,10 +50,18 @@ void FeaturePreviewDialog::setupUI() {
     m_importancesLabel = new QLabel(this);
     vbox->addWidget(m_metricsLabel);
     vbox->addWidget(m_importancesLabel);
-    
-    m_tuneHyperparamsCheckBox = new QCheckBox(UIStrings::AUTO_TUNE_HYPERPARAMS, this);
-    m_tuneHyperparamsCheckBox->setToolTip("If checked, the pipeline will automatically search for the best hyperparameters (n_rounds, max_depth, nthread).");
-    vbox->addWidget(m_tuneHyperparamsCheckBox);
+
+    m_tradeLogTable = new QTableWidget(this);
+    m_tradeLogTable->setColumnCount(5);
+    QStringList headers;
+    headers << "Index" << "Signal" << "Trade Return" << "Capital Before" << "Capital After";
+    m_tradeLogTable->setHorizontalHeaderLabels(headers);
+    m_tradeLogTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_tradeLogTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_tradeLogTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_tradeLogTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_tradeLogTable->hide();
+    vbox->addWidget(m_tradeLogTable);
     
     connect(m_runMLButton, &QPushButton::clicked, this, &FeaturePreviewDialog::onRunMLClicked);
     
@@ -56,6 +69,11 @@ void FeaturePreviewDialog::setupUI() {
     box->button(QDialogButtonBox::Ok)->setText(UIStrings::OK);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     vbox->addWidget(box);
+
+    setMinimumSize(1200, 600);
+
+    m_tradeLogTable->setMinimumHeight(300);
+    m_tradeLogTable->setMinimumWidth(800);
 }
 
 void FeaturePreviewDialog::createFeatureTable() {
@@ -142,17 +160,42 @@ void FeaturePreviewDialog::onRunMLClicked() {
     }
 }
 
+void FeaturePreviewDialog::displayTradeLog(const std::vector<MLPipeline::TradeLogEntry>& tradeLog) {
+    std::cout << "[DEBUG] Entered displayTradeLog, tradeLog.size() = " << tradeLog.size() << std::endl;
+    try {
+        
+        m_tradeLogTable->setRowCount(static_cast<int>(tradeLog.size()));
+        m_tradeLogTable->show();
+
+        std::cout << "[DEBUG] About to enter for loop" << std::endl;
+
+        for (int i = 0; i < static_cast<int>(tradeLog.size()); ++i) {
+            const auto& entry = tradeLog[i];
+            m_tradeLogTable->setItem(i, 0, new QTableWidgetItem(QString::number(entry.index)));
+            m_tradeLogTable->setItem(i, 1, new QTableWidgetItem(QString::number(entry.signal, 'f', 4)));
+            m_tradeLogTable->setItem(i, 2, new QTableWidgetItem(QString::number(entry.trade_return, 'f', 4)));
+            m_tradeLogTable->setItem(i, 3, new QTableWidgetItem(QString::number(entry.capital_before, 'f', 2)));
+            m_tradeLogTable->setItem(i, 4, new QTableWidgetItem(QString::number(entry.capital_after, 'f', 2)));
+        }
+
+        m_tradeLogTable->resizeRowsToContents();
+    } catch (const std::exception& e) {
+        std::cout << "[ERROR] Exception in displayTradeLog: " << e.what() << std::endl;
+    }
+}
+
 void FeaturePreviewDialog::showMLClassificationResults(const MLResults& results) {
     QString metrics = FeaturePreviewUtils::formatPortfolioResults(results.portfolioResult, false);
     m_metricsLabel->setText(metrics);
     m_importancesLabel->setText("");
+    displayTradeLog(results.trade_log);
 }
 
 void FeaturePreviewDialog::showMLRegressionResults(const MLResults& results) {
     QString metrics = FeaturePreviewUtils::formatPortfolioResults(results.portfolioResult, true);
     m_metricsLabel->setText(metrics);
     m_importancesLabel->setText("");
-    
+    displayTradeLog(results.trade_log);
     QString debug = FeaturePreviewUtils::formatSampleTradingDecisions(results.predictions, true, 10);
     m_debugInfoLabel->setText(debug);
 }

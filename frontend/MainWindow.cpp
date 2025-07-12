@@ -18,7 +18,6 @@
 #include "../backend/data/BarrierConfig.h"
 #include <QtCharts/QValueAxis>
 #include "FeatureSelectionDialog.h"
-#include <QTableWidget>
 #include <QHeaderView>
 #include <vector>
 #include "plot/LabeledEventPlotter.h"

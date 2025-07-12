@@ -57,8 +57,8 @@ QString FeaturePreviewUtils::formatPortfolioResults(
     
     return QString("%1%2"
                    "<b>Portfolio Performance:</b><br>"
-                   "Starting Capital: $%3<br>"
-                   "Final Portfolio Value: $%4<br>"
+                   "Starting Capital: £%3<br>"
+                   "Final Portfolio Value: £%4<br>"
                    "Total Return: %5%%<br>"
                    "Annualized Return: %6%%<br>"
                    "Maximum Drawdown: %7%%<br>"

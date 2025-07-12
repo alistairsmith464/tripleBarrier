@@ -46,27 +46,16 @@ std::vector<LabeledEvent> DataServiceImpl::labelEvents(
 std::vector<LabeledEvent> DataServiceImpl::generateLabeledEvents(
     const std::vector<PreprocessedRow>& processedData,
     const BarrierConfig& config) {
-    
-    std::cout << "[DEBUG] DataServiceImpl::generateLabeledEvents called" << std::endl;
-    std::cout << "  - Processed data size: " << processedData.size() << std::endl;
-    
     std::vector<size_t> eventIndices = selectEventIndices(processedData);
     
-    std::cout << "  - Event indices found: " << eventIndices.size() << std::endl;
-    
     if (eventIndices.empty()) {
-        std::cout << "  - WARNING: No event indices found in processed data!" << std::endl;
         int event_count = 0;
         for (const auto& row : processedData) {
             if (row.is_event) event_count++;
         }
-        std::cout << "  - Events marked in data: " << event_count << std::endl;
     }
     
     auto labeled_events = labelEvents(processedData, eventIndices, config);
-    
-    std::cout << "  - Final labeled events: " << labeled_events.size() << std::endl;
-    
     return labeled_events;
 }
 

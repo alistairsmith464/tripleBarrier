@@ -2,6 +2,7 @@
 #include <QDialog>
 #include <QLabel>
 #include <QCheckBox>
+#include <QTableWidget>
 #include <vector>
 #include <map>
 #include <QString>
@@ -36,6 +37,7 @@ private:
     QCheckBox* m_tuneHyperparamsCheckBox;
     QLabel* m_dataInfoLabel;
     QLabel* m_debugInfoLabel;
+    QTableWidget* m_tradeLogTable;
     
     void setupUI();
     void createFeatureTable();
@@ -43,4 +45,5 @@ private:
     void updateBarrierDiagnostics();
     void showMLClassificationResults(const MLResults& results);
     void showMLRegressionResults(const MLResults& results);
+    void displayTradeLog(const std::vector<MLPipeline::TradeLogEntry>& tradeLog);
 };

@@ -7,6 +7,14 @@ struct PreprocessedRow;
 
 namespace MLPipeline {
 
+struct TradeLogEntry {
+    size_t index;
+    double signal;
+    double trade_return;
+    double capital_before;
+    double capital_after;
+};
+
 struct PortfolioSimulation {
     double starting_capital;
     double final_capital;
@@ -18,6 +26,7 @@ struct PortfolioSimulation {
     double win_rate;
     std::vector<std::string> trade_decisions;
     std::vector<double> trade_returns; 
+    std::vector<TradeLogEntry> trade_log; 
 };
 
 struct PortfolioResults {
@@ -58,7 +67,7 @@ struct BarrierDiagnostics {
 
 struct PortfolioConfig {
     double starting_capital = 10000.0;
-    double max_position_pct = 0.1;
+    double max_position_pct = 0.05;
     double position_threshold = 0.01;
     double hard_barrier_position_pct = 0.05;
     double trading_days_per_year = 252.0;

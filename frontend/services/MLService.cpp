@@ -281,7 +281,7 @@ MLResults MLServiceImpl::runMLPipeline(
             results.success = false;
             return results;
         }
-        
+
         if (!model_results.success) {
             return model_results;
         }
@@ -301,6 +301,7 @@ MLResults MLServiceImpl::runMLPipeline(
         results.modelInfo = model_results.modelInfo;
         results.dataQuality = model_results.dataQuality;
         results.portfolioResult = model_results.portfolioResult;
+        results.trade_log = model_results.trade_log;
         
         ValidationAccumulator postValidation;
         postValidation.addResult(CoreValidator::validateNotEmpty(results.predictions, "Predictions"));
@@ -565,7 +566,8 @@ MLResults ModelServiceImpl::trainModel(
         results.portfolioResult.sharpe_ratio = portfolio.sharpe_ratio;
         results.portfolioResult.total_trades = portfolio.total_trades;
         results.portfolioResult.win_rate = portfolio.win_rate;
-        
+        results.trade_log = portfolio.trade_log;
+
         Validation::validateFinite(results.portfolioResult.total_return, "total_return");
         Validation::validateFinite(results.portfolioResult.sharpe_ratio, "sharpe_ratio");
         Validation::validateNonNegative(results.portfolioResult.total_trades, "total_trades");
@@ -621,7 +623,6 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
     const std::vector<double>& predictions,
     bool useTTBM) {
     
-    std::cout << "[DEBUG] Entered runSimulation";
     try {
         std::vector<double> returns;
         for (const auto& row : rows) {

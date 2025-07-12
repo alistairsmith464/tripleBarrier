@@ -88,7 +88,8 @@ ResultType runPipelineTemplate(
                                                          config.barrier_type == BarrierType::HARD);
         
         std::vector<double> y_prob_d(y_prob.begin(), y_prob.end());
-        return ResultType{y_pred, y_prob_d, portfolio};
+        std::vector<TradeLogEntry> trade_log = portfolio.trade_log;
+        return ResultType{y_pred, y_prob_d, portfolio, trade_log};
     } else {
         auto y_train_f = toFloatVecDouble(select_rows(y_clean, train_idx));
         
@@ -121,7 +122,8 @@ ResultType runPipelineTemplate(
         
         PortfolioSimulation portfolio = simulate_portfolio(y_pred, returns_eval, false);
         
-        return ResultType{y_pred, portfolio};
+        std::vector<TradeLogEntry> trade_log = portfolio.trade_log;
+        return ResultType{y_pred, portfolio, trade_log};
     }
 }
 

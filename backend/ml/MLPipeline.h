@@ -10,11 +10,13 @@ namespace MLPipeline {
         std::vector<int> predictions;
         std::vector<double> probabilities;
         PortfolioSimulation portfolio;
+        std::vector<TradeLogEntry> trade_log;
     };
 
     struct RegressionPipelineResult {
         std::vector<double> predictions;
         PortfolioSimulation portfolio;
+        std::vector<TradeLogEntry> trade_log;
     };
 
     enum SplitType {

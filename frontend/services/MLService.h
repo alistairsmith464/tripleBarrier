@@ -57,6 +57,7 @@ struct MLResults {
     std::vector<QString> featureImportance;
     
     MLPipeline::PortfolioResults portfolioResult;
+    std::vector<MLPipeline::TradeLogEntry> trade_log;
     
     bool success = false;
     QString errorMessage;
