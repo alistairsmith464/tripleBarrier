@@ -22,5 +22,4 @@ public:
 
 private:
     static std::vector<Event> enforceMinimumGap(const std::vector<Event>& events, int min_gap);
-    static void logGapEnforcementStats(const std::vector<Event>& original, const std::vector<Event>& filtered);
 };

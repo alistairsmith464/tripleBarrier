@@ -81,15 +81,6 @@ DataProcessor::cleanData(const std::vector<std::map<std::string, double>>& X,
         throw std::runtime_error("No valid data remaining after cleaning");
     }
     
-    if (options.log_cleaning) {
-        std::cout << "Data cleaning results:" << std::endl;
-        std::cout << "  Original samples: " << X.size() << std::endl;
-        std::cout << "  Clean samples: " << X_clean.size() << std::endl;
-        std::cout << "  Removed NaN: " << nan_count << std::endl;
-        std::cout << "  Removed Inf: " << inf_count << std::endl;
-        std::cout << "  Removed outliers: " << outlier_count << std::endl;
-    }
-    
     if (options.normalize_features) {
         X_clean = normalizeFeatures(X_clean);
     }
@@ -288,8 +279,6 @@ createSplits(size_t data_size, const SplitConfig& config) {
     
     switch (config.strategy) {
         case SplitStrategy::CHRONOLOGICAL: {
-            std::cout << "[INFO] Using CHRONOLOGICAL splits - temporal order preserved" << std::endl;
-            
             size_t n_test = static_cast<size_t>(data_size * config.test_size);
             size_t n_val = static_cast<size_t>(data_size * config.val_size);
             
@@ -317,23 +306,14 @@ createSplits(size_t data_size, const SplitConfig& config) {
             size_t test_start = val_start + n_val + embargo_size;
             for (size_t i = test_start; i < test_start + n_test; ++i) test_idx.push_back(i);
             
-            if (embargo_size > 0) {
-                std::cout << "[INFO] Applied embargo period of " << embargo_size << " samples between sets" << std::endl;
-            }
-            
             break;
         }
         
         case SplitStrategy::RANDOM: {
-            std::cout << "[CRITICAL WARNING] Using RANDOM splits on time series data!" << std::endl;
-            std::cout << "[CRITICAL WARNING] This WILL cause temporal data leakage and invalid results!" << std::endl;
-            std::cout << "[CRITICAL WARNING] Consider using CHRONOLOGICAL or PURGED_KFOLD instead!" << std::endl;
-            
             std::vector<size_t> indices(data_size);
             std::iota(indices.begin(), indices.end(), 0);
             
             if (config.shuffle) {
-                std::cout << "[CRITICAL WARNING] Shuffling time series data - this breaks temporal order!" << std::endl;
                 std::mt19937 rng(config.random_seed);
                 std::shuffle(indices.begin(), indices.end(), rng);
             }
@@ -349,8 +329,6 @@ createSplits(size_t data_size, const SplitConfig& config) {
         }
         
         case SplitStrategy::PURGED_KFOLD: {
-            std::cout << "[INFO] Using PURGED_KFOLD splits with embargo=" << config.embargo << " for time series" << std::endl;
-            
             auto folds = MLSplitUtils::purgedKFoldSplit(data_size, config.n_splits, config.embargo);
             if (!folds.empty()) {
                 train_idx = std::move(folds[0].train_indices);
@@ -376,8 +354,6 @@ createSplits(size_t data_size, const PipelineConfig& config) {
     split_config.n_splits = config.n_splits;
     split_config.embargo = config.embargo;
     split_config.shuffle = false;
-    
-    std::cout << "[INFO] PipelineConfig conversion: Enforcing CHRONOLOGICAL splits for time series safety" << std::endl;
     
     return createSplits(data_size, split_config);
 }
@@ -405,8 +381,6 @@ createSplits(size_t data_size, double test_size, double val_size, bool enforce_c
     split_config.val_size = val_size;
     split_config.strategy = SplitStrategy::CHRONOLOGICAL;
     split_config.shuffle = false;
-    
-    std::cout << "[WARNING] Using CHRONOLOGICAL splits to prevent temporal data leakage in time series financial data" << std::endl;
     
     return createSplits(data_size, split_config);
 }

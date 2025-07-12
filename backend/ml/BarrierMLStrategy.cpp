@@ -62,7 +62,6 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         cleaning_opts.remove_nan = true;
         cleaning_opts.remove_inf = true;
         cleaning_opts.remove_outliers = true;
-        cleaning_opts.log_cleaning = true;
         
         auto [X_clean, y_clean, returns_clean] = DataProcessor::cleanData(
             features.features, features.labels, returns, cleaning_opts);
@@ -128,11 +127,6 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         try {
             y_pred = model.predict(X_eval);
             y_prob = model.predict_proba(X_eval);
-            if (!y_pred.empty()) {
-                for (size_t i = 0; i < std::min<size_t>(y_pred.size(), 20); ++i) {
-                    std::cout << y_pred[i] << " ";
-                }
-            }
         } catch (const BaseException& e) {
             throw ModelPredictionException("XGBoost prediction failed: " + std::string(e.what()), e.context());
         } catch (const std::exception& e) {
@@ -229,7 +223,6 @@ BarrierMLStrategy::PredictionResult TTBMStrategy::trainAndPredict(
         cleaning_opts.remove_nan = true;
         cleaning_opts.remove_inf = true;
         cleaning_opts.remove_outliers = true;
-        cleaning_opts.log_cleaning = true;
         
         auto [X_clean, y_clean, returns_clean] = DataProcessor::cleanData(
             features.features, features.labels_double, returns, cleaning_opts);

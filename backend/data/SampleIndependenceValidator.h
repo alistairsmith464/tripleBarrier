@@ -22,8 +22,6 @@ public:
         int min_gap_requirement = -1
     );
     
-    static void logIndependenceReport(const IndependenceReport& report);
-    
     static std::vector<size_t> findOverlappingEventPairs(
         const std::vector<LabeledEvent>& events,
         int vertical_barrier

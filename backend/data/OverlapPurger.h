@@ -13,7 +13,4 @@ public:
 private:
     static bool hasOverlap(size_t event1_start, size_t event1_end, 
                           size_t event2_start, size_t event2_end);
-    
-    static void logPurgingStats(const std::vector<size_t>& original,
-                               const std::vector<size_t>& purged);
 };

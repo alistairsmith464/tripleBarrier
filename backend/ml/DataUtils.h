@@ -17,10 +17,9 @@ public:
         bool remove_outliers;
         double outlier_threshold;
         bool normalize_features;
-        bool log_cleaning;
         
         CleaningOptions() : remove_nan(true), remove_inf(true), remove_outliers(false), 
-                           outlier_threshold(3.0), normalize_features(false), log_cleaning(false) {}
+                           outlier_threshold(3.0), normalize_features(false) {}
     };
     
     template<typename T>

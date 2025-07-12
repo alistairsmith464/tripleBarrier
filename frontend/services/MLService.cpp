@@ -621,6 +621,7 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
     const std::vector<double>& predictions,
     bool useTTBM) {
     
+    std::cout << "[DEBUG] Entered runSimulation";
     try {
         std::vector<double> returns;
         for (const auto& row : rows) {

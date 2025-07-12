@@ -41,23 +41,10 @@ std::vector<size_t> OverlapPurger::purgeOverlappingEvents(
         }
     }
     
-    logPurgingStats(event_indices, purged);
     return purged;
 }
 
 bool OverlapPurger::hasOverlap(size_t event1_start, size_t event1_end, 
                               size_t event2_start, size_t event2_end) {
     return !(event1_end <= event2_start || event2_end <= event1_start);
-}
-
-void OverlapPurger::logPurgingStats(const std::vector<size_t>& original,
-                                   const std::vector<size_t>& purged) {
-    if (original.size() != purged.size()) {
-        std::cout << "[INFO] Event purging statistics:" << std::endl;
-        std::cout << "  - Original events: " << original.size() << std::endl;
-        std::cout << "  - Purged events: " << purged.size() << std::endl;
-        std::cout << "  - Overlap removal rate: " 
-                  << (100.0 * (original.size() - purged.size()) / original.size()) 
-                  << "%" << std::endl;
-    }
 }

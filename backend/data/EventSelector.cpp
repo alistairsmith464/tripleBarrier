@@ -64,17 +64,5 @@ std::vector<Event> EventSelector::enforceMinimumGap(const std::vector<Event>& ev
         }
     }
     
-    logGapEnforcementStats(events, filtered);
     return filtered;
-}
-
-void EventSelector::logGapEnforcementStats(const std::vector<Event>& original, const std::vector<Event>& filtered) {
-    if (original.size() != filtered.size()) {
-        std::cout << "[INFO] Event gap enforcement statistics:" << std::endl;
-        std::cout << "  - Original events: " << original.size() << std::endl;
-        std::cout << "  - Gap-filtered events: " << filtered.size() << std::endl;
-        std::cout << "  - Gap violation removal rate: " 
-                  << (100.0 * (original.size() - filtered.size()) / original.size()) 
-                  << "%" << std::endl;
-    }
 }

@@ -37,17 +37,12 @@ ResultType runPipelineTemplate(
 ) {
     validatePipelineInputs(X, y, returns);
     
-    std::cout << "[DEBUG] ML Pipeline: Starting with " << X.size() << " samples" << std::endl;
-    
     DataProcessor::CleaningOptions cleaningOpts;
     cleaningOpts.remove_nan = true;
     cleaningOpts.remove_inf = true;
     cleaningOpts.remove_outliers = true;
-    cleaningOpts.log_cleaning = true;
     
     auto [X_clean, y_clean, returns_clean] = DataProcessor::cleanData(X, y, returns, cleaningOpts);
-    
-    std::cout << "[DEBUG] After cleaning: " << X_clean.size() << " samples" << std::endl;
     
     auto [train_idx, val_idx, test_idx] = createSplits(X_clean.size(), config);
 
@@ -97,59 +92,31 @@ ResultType runPipelineTemplate(
     } else {
         auto y_train_f = toFloatVecDouble(select_rows(y_clean, train_idx));
         
-        std::cout << "DEBUG: Training labels before model fit:" << std::endl;
-        std::cout << "  - Training samples: " << y_train_f.size() << std::endl;
         if (!y_train_f.empty()) {
             float min_train = *std::min_element(y_train_f.begin(), y_train_f.end());
             float max_train = *std::max_element(y_train_f.begin(), y_train_f.end());
             float sum_train = std::accumulate(y_train_f.begin(), y_train_f.end(), 0.0f);
             float mean_train = sum_train / y_train_f.size();
-            std::cout << "  - Training label range: [" << min_train << ", " << max_train << "]" << std::endl;
-            std::cout << "  - Training label mean: " << mean_train << std::endl;
-            std::cout << "  - First 5 training labels: ";
-            for (size_t i = 0; i < std::min(size_t(5), y_train_f.size()); ++i) {
-                std::cout << y_train_f[i] << " ";
-            }
-            std::cout << std::endl;
         }
         
         model.fit(X_train_f, y_train_f, model_config);
         
-        std::cout << "DEBUG: Making predictions on " << X_eval_f.size() << " evaluation samples" << std::endl;
         auto y_pred_f = model.predict_raw(X_eval_f); 
         
-        std::cout << "DEBUG: Raw model predictions (float vector):" << std::endl;
-        std::cout << "  - Raw predictions size: " << y_pred_f.size() << std::endl;
         if (!y_pred_f.empty()) {
             float min_raw = *std::min_element(y_pred_f.begin(), y_pred_f.end());
             float max_raw = *std::max_element(y_pred_f.begin(), y_pred_f.end());
             float sum_raw = std::accumulate(y_pred_f.begin(), y_pred_f.end(), 0.0f);
             float mean_raw = sum_raw / y_pred_f.size();
-            std::cout << "  - Raw prediction range: [" << min_raw << ", " << max_raw << "]" << std::endl;
-            std::cout << "  - Raw prediction mean: " << mean_raw << std::endl;
-            std::cout << "  - First 10 raw predictions: ";
-            for (size_t i = 0; i < std::min(size_t(10), y_pred_f.size()); ++i) {
-                std::cout << std::fixed << std::setprecision(6) << y_pred_f[i] << " ";
-            }
-            std::cout << std::endl;
         }
         
         std::vector<double> y_pred(y_pred_f.begin(), y_pred_f.end());
         
-        std::cout << "DEBUG: Regression predictions for portfolio simulation:" << std::endl;
-        std::cout << "  - Number of predictions: " << y_pred.size() << std::endl;
         if (!y_pred.empty()) {
             double min_pred = *std::min_element(y_pred.begin(), y_pred.end());
             double max_pred = *std::max_element(y_pred.begin(), y_pred.end());
             double sum_pred = std::accumulate(y_pred.begin(), y_pred.end(), 0.0);
             double mean_pred = sum_pred / y_pred.size();
-            std::cout << "  - Prediction range: [" << min_pred << ", " << max_pred << "]" << std::endl;
-            std::cout << "  - Mean prediction: " << mean_pred << std::endl;
-            std::cout << "  - First 10 predictions: ";
-            for (size_t i = 0; i < std::min(size_t(10), y_pred.size()); ++i) {
-                std::cout << y_pred[i] << " ";
-            }
-            std::cout << std::endl;
         }
         
         PortfolioSimulation portfolio = simulate_portfolio(y_pred, returns_eval, false);
@@ -186,8 +153,6 @@ ResultType runPipelineWithTuningTemplate(
     size_t total_combinations = grid.n_rounds.size() * grid.max_depth.size() * 
                                grid.learning_rate.size() * grid.subsample.size() * 
                                grid.colsample_bytree.size();
-    
-    std::cout << "Starting hyperparameter search with " << total_combinations << " combinations..." << std::endl;
     
     size_t combination_count = 0;
     bool early_stop = false;
@@ -237,13 +202,9 @@ ResultType runPipelineWithTuningTemplate(
                                 best_config.learning_rate = lr;
                                 best_config.subsample = subsample;
                                 best_config.colsample_bytree = colsample;
-                                
-                                std::cout << "New best score: " << score 
-                                         << " (combination " << combination_count << "/" << total_combinations << ")" << std::endl;
                             }
                             
                             if ((is_classification && score > 0.95) || (!is_classification && score > 0.99)) {
-                                std::cout << "Early stopping due to excellent performance" << std::endl;
                                 early_stop = true;
                                 break;
                             }
@@ -260,8 +221,6 @@ ResultType runPipelineWithTuningTemplate(
             }
         }
     }
-    
-    std::cout << "Best hyperparameters found with score: " << best_score << std::endl;
     
     return runPipelineTemplate<T, ResultType>(X_clean, y_clean, returns_clean, best_config, is_classification);
 }

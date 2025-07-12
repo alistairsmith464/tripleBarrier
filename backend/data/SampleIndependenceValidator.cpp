@@ -60,26 +60,6 @@ SampleIndependenceValidator::validateSampleIndependence(
     return report;
 }
 
-void SampleIndependenceValidator::logIndependenceReport(const IndependenceReport& report) {
-    std::cout << "==================== SAMPLE INDEPENDENCE REPORT ====================" << std::endl;
-    std::cout << "Total samples: " << report.total_samples << std::endl;
-    std::cout << "Overlapping samples: " << report.overlapping_samples << std::endl;
-    std::cout << "Gap violations: " << report.gap_violations << std::endl;
-    std::cout << "Overlap percentage: " << report.overlap_percentage << "%" << std::endl;
-    std::cout << "Average gap size: " << report.avg_gap_size << std::endl;
-    std::cout << "Min gap size: " << report.min_gap_size << std::endl;
-    std::cout << "Max gap size: " << report.max_gap_size << std::endl;
-    std::cout << "Independence violated: " << (report.independence_violated ? "YES" : "NO") << std::endl;
-    
-    if (report.independence_violated) {
-        std::cout << "[WARNING] Sample independence assumption VIOLATED!" << std::endl;
-        std::cout << "[WARNING] This may lead to overfitting and poor generalization!" << std::endl;
-    } else {
-        std::cout << "[INFO] Sample independence assumption satisfied." << std::endl;
-    }
-    std::cout << "======================================================================" << std::endl;
-}
-
 std::vector<size_t> SampleIndependenceValidator::findOverlappingEventPairs(
     const std::vector<LabeledEvent>& events,
     int vertical_barrier

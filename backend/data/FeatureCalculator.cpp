@@ -34,18 +34,6 @@ std::map<std::string, double> FeatureCalculator::calculateFeatures(
     std::map<std::string, double> features;
     int idx = eventIndices[eventIdx];
     
-    std::cout << "[DEBUG] FeatureCalculator::calculateFeatures:" << std::endl;
-    std::cout << "  - Event index: " << eventIdx << ", Price index: " << idx << std::endl;
-    std::cout << "  - Total prices: " << prices.size() << std::endl;
-    std::cout << "  - Selected features: " << selectedFeatures.size() << std::endl;
-    
-    if (idx >= 0 && idx < (int)prices.size()) {
-        std::cout << "  - Current price: " << prices[idx] << std::endl;
-        if (idx > 0) {
-            std::cout << "  - Previous price: " << prices[idx-1] << std::endl;
-        }
-    }
-    
     for (const auto& feat : selectedFeatures) {
         double value = NAN;
         if (feat == CLOSE_TO_CLOSE_RETURN_1D) value = closeToCloseReturn1D(prices, idx);
@@ -66,12 +54,6 @@ std::map<std::string, double> FeatureCalculator::calculateFeatures(
         else if (feat == DAYS_SINCE_LAST_EVENT && eventStarts) value = daysSinceLastEvent(*eventStarts, eventIdx);
         
         features[feat] = value;
-        
-        if (std::isnan(value)) {
-            std::cout << "  - WARNING: Feature '" << feat << "' returned NaN (idx=" << idx << ")" << std::endl;
-        } else {
-            std::cout << "  - Feature '" << feat << "' = " << value << std::endl;
-        }
     }
     return features;
 }
