@@ -19,7 +19,6 @@ PreprocessedRow makeRow(double price, const string& ts) {
 
 LabeledEvent makeEvent(int idx, int label) {
     LabeledEvent e;
-    e.index = idx;
     e.label = label;
     return e;
 }
