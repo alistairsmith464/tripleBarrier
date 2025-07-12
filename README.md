@@ -26,9 +26,24 @@ The Triple Barrier method defines a framework for labeling financial data based 
 
 At the start of an event window, three barriers are set:  
 
-1. **Upper horizontal barrier** – profit-taking level  
-2. **Lower horizontal barrier** – stop-loss level  
-3. **Vertical barrier** – maximum holding period  
+1. **Upper horizontal barrier – profit-taking level**  
+2. **Lower horizontal barrier – stop-loss level**  
+3. **Vertical barrier – maximum holding period**  
+
+The horizontal barriers are calculated relative to the price at the event’s start and scaled by the estimated volatility of the time series:  
+
+- **Upper barrier**: `Pₜ * (1 + σ * mₚ)`  
+- **Lower barrier**: `Pₜ * (1 - σ * mₛ)`  
+
+Where:  
+- `Pₜ` = price at the event start  
+- `σ` = volatility estimate  
+- `mₚ` = profit multiple  
+- `mₛ` = stop multiple  
+
+The volatility (`σ`) is typically computed as an exponentially weighted moving standard deviation of log returns to capture changes in market dynamics.  
+
+The **vertical barrier** is a fixed time horizon (e.g., 20 bars) after which the event expires if neither horizontal barrier is hit.  
 
 The method assigns a label to each event based on which barrier the price touches first:  
 
@@ -40,7 +55,8 @@ Prado describes this approach as:
 
 > “A generalization of fixed-time horizon labeling, where early exits are allowed if prices hit specified thresholds before the end of the event window.”
 
-This methodology helps to accounts for volatility and provide a more realistic labeling mechanism for financial time series, where price paths are not uniformly distributed over time.  
+This approach accounts for volatility and provides a more realistic labeling mechanism for financial time series, where price paths are not uniformly distributed over time.  
+ 
 
 ### 1.2 Event Definition and CUSUM Filter
 
@@ -118,9 +134,9 @@ Once the financial data has been cleaned and preprocessed, the system moves on t
 
 With these feature vectors prepared, the system applies the configured labeling method—either hard barriers or the time to barrier modification (TTBM). Hard barrier labeling assigns discrete values (+1, -1, or 0) based on which threshold—profit, stop, or maximum holding period—is hit first. In contrast, TTBM uses a decay function to produce continuous labels, capturing not only the direction of price movement but also the timing and confidence associated with barrier hits.
 
-The labeled feature vectors are then fed into the machine learning pipeline, where models are trained and evaluated. Crucially, the aim of this step is not to maximize predictive accuracy or to fully model the complex dynamics of financial markets. Instead, it is designed to compare the relative effectiveness of TTBM labels versus hard barrier labels. Through portfolio simulations and analysis of the resulting trading signals, the system provides a direct, data-driven comparison of how each labeling method performs under varying market conditions.
+The labeled feature vectors are then fed into the machine learning pipeline, where models are trained and evaluated. Crucially, the aim of this step is not to maximize predictive accuracy or to fully model the complex dynamics of financial markets. Instead, it is designed to compare the relative effectiveness of TTBM labels versus hard barrier labels. The codebase uses XGBoost as the core machine learning model for both hard barrier and TTBM approaches. For hard barriers XGBoost is configured for classification tasks, using the "multi:softmax" objective, allowing the model to predict one of the 3 defined outcomes. For TTBM XGBoost is set up for regression with the "reg:squarederror" objective, this allows the model to predict anywhere within the `[-1, 1]` range. The data split type for training and evaluation is hardcoded as chronological, meaning the data is divided into training, validation, and test sets in temporal order to prevent lookahead bias. The pipeline supports feature preprocessing and hyperparameter tuning, but the underlying model for both approaches remains XGBoost, with the main difference being the objective function and label type (classification for hard barriers, regression for TTBM).
 
-This approach ensures a fair and transparent evaluation of the two methods, highlighting the practical advantages of TTBM’s continuous, time-sensitive labels over the more rigid outcomes of hard barriers. Rather than claiming predictive superiority, the results are intended to inform users about the comparative strengths and trade-offs of each approach, helping them make more informed decisions in downstream applications.
+Various features are available within the model to act as the explanatory variables for the training. These are all functions of price given the nature of the data being used and include return, moving averages and volatility measures. As mentioned previously, this project looks to show the relative performance of the two methods, so we will not go into detail on the features used.
 
 ---
 
@@ -128,6 +144,19 @@ This approach ensures a fair and transparent evaluation of the two methods, high
 
 ## 3. Output and results
 
-In this section, we compare the performance of hard barrier labels and Time-To-Barrier Modification (TTBM) labels when used to train identical machine learning models. By evaluating the resulting trading signals and portfolio metrics, we highlight the practical differences between these two labeling approaches.
+In this section, we compare the performance of hard barrier labels and time to barrier modification (TTBM) labels when used to train identical machine learning models. By evaluating the resulting trading signals and portfolio metrics, we highlight the practical differences between these two labeling approaches. We use illustrative data generated using a Brownian motion process which can be tailored to show different market scenarions and the output of the barrier types in them. Multiple simplifying assumptions are also made when looking at the data, however all of these could be dealt with as an extension to the project:
+
+- Data is input as by minute data, however this could be generalised to any interval over which you can trade in and out of an asset
+- No transaction costs or issues with being able to go long or short the asset
+
+The first dataset is for a hypothetical asset over a week, with prices every minute. There is no clear trend up or down and there is a fair amount of volatility. To begin with, the hard barrier implementation is applied to the dataset setting the vertical barrier at 30 intervals (30 minutes in this case). The profit and stop-loss multiples are set to be the same and trigger when there is a spike equal to 3 times the volatility at the start of the period. Given the number of events, the performance is hidden slightly, but we can see the green dots showing in periods of increase and then red in downturn. In periods where there is less certain movement, we see the blue dots representing the vertical barrier being hit.
+
+<img width="1762" height="575" alt="image" src="https://github.com/user-attachments/assets/a85f0559-aacd-4abc-b994-b3768763884b" />
+
+The same settings are then applied to generate the TTBM labels. The chart is the same in that green dots represent the profit barrier being hit and the red represent the stop loss being hit. However, now the shade and size of the dots represent the decay experienced before the barrier was hit. The blue vertical baarier hits seen previously now show as small white dots. A similar story is told, however we can immediately see more detail
+
+<img width="1792" height="497" alt="image" src="https://github.com/user-attachments/assets/5e939211-7eee-4625-9ebf-ef34a97f0712" />
+
+
 
 
