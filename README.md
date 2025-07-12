@@ -2,11 +2,11 @@
 
 ## Summary
 
-This project implements and extends the Triple Barrier Method from *Advances in Financial Machine Learning* (López de Prado, 2018). It provides a framework for labeling financial time series by detecting significant price movements (using a CUSUM filter) and assigning labels based on which of three barriers—profit, stop-loss, or holding period—is hit first.  
+This project implements and extends the Triple Barrier method from *Advances in Financial Machine Learning* (López de Prado, 2018). It provides a framework for labeling financial time series by detecting significant price movements (using a CUSUM filter) and assigning labels based on which of three barriers—profit, stop-loss, or holding period—is hit first.  
 
 We extend the original method with **time-decayed labels**, which start at `+1` or `-1` when a barrier is hit immediately and decay toward `0` as time passes without hitting any barrier. This allows models to learn both **directional bias** and **signal confidence over time**, enabling more nuanced decision-making in trading strategies.
 
-Upload time series data (timestamp, price), compute features, apply the triple barrier logic, and train predictive models directly in the app.
+Upload time series data (timestamp, price), compute features, apply the triple barrier logic, and train predictive models directly in the app. This project compares the relative performance of the original **Triple Barrier** method with the **Time to barrier modification** introduced in this project.
 
 ---
 
@@ -16,13 +16,13 @@ Financial time series are inherently noisy, non-stationary, and prone to sudden 
 
 > “Labels are the weakest link in supervised learning, and in finance, traditional labeling techniques are often inadequate.”
 
-To address this, Prado introduced the **Triple Barrier Method**, which improves upon fixed time horizon labeling by allowing for dynamic exit conditions based on price movements and holding periods.  
+To address this, Prado introduced the **Triple Barrier** method, which improves upon fixed time horizon labeling by allowing for dynamic exit conditions based on price movements and holding periods.  
 
-This project implements the Triple Barrier Method as a pre-processing step for machine learning and **extends it** by incorporating a time-decayed label methodology. The goal is to provide more informative targets for predictive modeling, enabling refined position sizing and risk management.
+This project implements the Triple Barrier Method as a pre-processing step for machine learning and extends it by incorporating a time-decayed label methodology. The goal is to provide more informative targets for predictive modeling, enabling refined position sizing and risk management.
 
 ### 1.1 The Triple Barrier Method
 
-The Triple Barrier Method defines a framework for labeling financial data based on the outcome of trade-like events within a specified time window.  
+The Triple Barrier method defines a framework for labeling financial data based on the outcome of trade-like events within a specified time window.  
 
 At the start of an event window, three barriers are set:  
 
@@ -40,7 +40,7 @@ Prado describes this approach as:
 
 > “A generalization of fixed-time horizon labeling, where early exits are allowed if prices hit specified thresholds before the end of the event window.”
 
-This methodology effectively accounts for volatility and provides a more realistic labeling mechanism for financial time series, where price paths are not uniformly distributed over time.  
+This methodology helps to accounts for volatility and provide a more realistic labeling mechanism for financial time series, where price paths are not uniformly distributed over time.  
 
 ### 1.2 Event Definition and CUSUM Filter
 
@@ -58,7 +58,7 @@ By applying the CUSUM filter, the dataset is reduced to a series of timestamps w
 
 While the Triple Barrier Method provides a robust framework for labeling, its **hard assignment** of `+1`, `-1`, or `0` does not fully capture the dynamics of financial markets. Two paths that hit the same barrier may differ greatly in how quickly they do so, which is critical information for risk and trade management.  
 
-This project introduces an extension: **Time-Decayed Labeling**.  
+This project introduces an extension: **Time to barrier modification**.  
 
 In this approach:  
 
@@ -92,9 +92,9 @@ This extension builds on Prado’s original concept, making it more actionable f
 
 ### 2.1 Data upload and labelling
 
-When a user uploads financial data to the system, the file is ingested and parsed into a structured format. Each row is represented internally as a `PreprocessedRow` object, capable of holding a rich set of features. This flexibility allows future extension to datasets with additional indicators such as volume, technical signals, or macroeconomic variables. In this report, however, we use only the timestamp and price columns. This simplification keeps the focus on exploring the labeling methodology itself, without the confounding effects of additional features.
+When a user uploads financial data to the system, the file is ingested and parsed into a structured format. Each row is represented internally as a `PreprocessedRow` object, capable of holding a set of features. This flexibility allows future extension to datasets with additional indicators such as volume, technical signals, or macroeconomic variables. In this report, however, we focus on the timestamp and price columns. This simplification keeps the focus on exploring the labeling methodology itself, without the confounding effects of additional features.
 
-After the dataset is loaded, the system presents an interactive configuration dialog where users can adjust the parameters of the barrier labeling process. These parameters are defined in the `BarrierConfig` structure and control how events are detected and labeled:
+After the dataset is loaded, the system presents an configuration dialog where users can adjust the parameters of the barrier labeling process. These parameters are defined in the `BarrierConfig` structure and control how events are detected and labeled:
 
 - **profit_multiple** – Sets the threshold for profit-taking. Determines how much the price must rise (relative to volatility) before a profit barrier is triggered.  
 - **stop_multiple** – Sets the threshold for stop-loss. Determines how much the price must fall (relative to volatility) before a stop barrier is triggered.  
@@ -104,7 +104,7 @@ After the dataset is loaded, the system presents an interactive configuration di
 - **labeling_type** – Selects the labeling method:  
   - Hard: Assigns discrete labels (+1, -1, 0) based on which barrier is hit first.  
   - TTBM: Assigns continuous labels using a decay function, reflecting both direction and timing.  
-- **ttbm_decay_type** – Chooses the decay function for TTBM labeling, controlling how quickly the label magnitude decays over time (Exponential, Linear, or Hyperbolic). In this implementation, the decay parameters (`lambda`, `alpha`, `beta`) are hardcoded to fixed values.
+- **ttbm_decay_type** – Chooses the decay function for TTBM labeling, controlling how quickly the label magnitude decays over time (Exponential, Linear, or Hyperbolic). In this implementation, the decay parameters (`lambda`, `alpha`, `beta`) are hardcoded to fixed values. An extension would be to optimise these parameters.
 
 The interaction between the CUSUM filter and TTBM is particularly important. When `use_cusum` is enabled, the system first applies the CUSUM filter to identify points in the price series where significant structural changes occur. Only these filtered points are used as candidate events for labeling. This reduces noise and prevents the TTBM from being applied indiscriminately across the entire dataset. TTBM then assigns labels to these events based on which barrier is breached first and adjusts label magnitudes using the selected decay function. If `use_cusum` is disabled, TTBM evaluates all rows in the dataset as potential events, which may result in a denser set of labels but with increased sensitivity to noise.
 
@@ -116,7 +116,7 @@ This workflow ensures a consistent, traceable process from raw data ingestion to
 
 Once the financial data has been cleaned and preprocessed, the system moves on to feature extraction, transforming raw time series inputs into structured vectors that characterize the market environment around each event. This step draws on statistical measures such as volatility, returns, and other domain-specific indicators to build a compact, informative representation of the data. The `FeatureExtractor` class handles this process, ensuring that each event is encoded as a vector suitable for classification or regression tasks.
 
-With these feature vectors prepared, the system applies the configured labeling method—either hard barriers or the Time-To-Barrier Modification (TTBM). Hard barrier labeling assigns discrete values (+1, -1, or 0) based on which threshold—profit, stop, or maximum holding period—is hit first. In contrast, TTBM uses a decay function to produce continuous labels, capturing not only the direction of price movement but also the timing and confidence associated with barrier hits.
+With these feature vectors prepared, the system applies the configured labeling method—either hard barriers or the time to barrier modification (TTBM). Hard barrier labeling assigns discrete values (+1, -1, or 0) based on which threshold—profit, stop, or maximum holding period—is hit first. In contrast, TTBM uses a decay function to produce continuous labels, capturing not only the direction of price movement but also the timing and confidence associated with barrier hits.
 
 The labeled feature vectors are then fed into the machine learning pipeline, where models are trained and evaluated. Crucially, the aim of this step is not to maximize predictive accuracy or to fully model the complex dynamics of financial markets. Instead, it is designed to compare the relative effectiveness of TTBM labels versus hard barrier labels. Through portfolio simulations and analysis of the resulting trading signals, the system provides a direct, data-driven comparison of how each labeling method performs under varying market conditions.
 
