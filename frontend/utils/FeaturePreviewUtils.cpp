@@ -59,15 +59,15 @@ QString FeaturePreviewUtils::formatPortfolioResults(
                    "<b>Portfolio Performance:</b><br>"
                    "Starting Capital: £%3<br>"
                    "Final Portfolio Value: £%4<br>"
-                   "Total Return: %5%%<br>"
-                   "Annualized Return: %6%%<br>"
-                   "Maximum Drawdown: %7%%<br>"
+                   "Total Return: %5%<br>"
+                   "Annualized Return: %6%<br>"
+                   "Maximum Drawdown: %7%<br>"
                    "Sharpe Ratio: %8<br><br>"
                    
                    "<b>Trading Statistics:</b><br>"
                    "Total Trades: %9<br>"
-                   "Winning Trades: %10 (%11%%)<br>"
-                   "Losing Trades: %12 (%13%%)<br>"
+                   "Winning Trades: %10 (%11%)<br>"
+                   "Losing Trades: %12 (%13%)<br>")
            .arg(title)
            .arg(strategy)
            .arg(results.starting_capital, 0, 'f', 0)
@@ -80,7 +80,7 @@ QString FeaturePreviewUtils::formatPortfolioResults(
            .arg(results.total_trades * results.win_rate, 0, 'f', 0)
            .arg(results.win_rate * 100, 0, 'f', 1)
            .arg(results.total_trades * (1.0 - results.win_rate), 0, 'f', 0)
-           .arg((100.0 - results.win_rate * 100), 0, 'f', 1)
+           .arg((100.0 - results.win_rate * 100), 0, 'f', 1);
 }
 
 QString FeaturePreviewUtils::formatTradingStrategy(bool is_ttbm) {

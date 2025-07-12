@@ -53,7 +53,7 @@ void FeaturePreviewDialog::setupUI() {
     vbox->addWidget(m_importancesLabel);
 
     m_tradeLogTable = new QTableWidget(this);
-    m_tradeLogTable->setColumnCount(5);
+    m_tradeLogTable->setColumnCount(4);
     QStringList headers;
     headers << "Signal" << "Trade Return" << "Capital Before" << "Capital After";
     m_tradeLogTable->setHorizontalHeaderLabels(headers);
