@@ -7,6 +7,7 @@
 #include <map>
 #include <QString>
 #include <QSet>
+#include <QVBoxLayout>
 #include "../backend/data/PreprocessedRow.h"
 #include "../backend/data/LabeledEvent.h"
 #include "../backend/data/FeatureExtractor.h"
@@ -40,7 +41,7 @@ private:
     QTableWidget* m_tradeLogTable;
     
     void setupUI();
-    void createFeatureTable();
+    void createFeatureTable(QVBoxLayout* vbox);
     void updateDataInfo();
     void updateBarrierDiagnostics();
     void showMLClassificationResults(const MLResults& results);

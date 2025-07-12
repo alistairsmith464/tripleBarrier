@@ -8,7 +8,7 @@
 #include <QHeaderView>
 #include <QDialogButtonBox>
 #include <QPushButton>
-#include <IOStream>
+#include <QScrollArea>
 
 FeaturePreviewDialog::FeaturePreviewDialog(
     const QSet<QString>& selectedFeatures,
@@ -25,27 +25,28 @@ FeaturePreviewDialog::FeaturePreviewDialog(
 }
 
 void FeaturePreviewDialog::setupUI() {
-    QVBoxLayout* vbox = new QVBoxLayout(this);
-    
-    createFeatureTable();
-    
+    QWidget* contentWidget = new QWidget(this);
+    QVBoxLayout* vbox = new QVBoxLayout(contentWidget);
+
+    createFeatureTable(vbox);
+
     m_dataInfoLabel = new QLabel(this);
     m_dataInfoLabel->setStyleSheet("color: #2c3e50; font-size: 12px; padding: 5px;");
     vbox->addWidget(m_dataInfoLabel);
     updateDataInfo();
-    
+
     m_debugInfoLabel = new QLabel(this);
     m_debugInfoLabel->setStyleSheet("color: #8e44ad; font-size: 11px; padding: 5px;");
     vbox->addWidget(m_debugInfoLabel);
     updateBarrierDiagnostics();
-    
+
     m_tuneHyperparamsCheckBox = new QCheckBox(UIStrings::AUTO_TUNE_HYPERPARAMS, this);
     m_tuneHyperparamsCheckBox->setToolTip("If checked, the pipeline will automatically search for the best hyperparameters (n_rounds, max_depth, nthread).");
     vbox->addWidget(m_tuneHyperparamsCheckBox);
-    
+
     m_runMLButton = new QPushButton(UIStrings::RUN_ML, this);
     vbox->addWidget(m_runMLButton);
-    
+
     m_metricsLabel = new QLabel(this);
     m_importancesLabel = new QLabel(this);
     vbox->addWidget(m_metricsLabel);
@@ -54,51 +55,57 @@ void FeaturePreviewDialog::setupUI() {
     m_tradeLogTable = new QTableWidget(this);
     m_tradeLogTable->setColumnCount(5);
     QStringList headers;
-    headers << "Index" << "Signal" << "Trade Return" << "Capital Before" << "Capital After";
+    headers << "Signal" << "Trade Return" << "Capital Before" << "Capital After";
     m_tradeLogTable->setHorizontalHeaderLabels(headers);
     m_tradeLogTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     m_tradeLogTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_tradeLogTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_tradeLogTable->setSelectionMode(QAbstractItemView::SingleSelection);
     m_tradeLogTable->hide();
+    m_tradeLogTable->setMinimumHeight(300);
+    m_tradeLogTable->setMinimumWidth(800);
     vbox->addWidget(m_tradeLogTable);
-    
+
     connect(m_runMLButton, &QPushButton::clicked, this, &FeaturePreviewDialog::onRunMLClicked);
-    
+
     QDialogButtonBox* box = new QDialogButtonBox(QDialogButtonBox::Ok, this);
     box->button(QDialogButtonBox::Ok)->setText(UIStrings::OK);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     vbox->addWidget(box);
 
-    setMinimumSize(1200, 600);
+    QScrollArea* scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setWidget(contentWidget);
 
-    m_tradeLogTable->setMinimumHeight(300);
-    m_tradeLogTable->setMinimumWidth(800);
+    QVBoxLayout* mainLayout = new QVBoxLayout(this);
+    mainLayout->addWidget(scrollArea);
+    setLayout(mainLayout);
+
+    setMinimumSize(1200, 600);
 }
 
-void FeaturePreviewDialog::createFeatureTable() {
+void FeaturePreviewDialog::createFeatureTable(QVBoxLayout* vbox) {
     MLServiceImpl mlService;
-    
     bool is_ttbm = false;
     if (!m_labeledEvents.empty()) {
         is_ttbm = m_labeledEvents[0].is_ttbm;
     }
-    
+
     FeatureExtractor::FeatureExtractionResult result;
     if (is_ttbm) {
         result = mlService.getFeatureService()->extractFeaturesForRegression(m_rows, m_labeledEvents, m_selectedFeatures);
     } else {
         result = mlService.getFeatureService()->extractFeaturesForClassification(m_rows, m_labeledEvents, m_selectedFeatures);
     }
-    
+
     QTableWidget* table = new QTableWidget(int(result.features.size()), m_selectedFeatures.size(), this);
-    
+
     QStringList headers;
     for (const QString& feat : m_selectedFeatures) {
         headers << feat;
     }
     table->setHorizontalHeaderLabels(headers);
-    
+
     auto featureMap = FeatureExtractor::getFeatureMapping();
     int col = 0;
     for (const QString& feat : m_selectedFeatures) {
@@ -109,9 +116,9 @@ void FeaturePreviewDialog::createFeatureTable() {
         }
         ++col;
     }
-    
+
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    layout()->addWidget(table);
+    vbox->addWidget(table);
 }
 
 void FeaturePreviewDialog::updateDataInfo() {
@@ -161,27 +168,18 @@ void FeaturePreviewDialog::onRunMLClicked() {
 }
 
 void FeaturePreviewDialog::displayTradeLog(const std::vector<MLPipeline::TradeLogEntry>& tradeLog) {
-    std::cout << "[DEBUG] Entered displayTradeLog, tradeLog.size() = " << tradeLog.size() << std::endl;
-    try {
-        
-        m_tradeLogTable->setRowCount(static_cast<int>(tradeLog.size()));
-        m_tradeLogTable->show();
+    m_tradeLogTable->setRowCount(static_cast<int>(tradeLog.size()));
+    m_tradeLogTable->show();
 
-        std::cout << "[DEBUG] About to enter for loop" << std::endl;
-
-        for (int i = 0; i < static_cast<int>(tradeLog.size()); ++i) {
-            const auto& entry = tradeLog[i];
-            m_tradeLogTable->setItem(i, 0, new QTableWidgetItem(QString::number(entry.index)));
-            m_tradeLogTable->setItem(i, 1, new QTableWidgetItem(QString::number(entry.signal, 'f', 4)));
-            m_tradeLogTable->setItem(i, 2, new QTableWidgetItem(QString::number(entry.trade_return, 'f', 4)));
-            m_tradeLogTable->setItem(i, 3, new QTableWidgetItem(QString::number(entry.capital_before, 'f', 2)));
-            m_tradeLogTable->setItem(i, 4, new QTableWidgetItem(QString::number(entry.capital_after, 'f', 2)));
-        }
-
-        m_tradeLogTable->resizeRowsToContents();
-    } catch (const std::exception& e) {
-        std::cout << "[ERROR] Exception in displayTradeLog: " << e.what() << std::endl;
+    for (int i = 0; i < static_cast<int>(tradeLog.size()); ++i) {
+        const auto& entry = tradeLog[i];
+        m_tradeLogTable->setItem(i, 1, new QTableWidgetItem(QString::number(entry.signal, 'f', 4)));
+        m_tradeLogTable->setItem(i, 2, new QTableWidgetItem(QString::number(entry.trade_return, 'f', 4)));
+        m_tradeLogTable->setItem(i, 3, new QTableWidgetItem(QString::number(entry.capital_before, 'f', 2)));
+        m_tradeLogTable->setItem(i, 4, new QTableWidgetItem(QString::number(entry.capital_after, 'f', 2)));
     }
+
+    m_tradeLogTable->resizeRowsToContents();
 }
 
 void FeaturePreviewDialog::showMLClassificationResults(const MLResults& results) {
