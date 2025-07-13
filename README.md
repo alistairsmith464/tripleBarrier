@@ -2,11 +2,11 @@
 
 ## Summary
 
-This project implements and extends the Triple Barrier method from *Advances in Financial Machine Learning* (López de Prado, 2018). It provides a framework for labeling financial time series by detecting significant price movements (using a CUSUM filter) and assigning labels based on which of three barriers—profit, stop-loss, or holding period—is hit first.  
+This project implements and extends the Triple Barrier method from *Advances in Financial Machine Learning* (López de Prado, 2018). It provides a framework for labeling financial time series by detecting significant price movements (using a CUSUM filter) and assigning labels based on which of three barriers (profit, stop-loss, or holding period) is hit first.  
 
-We extend the original method with **time-decayed labels**, which start at `+1` or `-1` when a barrier is hit immediately and decay toward `0` as time passes without hitting any barrier. This allows models to learn both **directional bias** and **signal confidence over time**, enabling more nuanced decision-making in trading strategies.
+It extends the original method with **time-decayed labels**, which start at `+1` or `-1` when a barrier is hit immediately and decay toward `0` as time passes without hitting any barrier. This allows models to learn both **directional bias** and **signal confidence over time**, enabling more nuanced decision-making in trading strategies.
 
-Upload time series data (timestamp, price), compute features, apply the triple barrier logic, and train predictive models directly in the app. This project compares the relative performance of the original **Triple Barrier** method with the **Time to barrier modification** introduced in this project.
+The project allows for the upload of time series data (timestamp, price), the application of the triple barrier logic, computation of features, and train predictive models directly in the app. This short report aims to then compare the relative performance of the original **Triple Barrier** method with the **time to barrier modification** introduced in this project.
 
 ---
 
@@ -56,7 +56,8 @@ Prado describes this approach as:
 > “A generalization of fixed-time horizon labeling, where early exits are allowed if prices hit specified thresholds before the end of the event window.”
 
 This approach accounts for volatility and provides a more realistic labeling mechanism for financial time series, where price paths are not uniformly distributed over time.  
- 
+
+ ---
 
 ### 1.2 Event Definition and CUSUM Filter
 
@@ -69,6 +70,8 @@ The CUSUM filter detects structural shifts in the price series by accumulating i
 > “The CUSUM filter is designed to avoid triggering a new event for small movements, ensuring that only meaningful price changes initiate labeling windows.”
 
 By applying the CUSUM filter, the dataset is reduced to a series of timestamps where significant directional changes occur, each serving as the initial timestamp for the triple barrier logic. This approach mitigates noise in high-frequency data and creates more reliable and independent labels for machine learning.
+
+---
 
 ### 1.3 Extending the Theory: Time-Decayed Labeling
 
@@ -108,7 +111,7 @@ This extension builds on Prado’s original concept, making it more actionable f
 
 ### 2.1 Data upload and labelling
 
-When a user uploads financial data to the system, the file is ingested and parsed into a structured format. Each row is represented internally as a `PreprocessedRow` object, capable of holding a set of features. This flexibility allows future extension to datasets with additional indicators such as volume, technical signals, or macroeconomic variables. In this report, however, we focus on the timestamp and price columns. This simplification keeps the focus on exploring the labeling methodology itself, without the confounding effects of additional features.
+When a user uploads financial data to the system, the file is ingested and parsed into a structured format. Each row is represented internally as a `PreprocessedRow` object, capable of holding a set of features. This flexibility allows future extension to datasets with additional indicators such as volume, technical signals, or macroeconomic variables. In this report, however, the focus is on the timestamp and price columns. This simplification keeps the focus on exploring the labeling methodology itself, without the confounding effects of additional features.
 
 After the dataset is loaded, the system presents an configuration dialog where users can adjust the parameters of the barrier labeling process. These parameters are defined in the `BarrierConfig` structure and control how events are detected and labeled:
 
@@ -128,6 +131,8 @@ Once configured, the system processes the data, calculates the barriers for each
 
 This workflow ensures a consistent, traceable process from raw data ingestion to fully labeled datasets, ready for downstream machine learning or trading strategy development.
 
+---
+
 ### 2.2 Feature extraction and machine learning
 
 Once the financial data has been cleaned and preprocessed, the system moves on to feature extraction, transforming raw time series inputs into structured vectors that characterize the market environment around each event. This step draws on statistical measures such as volatility, returns, and other domain-specific indicators to build a compact, informative representation of the data. The `FeatureExtractor` class handles this process, ensuring that each event is encoded as a vector suitable for classification or regression tasks.
@@ -136,26 +141,80 @@ With these feature vectors prepared, the system applies the configured labeling 
 
 The labeled feature vectors are then fed into the machine learning pipeline, where models are trained and evaluated. Crucially, the aim of this step is not to maximize predictive accuracy or to fully model the complex dynamics of financial markets. Instead, it is designed to compare the relative effectiveness of TTBM labels versus hard barrier labels. The codebase uses XGBoost as the core machine learning model for both hard barrier and TTBM approaches. For hard barriers XGBoost is configured for classification tasks, using the "multi:softmax" objective, allowing the model to predict one of the 3 defined outcomes. For TTBM XGBoost is set up for regression with the "reg:squarederror" objective, this allows the model to predict anywhere within the `[-1, 1]` range. The data split type for training and evaluation is hardcoded as chronological, meaning the data is divided into training, validation, and test sets in temporal order to prevent lookahead bias. The pipeline supports feature preprocessing and hyperparameter tuning, but the underlying model for both approaches remains XGBoost, with the main difference being the objective function and label type (classification for hard barriers, regression for TTBM).
 
-Various features are available within the model to act as the explanatory variables for the training. These are all functions of price given the nature of the data being used and include return, moving averages and volatility measures. As mentioned previously, this project looks to show the relative performance of the two methods, so we will not go into detail on the features used.
+Various features are available within the model to act as the explanatory variables for the training. These are all functions of price given the nature of the data being used and include return, moving averages and volatility measures. As mentioned previously, this project looks to show the relative performance of the two methods, so this report will not go into detail on the features used.
 
 ---
 
 ---
 
-## 3. Output and results
+## 3. Results: Comparing Hard Barrier and TTBM Labeling Approaches
 
-In this section, we compare the performance of hard barrier labels and time to barrier modification (TTBM) labels when used to train identical machine learning models. By evaluating the resulting trading signals and portfolio metrics, we highlight the practical differences between these two labeling approaches. We use illustrative data generated using a Brownian motion process which can be tailored to show different market scenarions and the output of the barrier types in them. Multiple simplifying assumptions are also made when looking at the data, however all of these could be dealt with as an extension to the project:
+In this section, a comparison of the performance of **hard barrier labels** and **time to barrier modification (TTBM) labels** when used to train identical machine learning models is performed. By evaluating the resulting trading signals and portfolio metrics, it highlights the practical differences between these two labeling approaches. Illustrative data generated from a Brownian motion process is used to provide data. This controlled setup allows us to explore the outputs of both barrier types in isolation, though it is important to note the following simplifying assumptions:
 
-- Data is input as by minute data, however this could be generalised to any interval over which you can trade in and out of an asset
-- No transaction costs or issues with being able to go long or short the asset
+- **Data Granularity**: The input data consists of minute-by-minute price observations. However, the methodology generalizes naturally to other timeframes (e.g., hourly, daily) provided sufficient data resolution.  
+- **Transaction Costs**: Assume no transaction costs, slippage, or market frictions, enabling a focus on the labeling mechanics rather than realistic trading conditions.  
+- **Market Access**: Positions can be opened and closed freely without liquidity constraints.  
+- **Volatility Estimation**: Volatility is measured using a rolling window of log returns and is assumed to be accurately estimated at each event start.  
 
-The first dataset is for a hypothetical asset over a week, with prices every minute. There is no clear trend up or down and there is a fair amount of volatility. To begin with, the hard barrier implementation is applied to the dataset setting the vertical barrier at 30 intervals (30 minutes in this case). The profit and stop-loss multiples are set to be the same and trigger when there is a spike equal to 3 times the volatility at the start of the period. Given the number of events, the performance is hidden slightly, but we can see the green dots showing in periods of increase and then red in downturn. In periods where there is less certain movement, we see the blue dots representing the vertical barrier being hit.
+The first dataset covers a hypothetical asset over a week, with prices sampled every minute. The simulated price path shows no strong trend but exhibits moderate volatility throughout.  
 
-<img width="1762" height="575" alt="image" src="https://github.com/user-attachments/assets/a85f0559-aacd-4abc-b994-b3768763884b" />
+The hard barrier implementation applies a **vertical barrier** at 30 intervals (corresponding to a holding period of 30 minutes) and sets **profit** and **stop-loss multiples** equal (five times the estimated volatility at each event’s start). THe multiples are set fairly high given the large amount of volatility shown. 
 
-The same settings are then applied to generate the TTBM labels. The chart is the same in that green dots represent the profit barrier being hit and the red represent the stop loss being hit. However, now the shade and size of the dots represent the decay experienced before the barrier was hit. The blue vertical baarier hits seen previously now show as small white dots. A similar story is told, however we can immediately see more detail
+In the first chart, the labeling outcomes are visualized:
 
-<img width="1792" height="497" alt="image" src="https://github.com/user-attachments/assets/5e939211-7eee-4625-9ebf-ef34a97f0712" />
+- **Green dots** mark events where the profit barrier was hit first.  
+- **Red dots** indicate events where the stop-loss barrier was hit.  
+- **Blue dots** denote events where neither horizontal barrier was breached, and the vertical barrier closed the position.  
+
+The following key estimations can be made: 
+- Profit hits (green) cluster in periods of upward price movement, while stop-losses (red) dominate during downtrends.  
+- Blue vertical barrier hits tend to appear during periods of sideways or low-volatility price action, where neither threshold was reached before the holding period expired.  
+- The discrete labeling hides subtle differences in how quickly events reach their respective barriers. Two identical labels may represent very different dynamics (e.g., immediate profit hit vs. late profit hit).  
+
+<img width="1770" height="522" alt="image" src="https://github.com/user-attachments/assets/5e42e974-dd7c-4800-b223-05db7cd34a92" />
+
+---
+
+The same dataset and barrier parameters are then used to generate **TTBM labels**. Here, the labeling process retains the same barrier definitions, but instead of assigning a discrete label at the point of barrier breach, it applies a **decay function**  to encode both the direction and time-to-barrier into a continuous value. The user can select between exponential, linear or hyperbolic decay (hyperbolic was chosen here).
+
+In the second chart:
+
+- **Green dots** still represent profit barrier hits, and **red dots** indicate stop-loss hits.  
+- Dot size and opacity now encode the **decay factor**, with larger and brighter dots representing events where the barrier was reached quickly and smaller, faded dots indicating slower hits.  
+- **White dots** replace the blue vertical barrier markers. These represent events that expired without hitting either horizontal barrier, assigned a decayed value reflecting the elapsed time relative to the vertical barrier.  
+
+The following key observations can be made:
+- Compared to the hard barrier labels, TTBM captures a richer picture of event dynamics. Early barrier hits stand out as prominent markers, while late barrier hits are visually subdued.  
+- In flat or choppy market conditions, most events decay to smaller values, suggesting lower confidence in the directional signal.  
+- Vertical barrier expirations (white dots) clearly dominate periods of sideways price movement, reinforcing the idea that the market offered few actionable opportunities.  
+
+<img width="1768" height="477" alt="image" src="https://github.com/user-attachments/assets/7608558e-a1f8-42ab-8c46-c33504baea96" />
+
+---
+
+Continuing we look to compare the two strategies further using machine learning and a hypothetical portfolio simulation. The features chosen as the explanatory variables for the machine learning models are the exponentially-weighted moving average of the 10 intervals prior to the event start and the trend in the price over the previous 10 intervals. These features do not aim to predict all of the variation in price, however provide enough explanation to allow us to compare the two methodologies.
+
+The simulation interprets the signals predicted by the machine learning models according to the selected strategy: hard barrier signals are mapped to fixed long, short, or neutral positions, while regression outputs determine position sizes proportionally. For each event in the test split, the simulation executes trades based on the model’s signals and the actual asset returns, updating the portfolio’s capital accordingly. For a comprehensive evaluation, further robustness checks, out-of-sample validation across multiple timeframes, and consideration of real-world trading constraints would be necessary; however this initial analysis is useful for comparing the relative performance of the two methodologies.
+
+For this scenario we assume initial capital of £1,000. The hard barrier methodology will take a fixed 25% (of capital) position long or short depending on the predicted signal, or not make a trade if the prediction is that the vertical barrier will be hit. For the TTBM barriers, the size of the trade will be linearly scaled by the strength of the signal (a signal of +0.5 will lead to a 12.5% position being taken). Signals with an absolute value of less than 0.25 are considered to be too weak to make a trade. 
+
+The results in this case show that the TTBM methodology led to a higher return (2.24% vs 1.48%), however there are few more interesting observations. As expected, the two models almost always signal in the same direction given they were modelled using the same explanatory variables, however the changes in portfolio values under TTBM are a lot less volatile and unpredictable displaying a stronger upward trend. Even in the cases where both models made incorrect predictions (leading to a decrease in portfolio value), the signal given by TTBM was a lot weaker leading to a smaller drop in portfolio value
+
+<img width="1237" height="437" alt="image" src="https://github.com/user-attachments/assets/5bf2441f-de27-4631-8fbf-3e7258c2a445" />
+
+---
+
+### 3.1 Limitations of the analysis
+
+- **Simplified trading strategy assumptions:**   The portfolio simulation uses a fixed position size (25% of portfolio) for hard barrier signals and a scaled position size for TTBM signals. This does not account for more sophisticated position sizing methods (e.g., Kelly criterion, volatility targeting).
+- **Simplistic features**  To reduce complexity, the explanatory features used in the machine learning process are mainly functions of price. Introducing more sophisticated features could increase the explanatory power and reduce the chance of multicollinearity.
+- **No transaction costs or slippage:**  The analysis assumes frictionless trading, ignoring bid-ask spreads, commissions, and slippage, which can materially impact real-world performance.
+- **Hardcoded TTBM decay parameters:**  The decay functions (exponential, linear, hyperbolic) use fixed parameters (`lambda`, etc.), which may not be optimal for all assets or market conditions.
+- **Single asset focus:**  Results are based on one asset or a limited set of assets. Findings may not generalize across different markets (e.g., equities, FX, crypto).
+- **Limited barrier configurations explored:**  Only a few combinations of profit/stop multiples and vertical windows are tested. Different configurations might lead to different relative performances.
+- **No out-of-sample validation:**  The same dataset is used for feature extraction, labeling, and simulation, which may lead to overfitting or optimistic performance estimates.
+- **Simplistic volatility adjustment:**  Barrier thresholds are defined relative to volatility, but the volatility measure itself (e.g., rolling standard deviation) may not fully capture market dynamics.
+- **Market regime shifts ignored:**  The analysis assumes stationary behavior, but financial markets are subject to regime changes that could impact the relative effectiveness of labeling methods.
 
 
 
