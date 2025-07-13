@@ -628,7 +628,7 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
         MLPipeline::PortfolioConfig config;
         config.starting_capital = 10000.0;
         config.max_position_pct = 0.1;
-        config.position_threshold = 0.01;
+        config.position_threshold = 0.25;
         config.hard_barrier_position_pct = 0.05;
         config.trading_days_per_year = 252.0;
         config.max_trade_decisions_logged = 100;

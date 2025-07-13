@@ -14,8 +14,8 @@ public:
     static int getMinMarkerSize() { return 6; }
     static int getMaxMarkerSize() { return 15; }
     
-    static double getTTBMPositionMultiplier() { return 3.0; }
-    static double getHardBarrierPositionSize() { return 2.0; }
+    static double getTTBMPositionMultiplier() { return 5.0; }
+    static double getHardBarrierPositionSize() { return 5.0; }
     static double getTradingThreshold() { return 0.1; }
     
     static QString getDateTimeFormat() { return "yyyy-MM-dd HH:mm"; }

@@ -24,6 +24,6 @@ namespace Constants {
     namespace Portfolio {
         constexpr double TRADING_DAYS_PER_YEAR = 252.0;
         constexpr double MAX_POSITION_PCT = 0.05;
-        constexpr double POSITION_THRESHOLD = 0.05;
+        constexpr double POSITION_THRESHOLD = 0.25;
     }
 }
