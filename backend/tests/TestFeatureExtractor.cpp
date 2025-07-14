@@ -497,7 +497,11 @@ TEST(FeatureExtractorTest, DaysSinceLastEvent_ShortWindow) {
 TEST(FeatureExtractorTest, DaysSinceLastEvent_MultipleEvents) {
     vector<PreprocessedRow> rows;
     for (int i = 0; i < 10; ++i) rows.push_back(makeRow(100, "2021-01-" + to_string(i+1)));
-    vector<LabeledEvent> events = {makeEvent(1, "2021-01-03", 100, 100), makeEvent(5, 1, "2021-01-06", 100, 100), makeEvent(9, 1, "2021-01-10", 100, 100)};
+    vector<LabeledEvent> events = {
+        makeEvent(1, "2021-01-03", 100, 100),
+        makeEvent(1, "2021-01-06", 100, 100),
+        makeEvent(1, "2021-01-10", 100, 100)
+    };
     set<string> features = {"Days since last event"};
     auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, events);
     // For event at index 2: no previous event, so 0
@@ -523,7 +527,11 @@ TEST(FeatureExtractorTest, DaysSinceLastEvent_FirstEvent) {
 TEST(FeatureExtractorTest, DaysSinceLastEvent_FarApart) {
     vector<PreprocessedRow> rows;
     for (int i = 0; i < 20; ++i) rows.push_back(makeRow(100, "2021-01-" + to_string(i+1)));
-    vector<LabeledEvent> events = {makeEvent(1, "2021-01-01", 100, 100), makeEvent(10, 1, "2021-01-11", 100, 100), makeEvent(19, 1, "2021-01-20", 100, 100)};
+    vector<LabeledEvent> events = {
+        makeEvent(1, "2021-01-01", 100, 100),
+        makeEvent(1, "2021-01-11", 100, 100),
+        makeEvent(1, "2021-01-20", 100, 100)
+    };
     set<string> features = {"Days since last event"};
     auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, events);
     // For event at index 0: 0
@@ -538,7 +546,10 @@ TEST(FeatureExtractorTest, DaysSinceLastEvent_FarApart) {
 TEST(FeatureExtractorTest, DaysSinceLastEvent_StartAndEnd) {
     vector<PreprocessedRow> rows;
     for (int i = 0; i < 7; ++i) rows.push_back(makeRow(100, "2021-01-" + to_string(i+1)));
-    vector<LabeledEvent> events = {makeEvent(1, "2021-01-01", 100, 100), makeEvent(6, 1, "2021-01-07", 100, 100)};
+    vector<LabeledEvent> events = {
+        makeEvent(1, "2021-01-01", 100, 100),
+        makeEvent(1, "2021-01-07", 100, 100)
+    };
     set<string> features = {"Days since last event"};
     auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, events);
     // First event: 0
