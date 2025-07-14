@@ -355,7 +355,6 @@ TEST(FeatureExtractorTest, CloseOverHigh5D_ShortWindow) {
     EXPECT_NEAR(result.features[0]["Current close price relative to 5-day high"], 1.0, 0.01);
 }
 
-// ------------------ CLOSE_OVER_HIGH_5D (Additional Tests) ------------------
 // Case: High is at the start of the window
 TEST(FeatureExtractorTest, CloseOverHigh5D_HighAtStart) {
     vector<PreprocessedRow> rows = {makeRow(200, "2021-01-01"), makeRow(100, "2021-01-02"), makeRow(100, "2021-01-03"), makeRow(100, "2021-01-04"), makeRow(100, "2021-01-05")};
@@ -499,11 +498,7 @@ TEST(FeatureExtractorTest, DaysSinceLastEvent_ShortWindow) {
 TEST(FeatureExtractorTest, DaysSinceLastEvent_MultipleEvents) {
     vector<PreprocessedRow> rows;
     for (int i = 0; i < 10; ++i) rows.push_back(makeRow(100, "2021-01-" + to_string(i+1)));
-    vector<LabeledEvent> events = {
-        makeEvent(2, 1, "2021-01-03", 100, 100),
-        makeEvent(5, 1, "2021-01-06", 100, 100),
-        makeEvent(9, 1, "2021-01-10", 100, 100)
-    };
+    vector<LabeledEvent> events = {makeEvent(2, 1, "2021-01-03", 100, 100), makeEvent(5, 1, "2021-01-06", 100, 100), makeEvent(9, 1, "2021-01-10", 100, 100)};
     set<string> features = {"Days since last event"};
     auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, events);
     // For event at index 2: no previous event, so 0
@@ -514,6 +509,7 @@ TEST(FeatureExtractorTest, DaysSinceLastEvent_MultipleEvents) {
     EXPECT_EQ(result.features[2]["Days since last event"], 4);
 }
 
+// Case: No previous event (first event)
 TEST(FeatureExtractorTest, DaysSinceLastEvent_FirstEvent) {
     vector<PreprocessedRow> rows;
     for (int i = 0; i < 5; ++i) rows.push_back(makeRow(100, "2021-01-" + to_string(i+1)));
@@ -524,14 +520,11 @@ TEST(FeatureExtractorTest, DaysSinceLastEvent_FirstEvent) {
     EXPECT_EQ(result.features[0]["Days since last event"], 0);
 }
 
+// Case: Events far apart
 TEST(FeatureExtractorTest, DaysSinceLastEvent_FarApart) {
     vector<PreprocessedRow> rows;
     for (int i = 0; i < 20; ++i) rows.push_back(makeRow(100, "2021-01-" + to_string(i+1)));
-    vector<LabeledEvent> events = {
-        makeEvent(0, 1, "2021-01-01", 100, 100),
-        makeEvent(10, 1, "2021-01-11", 100, 100),
-        makeEvent(19, 1, "2021-01-20", 100, 100)
-    };
+    vector<LabeledEvent> events = {makeEvent(0, 1, "2021-01-01", 100, 100), makeEvent(10, 1, "2021-01-11", 100, 100), makeEvent(19, 1, "2021-01-20", 100, 100)};
     set<string> features = {"Days since last event"};
     auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, events);
     // For event at index 0: 0
@@ -542,13 +535,11 @@ TEST(FeatureExtractorTest, DaysSinceLastEvent_FarApart) {
     EXPECT_EQ(result.features[2]["Days since last event"], 9);
 }
 
+// Case: Event at the start and end
 TEST(FeatureExtractorTest, DaysSinceLastEvent_StartAndEnd) {
     vector<PreprocessedRow> rows;
     for (int i = 0; i < 7; ++i) rows.push_back(makeRow(100, "2021-01-" + to_string(i+1)));
-    vector<LabeledEvent> events = {
-        makeEvent(0, 1, "2021-01-01", 100, 100),
-        makeEvent(6, 1, "2021-01-07", 100, 100)
-    };
+    vector<LabeledEvent> events = {makeEvent(0, 1, "2021-01-01", 100, 100), makeEvent(6, 1, "2021-01-07", 100, 100)};
     set<string> features = {"Days since last event"};
     auto result = FeatureExtractor::extractFeaturesForClassification(features, rows, events);
     // First event: 0
