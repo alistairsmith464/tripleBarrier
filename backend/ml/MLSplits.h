@@ -41,7 +41,7 @@ namespace MLSplitUtils {
     inline std::vector<PurgedFold> purgedKFoldSplit(
         size_t N,
         int n_splits = 5,
-        int embargo = 0  // Embargo period to prevent temporal leakage
+        int embargo = 0
     ) {
         if (N == 0 || n_splits <= 0) {
             throw std::invalid_argument("Invalid parameters for purged K-fold split");
@@ -56,26 +56,21 @@ namespace MLSplitUtils {
             
             std::vector<size_t> val_indices, train_indices;
             
-            // Validation indices are simply the current fold
             for (size_t i = val_start; i < val_end; ++i) {
                 val_indices.push_back(i);
             }
             
-            // Training indices exclude validation fold AND embargo periods
             for (size_t i = 0; i < N; ++i) {
                 if (i >= val_start && i < val_end) {
-                    // Skip validation indices
                     continue;
                 }
                 
-                // Apply embargo: exclude samples too close to validation period
                 bool in_embargo = false;
                 if (embargo > 0) {
-                    // Embargo before validation period
                     if (i >= val_start - embargo && i < val_start) {
                         in_embargo = true;
                     }
-                    // Embargo after validation period  
+                    
                     if (i >= val_end && i < val_end + embargo) {
                         in_embargo = true;
                     }

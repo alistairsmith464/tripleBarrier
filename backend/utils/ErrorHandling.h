@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <iostream> // For std::cerr
+#include <iostream>
 
 namespace TripleBarrier {
 
