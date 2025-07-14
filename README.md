@@ -1,4 +1,4 @@
-# Triple Barrier Labelling with Time-Decayed Labels
+# Triple barrier labelling with time-decayed labels
 
 ## Summary
 
@@ -18,7 +18,7 @@ Financial time series are inherently noisy, non-stationary, and prone to sudden 
 
 To address this, Prado introduced the triple barrier method, which improves upon fixed time horizon labelling by allowing for dynamic exit conditions based on price movements and holding periods. This project implements the triple barrier Method as a pre-processing step for machine learning and extends it by incorporating a time-decayed label methodology. The goal is to provide more informative targets for predictive modeling, enabling refined position sizing and risk management.
 
-### 1.1 The Triple Barrier Method
+### 1.1 The triple barrier method
 
 The triple barrier method defines a framework for labelling financial data based on the outcome of trade-like events within a specified time window.  
 
@@ -57,7 +57,7 @@ This approach accounts for volatility and provides a more realistic labelling me
 
  ---
 
-### 1.2 Event Definition and CUSUM Filter
+### 1.2 Event definition and CUSUM filter
 
 A critical component of the Triple Barrier Method is the definition of event windows, which determine the points in time where the labelling process begins. In financial time series, consecutive events often overlap, leading to label leakage and dependence between samples. To address this, López de Prado proposes using a cumulative sum (CUSUM) filter to identify significant price movements and define non-overlapping event windows.  
 
@@ -69,7 +69,7 @@ By applying the CUSUM filter, the dataset is reduced to a series of timestamps w
 
 ---
 
-### 1.3 Extending the Theory: Time-Decayed Labelling
+### 1.3 Extending the theory: time-decayed labelling
 
 While the Triple Barrier Method provides a robust framework for labelling, its hard assignment of `+1`, `-1`, or `0` does not fully capture the dynamics of financial markets. Two paths that hit the same barrier may differ greatly in how quickly they do so, which is critical information for risk and trade management.  
 
@@ -143,7 +143,7 @@ Various features are available within the model to act as the explanatory variab
 
 ---
 
-## 3. Results: Comparing Hard Barrier and TTBM labelling Approaches
+## 3. Results: comparing hard barrier and TTBM labelling approaches
 
 In this section, a comparison of the performance of hard barrier labels and the time to barrier modification (TTBM) labels when used to train identical machine learning models is performed. By evaluating the resulting trading signals and portfolio metrics, it highlights the practical differences between these two labelling approaches. Illustrative data generated from a Brownian motion process is used to provide data. This controlled setup allows us to explore the outputs of both barrier types in isolation, though it is important to note the following simplifying assumptions:
 
