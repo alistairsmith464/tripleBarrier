@@ -71,12 +71,6 @@ TEST(FeatureCalculatorTest, DayOfWeek) {
     EXPECT_GE(FeatureCalculator::dayOfWeek(timestamps, 0), 0);
 }
 
-TEST(FeatureCalculatorTest, DaysSinceLastEvent) {
-    std::vector<int> eventIndices = {2, 5, 10};
-    EXPECT_EQ(FeatureCalculator::daysSinceLastEvent(eventIndices, 2), 5);
-    EXPECT_EQ(FeatureCalculator::daysSinceLastEvent(eventIndices, 0), -1);
-}
-
 TEST(FeatureCalculatorTest, CalculateFeatures) {
     std::vector<double> prices = {100, 101, 102, 103, 104, 105};
     std::vector<std::string> timestamps = {"2023-07-01", "2023-07-02", "2023-07-03", "2023-07-04", "2023-07-05", "2023-07-06"};
@@ -181,12 +175,6 @@ TEST(FeatureCalculatorTest, DayOfWeek_Detailed) {
     EXPECT_GE(dow2, 0);
 }
 
-TEST(FeatureCalculatorTest, DaysSinceLastEvent_Detailed) {
-    std::vector<int> eventIndices = {2, 5, 10, 15};
-    EXPECT_EQ(FeatureCalculator::daysSinceLastEvent(eventIndices, 2), 5);
-    EXPECT_EQ(FeatureCalculator::daysSinceLastEvent(eventIndices, 3), 5);
-    EXPECT_EQ(FeatureCalculator::daysSinceLastEvent(eventIndices, 0), -1);
-}
 TEST(FeatureCalculatorTest, CalculateFeatures_Detailed) {
     std::vector<double> prices = {100, 101, 102, 103, 104, 105, 106, 107, 108, 109};
     std::vector<std::string> timestamps = {"2023-07-01", "2023-07-02", "2023-07-03", "2023-07-04", "2023-07-05", "2023-07-06", "2023-07-07", "2023-07-08", "2023-07-09", "2023-07-10"};

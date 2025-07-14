@@ -44,5 +44,4 @@ public:
     static double closeOverHighND(const std::vector<double>& prices, int idx, int n);
     static double slopeLRND(const std::vector<double>& prices, int idx, int n);
     static int dayOfWeek(const std::vector<std::string>& timestamps, int idx);
-    static int daysSinceLastEvent(const std::vector<int>& eventIndices, int idx);
 };
