@@ -154,7 +154,7 @@ In this section, a comparison of the performance of hard barrier labels and the 
 
 The first dataset covers a hypothetical asset over a week, with prices sampled every minute. The simulated price path shows no strong trend but exhibits moderate volatility throughout.  
 
-The hard barrier implementation applies a vertical barrier after 30 intervals (corresponding to a holding period of 30 minutes) and sets equal profit and stop-loss multiples (five times the estimated volatility at each event’s start). THe multiples are set fairly high given the large amount of volatility shown. 
+The hard barrier implementation applies a vertical barrier after 30 intervals (corresponding to a holding period of 30 minutes) and sets equal profit and stop-loss multiples (five times the estimated volatility at each event’s start). The multiples are set fairly high given the large amount of volatility shown. 
 
 In the first chart, the labelling outcomes are visualized:
 
