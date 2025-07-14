@@ -28,10 +28,4 @@ public:
         bool tune_enabled,
         const std::vector<LabeledEvent>& labeledEvents
     );
-    
-    static QString formatSampleTradingDecisions(
-        const std::vector<double>& predictions,
-        bool is_ttbm,
-        int max_samples = 10
-    );
 };

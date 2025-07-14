@@ -84,8 +84,7 @@ ResultType runPipelineTemplate(
             signals.assign(y_prob.begin(), y_prob.end());
         }
         
-        PortfolioSimulation portfolio = simulate_portfolio(signals, returns_eval, 
-                                                         config.barrier_type == BarrierType::HARD);
+        PortfolioSimulation portfolio = simulate_portfolio(signals, returns_eval);
         
         std::vector<double> y_prob_d(y_prob.begin(), y_prob.end());
         std::vector<TradeLogEntry> trade_log = portfolio.trade_log;
@@ -120,7 +119,7 @@ ResultType runPipelineTemplate(
             double mean_pred = sum_pred / y_pred.size();
         }
         
-        PortfolioSimulation portfolio = simulate_portfolio(y_pred, returns_eval, false);
+        PortfolioSimulation portfolio = simulate_portfolio(y_pred, returns_eval);
         
         std::vector<TradeLogEntry> trade_log = portfolio.trade_log;
         return ResultType{y_pred, portfolio, trade_log};

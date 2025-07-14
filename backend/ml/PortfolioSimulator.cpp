@@ -6,13 +6,13 @@
 #include <stdexcept>
 #include <iostream>
 #include <numeric>
+#include <iomanip>
 
 namespace MLPipeline {
 
 PortfolioSimulation simulate_portfolio(
     const std::vector<double>& trading_signals,
     const std::vector<double>& returns,
-    bool is_hard_barrier,
     const PortfolioConfig& portfolio_config
 ) {  
     if (trading_signals.empty() || returns.empty()) {
@@ -30,46 +30,37 @@ PortfolioSimulation simulate_portfolio(
     
     int total_trades = 0;
     int winning_trades = 0;
-    double total_pnl = 0;
     std::vector<std::string> trade_decisions;
     std::vector<double> trade_returns;
     std::vector<TradeLogEntry> trade_log;
+
     for (size_t i = 0; i < trading_signals.size(); ++i) {
         double position_pct = 0;
         std::string decision;
         double trade_capital = capital;
+        position_pct = std::min(std::abs(trading_signals[i]) * portfolio_config.hard_barrier_position_pct, portfolio_config.hard_barrier_position_pct);
+        if (trading_signals[i] < 0) position_pct = -position_pct;
         
-        if (is_hard_barrier) {
-            if (trading_signals[i] > 0.5) {
-                position_pct = portfolio_config.hard_barrier_position_pct;
-                decision = "BUY " + std::to_string(portfolio_config.hard_barrier_position_pct * 100) + "%";
-            } else if (trading_signals[i] < -0.5) {
-                position_pct = -portfolio_config.hard_barrier_position_pct;
-                decision = "SELL " + std::to_string(portfolio_config.hard_barrier_position_pct * 100) + "%";
-            } else {
-                position_pct = 0;
-                decision = "HOLD";
-            }
+        if (trading_signals[i] > portfolio_config.position_threshold) {
+            decision = "BUY " + std::to_string(position_pct * 100) + "%";
+        } else if (trading_signals[i] < -portfolio_config.position_threshold) {
+            decision = "SELL " + std::to_string(std::abs(position_pct) * 100) + "%";
         } else {
-            position_pct = std::min(std::abs(trading_signals[i]) * portfolio_config.max_position_pct, portfolio_config.max_position_pct);
-            if (trading_signals[i] < 0) position_pct = -position_pct;
-            
-            if (position_pct > portfolio_config.position_threshold) {
-                decision = "BUY " + std::to_string(position_pct * 100) + "%";
-            } else if (position_pct < -portfolio_config.position_threshold) {
-                decision = "SELL " + std::to_string(std::abs(position_pct) * 100) + "%";
-            } else {
-                decision = "HOLD";
-            }
+            decision = "HOLD";
         }
         
-        if (std::abs(position_pct) > portfolio_config.position_threshold) {
+        if (decision != "HOLD") {
             total_trades++;
-            double pnl = position_pct * trade_capital * returns[i]; 
-            total_pnl += pnl;
+            double pnl = position_pct * trade_capital * returns[i];
             capital += pnl;
+
             trade_returns.push_back(pnl); 
             if (pnl > 0) winning_trades++;
+
+            std::cout << std::fixed << std::setprecision(2)
+                        << "Index " << i << ": "
+                      << "Trade " << total_trades << ": " << decision
+                      << ", PnL: " << pnl << ", Capital: " << capital << std::endl;
 
             trade_log.push_back(TradeLogEntry{
                 i,

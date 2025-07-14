@@ -22,7 +22,7 @@ PortfolioSimulation BarrierMLStrategy::runPortfolioSimulation(
     const std::vector<double>& returns,
     const PortfolioConfig& portfolio_config) {
     
-    return simulate_portfolio(trading_signals, returns, false, portfolio_config);
+    return simulate_portfolio(trading_signals, returns, portfolio_config);
 }
 
 FeatureExtractor::FeatureExtractionResult HardBarrierStrategy::extractFeatures(
@@ -75,7 +75,7 @@ BarrierMLStrategy::PredictionResult HardBarrierStrategy::trainAndPredict(
         }
         
         auto [train_idx, val_idx, test_idx] = createTrainValTestSplits(X_clean.size(), config);
-        
+
         if (train_idx.empty()) {
             throw DataProcessingException("No training samples available after split");
         }
@@ -180,9 +180,9 @@ std::vector<double> HardBarrierStrategy::convertClassificationToTradingSignals(
         double signal = 0.0;
         
         int pred = predictions[i];
-        if (pred == 1) {
+        if (pred == 2) {
             signal = 1.0;
-        } else if (pred == -1) {
+        } else if (pred == 0) {
             signal = -1.0;
         } else {
             signal = 0.0;

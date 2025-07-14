@@ -13,7 +13,7 @@ namespace Constants {
     }
     
     namespace Defaults {
-        constexpr double STARTING_CAPITAL = 100000.0;
+        constexpr double STARTING_CAPITAL = 1000.0;
         constexpr int DEFAULT_VOLATILITY_WINDOW = 20;
         constexpr double DEFAULT_CUSUM_THRESHOLD = 5.0;
         constexpr int DEFAULT_VERTICAL_BARRIER = 50;
@@ -22,8 +22,6 @@ namespace Constants {
     }
     
     namespace Portfolio {
-        constexpr double TRADING_DAYS_PER_YEAR = 252.0;
-        constexpr double MAX_POSITION_PCT = 0.05;
         constexpr double POSITION_THRESHOLD = 0.25;
     }
 }

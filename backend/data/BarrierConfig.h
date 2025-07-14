@@ -14,7 +14,7 @@ struct BarrierConfig {
     
     double ttbm_lambda = 0.3;
     double ttbm_alpha = 0.2;
-    double ttbm_beta = 0.5;
+    double ttbm_beta = 0.2;
     
     void validate() const {
         if (profit_multiple <= 0.0) {

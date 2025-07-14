@@ -194,6 +194,4 @@ void FeaturePreviewDialog::showMLRegressionResults(const MLResults& results) {
     m_metricsLabel->setText(metrics);
     m_importancesLabel->setText("");
     displayTradeLog(results.trade_log);
-    QString debug = FeaturePreviewUtils::formatSampleTradingDecisions(results.predictions, true, 10);
-    m_debugInfoLabel->setText(debug);
 }

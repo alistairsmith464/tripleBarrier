@@ -626,14 +626,12 @@ MLPipeline::PortfolioResults PortfolioServiceImpl::runSimulation(
         }
         
         MLPipeline::PortfolioConfig config;
-        config.starting_capital = 10000.0;
-        config.max_position_pct = 0.1;
+        config.starting_capital = 1000.0;
         config.position_threshold = 0.25;
-        config.hard_barrier_position_pct = 0.05;
-        config.trading_days_per_year = 252.0;
+        config.hard_barrier_position_pct = 0.25;
         config.max_trade_decisions_logged = 100;
         
-        auto simulation = MLPipeline::simulate_portfolio(predictions, returns, !useTTBM, config);
+        auto simulation = MLPipeline::simulate_portfolio(predictions, returns, config);
         
         MLPipeline::PortfolioResults results;
         results.starting_capital = simulation.starting_capital;

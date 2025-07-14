@@ -83,15 +83,15 @@ QString FeaturePreviewUtils::formatTradingStrategy(bool is_ttbm) {
     if (is_ttbm) {
         double multiplier = VisualizationConfig::getTTBMPositionMultiplier();
         return QString("<b>Trading Strategy:</b><br>"
-               "• Position size = Signal strength × %1%% of portfolio<br>"
+               "• Position size = Signal strength × %1% of portfolio<br>"
                "• Positive signal: Long position<br>"
                "• Negative signal: Short position<br>"
                "• Signal near zero: Small/no position<br><br>").arg(multiplier);
     } else {
         double positionSize = VisualizationConfig::getHardBarrierPositionSize();
         return QString("<b>Trading Strategy:</b><br>"
-               "• Signal +1: Long position (%1%% of portfolio)<br>"
-               "• Signal -1: Short position (%1%% of portfolio)<br>"
+               "• Signal +1: Long position (%1% of portfolio)<br>"
+               "• Signal -1: Short position (%1% of portfolio)<br>"
                "• Signal 0: No position<br><br>").arg(positionSize);
     }
 }
@@ -165,49 +165,4 @@ QString FeaturePreviewUtils::formatModelInfo(
         
         return model_info + label_analysis;
     }
-}
-
-QString FeaturePreviewUtils::formatSampleTradingDecisions(
-    const std::vector<double>& predictions,
-    bool is_ttbm,
-    int max_samples
-) {
-    QString debug = "<b>Sample Trading Decisions (first " + QString::number(max_samples) + "):</b><br>";
-    
-    for (size_t i = 0; i < std::min(size_t(max_samples), predictions.size()); ++i) {
-        double pred = predictions[i];
-        
-        QString trade_info;
-        if (is_ttbm) {
-            double multiplier = VisualizationConfig::getTTBMPositionMultiplier();
-            double threshold = VisualizationConfig::getTradingThreshold();
-            double position_size = std::abs(pred) * multiplier;
-            QString direction = pred > 0 ? "LONG" : "SHORT";
-            
-            if (std::abs(pred) < threshold) {
-                trade_info = QString("Sample %1: Signal=%2 → NO TRADE (signal too weak)")
-                            .arg(i + 1).arg(pred, 0, 'f', 4);
-            } else {
-                trade_info = QString("Sample %1: Signal=%2 → %3 %4%% position")
-                            .arg(i + 1).arg(pred, 0, 'f', 4).arg(direction).arg(position_size, 0, 'f', 2);
-            }
-        } else {
-            double positionSize = VisualizationConfig::getHardBarrierPositionSize();
-            double threshold = VisualizationConfig::getTradingThreshold();
-            if (std::abs(pred - 1.0) < threshold) {
-                trade_info = QString("Sample %1: Signal=%2 → LONG %3%% position")
-                            .arg(i + 1).arg(pred, 0, 'f', 4).arg(positionSize);
-            } else if (std::abs(pred + 1.0) < threshold) {
-                trade_info = QString("Sample %1: Signal=%2 → SHORT %3%% position")
-                            .arg(i + 1).arg(pred, 0, 'f', 4).arg(positionSize);
-            } else {
-                trade_info = QString("Sample %1: Signal=%2 → NO TRADE")
-                            .arg(i + 1).arg(pred, 0, 'f', 4);
-            }
-        }
-        
-        debug += trade_info + "<br>";
-    }
-    
-    return debug;
 }

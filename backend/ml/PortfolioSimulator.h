@@ -28,7 +28,7 @@ struct PortfolioSimulation {
 };
 
 struct PortfolioResults {
-    double starting_capital = 100000.0;
+    double starting_capital = 1000.0;
     double final_value = 0.0;
     double total_return = 0.0;
     double max_drawdown = 0.0;
@@ -62,18 +62,15 @@ struct BarrierDiagnostics {
 };
 
 struct PortfolioConfig {
-    double starting_capital = 10000.0;
-    double max_position_pct = 0.05;
+    double starting_capital = 1000.0;
     double position_threshold = 0.25;
-    double hard_barrier_position_pct = 0.05;
-    double trading_days_per_year = 252.0;
+    double hard_barrier_position_pct = 0.25;
     int max_trade_decisions_logged = 100;
 };
 
 PortfolioSimulation simulate_portfolio(
     const std::vector<double>& trading_signals,
     const std::vector<double>& returns,
-    bool is_hard_barrier,
     const PortfolioConfig& portfolio_config = PortfolioConfig{}
 );
 
